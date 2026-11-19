@@ -1,6 +1,6 @@
 import { Layout, Tabbar, awaitRedraw } from "@dhtmlx/suite";
 import type { LayoutCell, Mountable, MountTarget, RegionPlaceholder, TabDefinition, Tabs as TabsApi, TabsEvents, TabsOptions } from "../../api/types";
-import { placeholder as applyPlaceholder, regionStatus, type CellStatus } from "../CellStatus";
+import { hold, placeholder as applyPlaceholder, regionStatus, type CellStatus } from "../CellStatus";
 import { attachContent } from "../../api/services";
 import { UiPreferences } from "../../UiPreferences";
 import { Component } from "../list/component";
@@ -150,6 +150,8 @@ export class Tabs extends Component<TabsEvents> implements TabsApi{
   attach(id:string,content:Mountable):void{if(!this.destroyed)attachContent(this.cell(id),content,this.released.signal);}
   /** What a tab without content shows: the default text, its own text or the loading indicator. */
   placeholder(id:string,options:RegionPlaceholder):void{this.known(id);if(!this.destroyed)applyPlaceholder("Tabs",this.statuses.get(id)!,options);}
+  /** Marks a tab whose content is about to change or ends the mark (as `PageLayout.busy`). */
+  busy(id:string,on:boolean):void{this.known(id);if(!this.destroyed)hold("Tabs",this.statuses.get(id)!,on);}
   /** The active tab's id. */
   active():string{return this.tabId(this.tabbar.getActive());}
   /**

@@ -1,6 +1,6 @@
 import { Layout, awaitRedraw } from "@dhtmlx/suite";
 import type { Accordion as AccordionApi, LayoutCell, Mountable, PageLayout as PageLayoutApi, PageLayoutEvents, PageLayoutOptions, PageRegion, RegionPlaceholder, Tabs as TabsApi } from "../../api/types";
-import { placeholder as applyPlaceholder, regionStatus, type CellStatus } from "../CellStatus";
+import { hold, placeholder as applyPlaceholder, regionStatus, type CellStatus } from "../CellStatus";
 import { attachContent } from "../../api/services";
 import { UiPreferences } from "../../UiPreferences";
 import { collapseMotion } from "../../Motion";
@@ -263,6 +263,17 @@ export class PageLayout extends Component<PageLayoutEvents> implements PageLayou
     if(this.destroyed)return;
     const owner=this.tabbed.get(id)??this.sectioned.get(id);
     if(owner)owner.placeholder(id,options);else applyPlaceholder("PageLayout",this.statuses.get(id)!,options);
+  }
+  /**
+   * Marks a region whose content is about to change (`true`) or ends the mark (`false`): the loading indicator over its
+   * content after the usual delay, `aria-busy` on the content. Mounting or replacing content keeps it; only this call
+   * and destroying the layout end it. A tab or section region is its component's.
+   */
+  busy(id:string,on:boolean):void{
+    this.region(id);
+    if(this.destroyed)return;
+    const owner=this.tabbed.get(id)??this.sectioned.get(id);
+    if(owner)owner.busy(id,on);else hold("PageLayout",this.statuses.get(id)!,on);
   }
   /** Whether a `collapsable` leaf is collapsed; another id throws `Error`. */
   isCollapsed(id:string):boolean{return this.collapsible(id).config.collapsed===true;}

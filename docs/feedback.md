@@ -947,3 +947,7 @@
 <a id="fb-0231"></a>
 
 ## FB-0231 — Match the vertical and horizontal inner divider grips
+
+<a id="fb-0232"></a>
+
+## FB-0232 — A busy state over a region that already holds content

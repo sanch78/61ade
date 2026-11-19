@@ -25,8 +25,9 @@ let observer: MutationObserver | undefined;
  * header): the theme's spinner over a dimmed area while busy (after `BUSY_DELAY`; `aria-busy` on the content at once),
  * otherwise its text in the look of the tree's empty text. It stays rendered (visually hidden with nothing to say), so
  * a new text is announced. With `auto` it shows only while the cell holds nothing (no widget, component or element):
- * content ends `busy`, and the text waits while busy. Suite leaves a foreign node in place across its
- * repaints; one observer of the page puts the element back when Suite creates the cell's node again (a collapsed
+ * content ends `busy`, and the text waits while busy. `hold` marks a region whose content is about to change
+ * (FB-0232): the same indicator over the content, which content coming or going does not end. Suite leaves a foreign
+ * node in place across its repaints; one observer of the page puts the element back when Suite creates the cell's node again (a collapsed
  * region expanding) and notices content coming and going.
  */
 export class CellStatus {
@@ -36,6 +37,8 @@ export class CellStatus {
   private message?: string;
   private kind: StatusKind = "empty";
   private loading = false;
+  /** Marked by `hold`: busy until released, whatever the cell holds. */
+  private held = false;
   private spinning = false;
   private timer?: ReturnType<typeof setTimeout>;
   private empty = true;
@@ -69,10 +72,29 @@ export class CellStatus {
   /** Starts or ends a load: `aria-busy` at once, the spinner once the load outlasts `BUSY_DELAY`. */
   busy(busy: boolean): void {
     if (this.released || busy === this.loading) return;
+    const was = this.active;
     this.loading = busy;
-    clearTimeout(this.timer);
-    this.spinning = false;
-    if (busy) this.timer = setTimeout(() => { this.spinning = true; this.render(); }, BUSY_DELAY);
+    this.started(was);
+  }
+
+  /** Marks the cell's content as about to change (or ends the mark): as `busy`, but content does not end it. */
+  hold(held: boolean): void {
+    if (this.released || held === this.held) return;
+    const was = this.active;
+    this.held = held;
+    this.started(was);
+  }
+
+  private get active(): boolean { return this.loading || this.held; }
+
+  /** The delay starts when the cell becomes busy and ends when it is no longer; a change in between keeps it. */
+  private started(was: boolean): void {
+    if (this.active !== was) {
+      clearTimeout(this.timer);
+      this.spinning = false;
+      if (this.active) this.timer = setTimeout(() => { this.spinning = true; this.render(); }, BUSY_DELAY);
+    }
+    // The spoken text follows the reason (loading or held) also while the spinner shows.
     this.render();
   }
 
@@ -87,11 +109,11 @@ export class CellStatus {
     if (this.options.auto) {
       const empty = !this.cell.getWidget?.() && !this.cell.config?.html;
       if (empty !== this.empty) { this.empty = empty; this.render(); }
-      // A region with content shows its content: `busy` ends (or is ignored) there.
+      // A region with content shows its content: `busy` ends (or is ignored) there; a `hold` stays.
       if (!empty && this.loading) this.busy(false);
     }
     // `aria-busy` on the content that is loading (a list's views), not on the status itself, which announces.
-    const content = this.loading ? Array.from(host?.children ?? []).find((child): child is HTMLElement => child !== this.element && child instanceof HTMLElement) : undefined;
+    const content = this.active ? Array.from(host?.children ?? []).find((child): child is HTMLElement => child !== this.element && child instanceof HTMLElement) : undefined;
     if (content !== this.busyNode) { this.busyNode?.removeAttribute("aria-busy"); this.busyNode = content; }
     if (content && content.getAttribute("aria-busy") !== "true") content.setAttribute("aria-busy", "true");
     // Measured at most once a frame and only while shown (an empty or loading list): a mode switch changes the header.
@@ -107,7 +129,7 @@ export class CellStatus {
 
   private render(): void {
     if (this.released) return;
-    const busy = this.spinning, text = busy ? t("Betöltés…") : this.options.auto && (!this.empty || this.loading) ? undefined : this.message;
+    const busy = this.spinning, text = busy ? (this.held ? t("A tartalom frissül…") : t("Betöltés…")) : this.options.auto && (!this.empty || this.active) ? undefined : this.message;
     const state = `${busy}|${this.kind}|${text ?? ""}`;
     if (state !== this.shown) {
       this.shown = state;
@@ -127,7 +149,9 @@ export class CellStatus {
   /** Removes the element and the content's `aria-busy`; idempotent. */
   destroy(): void {
     if (this.released) return;
-    this.busy(false);
+    this.loading = this.held = false;
+    this.busyNode?.removeAttribute("aria-busy");
+    this.busyNode = undefined;
     this.released = true;
     clearTimeout(this.timer);
     cancelAnimationFrame(this.frame);
@@ -142,6 +166,12 @@ export function regionStatus(cell: StatusCell): CellStatus {
   const status = new CellStatus(cell, { auto: true });
   status.text(t("Nincs megjeleníthető tartalom."));
   return status;
+}
+
+/** Applies `busy(id, on)` of $owner to a region's status; a value other than a boolean throws `TypeError`. */
+export function hold(owner: string, status: CellStatus, on: boolean): void {
+  if (typeof on !== "boolean") throw new TypeError(`61ade: ${owner}.busy: on is a boolean.`);
+  status.hold(on);
 }
 
 /** Applies `placeholder(id, …)` of $owner to a region's status; a wrong shape throws `TypeError` before any change. */

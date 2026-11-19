@@ -112,6 +112,86 @@ test('a region, tab or section without content shows its placeholder; content re
  expect(failures).toEqual([]);
 });
 
+test('busy(id, on) marks a filled region until it is cleared; content replaced meanwhile keeps the mark',async({page})=>{
+ const failures=[];page.on('pageerror',error=>failures.push(error.message));
+ await start(page);
+ await page.evaluate(()=>{
+  const app=window.__bladeApp,box=document.createElement('div');
+  box.id='held-fixture';Object.assign(box.style,{position:'fixed',left:'16px',top:'110px',width:'1200px',height:'600px',zIndex:'5',background:'var(--dhx-background-primary, #fff)'});
+  document.body.append(box);
+  window.__page=new app.components.PageLayout({id:'states.held',tree:{cols:[{id:'side',header:'Oldal',width:320},{id:'split',inner:{rows:[{id:'top',header:'Felső'},{id:'bottom'}]}},{tabs:[{id:'values',header:'Értékek'},{id:'other',header:'Más'}]}]}});
+  window.__page.mount(box);
+  // A scrolled area with a focused button in the side region; a details view in the inner and the tab region.
+  const scroller=document.createElement('div');Object.assign(scroller.style,{height:'100%',overflow:'auto'});
+  scroller.innerHTML='<button type="button" id="held-button">Gomb</button><div style="height:2000px">Hosszú tartalom</div>';
+  window.__page.attach('side',scroller);window.__scroller=scroller;
+  window.__top=new app.components.RecordDetails({view:'demo_registry_nodes',record:{id:1,name:'Felső részlet',parent_id:''}});window.__top.mount(window.__page.cell('top'));
+  window.__tab=new app.components.RecordDetails({view:'demo_registry_nodes',record:{id:2,name:'Fül részlet',parent_id:''}});window.__tab.mount(window.__page.cell('values'));
+  const element=document.createElement('p');element.textContent='Jelöletlen';window.__page.attach('bottom',element);
+ });
+ // The region's own status (not a component's inside it) and the state of its content.
+ const state=id=>page.evaluate(id=>{
+  const root=window.__page.cell(id).getCellView().el,status=root.querySelector(':scope > .dhx_layout-cell-content > .blade-status, :scope > .blade-status');
+  const content=Array.from(status.parentElement.children).find(child=>child!==status);
+  return {busy:status.classList.contains('blade-status--busy'),idle:status.classList.contains('blade-status--idle'),text:status.textContent,role:status.getAttribute('role'),ariaBusy:content?.getAttribute('aria-busy')??null};
+ },id);
+ const fixture=page.locator('#held-fixture'),side=fixture.locator('[data-cell-id="side"]');
+ await expect(side).toContainText('Hosszú tartalom');await expect(fixture).toContainText('Felső részlet');await expect(fixture).toContainText('Fül részlet');
+ for(const id of ['side','top','values','bottom'])expect(await state(id)).toMatchObject({busy:false,idle:true,ariaBusy:null});
+ // Wrong calls are refused: an undeclared id, a region holding an inner layout, a value other than a boolean.
+ expect(await page.evaluate(()=>[()=>window.__page.busy('nope',true),()=>window.__page.busy('split',true),()=>window.__page.busy('side','yes'),()=>window.__page.busy('side'),()=>window.__page.tabsOf('values').busy('values',1)]
+  .map(call=>{try{call();return 'none';}catch(error){return error.constructor.name;}}))).toEqual(['Error','Error','TypeError','TypeError','TypeError']);
+ // A mark cleared within the delay never shows the indicator.
+ await page.evaluate(()=>window.__page.busy('side',true));
+ expect(await state('side')).toMatchObject({idle:true,busy:false,ariaBusy:'true'});
+ await page.waitForTimeout(100);
+ await page.evaluate(()=>window.__page.busy('side',false));
+ await page.waitForTimeout(400);
+ expect(await state('side')).toMatchObject({idle:true,busy:false,ariaBusy:null});
+ // Marked: aria-busy at once, the indicator after the delay, its text once; the content stays mounted and scrolled.
+ await page.evaluate(()=>{document.getElementById('held-button').focus({preventScroll:true});window.__scroller.scrollTop=150;if(window.__scroller.scrollTop!==150)throw new Error('not scrollable');for(const id of ['side','top','values'])window.__page.busy(id,true);});
+ expect(await state('side')).toMatchObject({idle:true,busy:false,ariaBusy:'true'});
+ await expect.poll(()=>state('side')).toMatchObject({busy:true,text:'A tartalom frissül…',role:'status',ariaBusy:'true'});
+ for(const id of ['top','values'])await expect.poll(()=>state(id)).toMatchObject({busy:true,text:'A tartalom frissül…',ariaBusy:'true'});
+ expect(await state('bottom')).toMatchObject({busy:false,idle:true,ariaBusy:null});
+ await expect(side).toContainText('Hosszú tartalom');
+ expect(await page.evaluate(()=>[window.__scroller.scrollTop,document.activeElement?.id])).toEqual([150,'held-button']);
+ // The covered content takes no clicks or wheel scrolling; the region's header and the inner region's header stay uncovered.
+ const hit=(selector)=>page.evaluate(selector=>{const box=document.querySelector(selector).getBoundingClientRect(),node=document.elementFromPoint(box.x+box.width/2,box.y+Math.min(box.height/2,40));return node?.closest('.blade-status')?'status':node?.closest('.blade-inner-header, .dhx_layout-cell-header')?'header':'content';},selector);
+ expect(await hit('#held-fixture [data-cell-id="side"] > .dhx_layout-cell-content')).toBe('status');
+ expect(await hit('#held-fixture [data-cell-id="side"] > .dhx_layout-cell-header')).toBe('header');
+ expect(await hit('#held-fixture .blade-inner-header')).toBe('header');
+ await expect(fixture.locator('.blade-inner-header')).toContainText('Felső');
+ const content=await side.locator('.dhx_layout-cell-content').boundingBox();
+ await page.mouse.move(content.x+content.width/2,content.y+content.height/2);await page.mouse.wheel(0,400);await page.waitForTimeout(200);
+ expect(await page.evaluate(()=>window.__scroller.scrollTop)).toBe(150);
+ // Replacing the content keeps the mark, also while the new component shows its own loading and after it has loaded.
+ const get=await gate(page,'demo_registry_keys','get');
+ const id=await page.evaluate(async()=>String((await window.__bladeApp.server.call('demo_registry_keys','list',{values:{mode:'dynamic',limit:1}})).items[0].id));
+ get.hold();
+ await page.evaluate(id=>{window.__top.destroy();window.__top=new window.__bladeApp.components.RecordDetails({view:'demo_registry_nodes',record:id});window.__top.mount(window.__page.cell('top'));
+  window.__tab.destroy();window.__tab=new window.__bladeApp.components.ListView({view:'demo_registry_browser_values',scope:{field:'key_id',id},panel:false,mode:'table'});window.__tab.mount(window.__page.cell('values'));},id);
+ const grid=fixture.getByRole('tabpanel',{name:'Értékek',exact:true}).locator('.dhx_grid-header');
+ await expect(grid).toBeVisible();
+ await page.waitForTimeout(400);
+ // The region's indicator lies over the list as well, its header included.
+ expect(await hit('#held-fixture [role="tabpanel"] .dhx_grid-header')).toBe('status');
+ for(const id of ['top','values'])expect(await state(id)).toMatchObject({busy:true,text:'A tartalom frissül…',ariaBusy:'true'});
+ get.release();
+ await page.waitForTimeout(400);
+ for(const id of ['top','values'])expect(await state(id)).toMatchObject({busy:true,ariaBusy:'true'});
+ // Clearing ends it: no indicator, no aria-busy, the content takes clicks again.
+ await page.evaluate(()=>{for(const id of ['side','top','values'])window.__page.busy(id,false);});
+ for(const id of ['side','top','values'])expect(await state(id)).toMatchObject({busy:false,idle:true,ariaBusy:null});
+ expect(await hit('#held-fixture [data-cell-id="side"] > .dhx_layout-cell-content')).toBe('content');
+ // Destroying the layout ends a mark as well.
+ await page.evaluate(()=>window.__page.busy('values',true));
+ await page.evaluate(()=>{window.__page.destroy();});
+ await expect(fixture.locator('[aria-busy="true"], .blade-status')).toHaveCount(0);
+ await page.evaluate(()=>document.getElementById('held-fixture').remove());
+ expect(failures).toEqual([]);
+});
+
 test('a list shows the indicator while it loads and says when it has no records or no record matches',async({page})=>{
  const failures=[];page.on('pageerror',error=>failures.push(error.message));
  await start(page);
