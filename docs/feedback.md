@@ -959,3 +959,7 @@
 <a id="fb-0234"></a>
 
 ## FB-0234 — Restore a Tree in one frame on a same-tab return
+
+<a id="fb-0235"></a>
+
+## FB-0235 — Keep an unchanged Tree across longer visits to another view

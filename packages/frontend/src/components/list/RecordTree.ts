@@ -83,7 +83,6 @@ export class NodeTree {
   /** The start and the latest refresh; a bulk command waits for them, so it acts on their result. Never rejects. */
   private settled:Promise<void>=Promise.resolve();
   private warm?:AbortController;
-  private warmUntil?:number;
   /** Levels an explicit refresh or a user expansion replaced while the warm read was running. */
   private replacedDuringWarm=new Set<string>();
   private cacheable=true;
@@ -155,7 +154,7 @@ export class NodeTree {
         if(opened.has(id)&&this.isOpen(id)&&this.adapter.widget.data.haveItems(id))queue.push(id);
       }
     }
-    return {branches,opened:[...opened],preferences:JSON.stringify(preferences),until:this.warm?this.warmUntil:undefined};
+    return {branches,opened:[...opened],preferences:JSON.stringify(preferences)};
   }
   private branch(parent:string):Branch{
     return {rows:this.children(parent).map(id=>this.rows.get(id)!),cut:this.cut.has(parent)};
@@ -164,7 +163,6 @@ export class NodeTree {
   restore(snapshot:TreeSnapshot,initial:Initial,remembered:Remembered):void{
     this.changed=remembered.expanded!==undefined;
     this.opened=new Set(snapshot.opened);
-    this.warmUntil=snapshot.until;
     const branches=new Map(snapshot.branches);
     this.replace(branches);
     this.current=this.initialSelection(initial,remembered);
@@ -203,6 +201,9 @@ export class NodeTree {
     if(control.signal.aborted)return;
     // A branch loaded or explicitly refreshed during the check keeps its newer response.
     for(const parent of this.replacedDuringWarm)if(this.loaded.has(parent)&&this.exists(parent))fresh.set(parent,this.branch(parent));
+    const unchanged=fresh.size===this.loaded.size&&[...fresh].every(([parent,branch])=>
+      this.loaded.has(parent)&&JSON.stringify(this.branch(parent))===JSON.stringify(branch));
+    if(unchanged){this.save();return;}
     const selected=this.current,before=selected===undefined?undefined:JSON.stringify(this.row(selected));
     this.replace(fresh);
     if(selected!==undefined&&!this.exists(selected))this.choose(undefined);

@@ -160,8 +160,8 @@ with a sub-view on itself (`menu: false` when it has no page of its own) and
 drives its other panels from the tree's `select`; `activate` is Enter or a
 double-click, `select(id)` and `refresh(id?)` follow changes made elsewhere,
 and `id` keeps the expanded nodes and the selection. Returning to the same
-view in that tab can show the last loaded branches immediately while the
-server rechecks them ([limits and access context](toolkit.md#tree)). Use the
+view in that tab, even after a long absence, can show the last loaded
+branches immediately while the server rechecks them ([limits and access context](toolkit.md#tree)). Use the
 arrow keys, Home and End to move, Space to select, and Enter to select and activate
 ([Tree](toolkit.md#tree), [FB-0158](feedback.md#fb-0158); demo:
 [key browser](demos.md#d8-key-browser)). `expand: n` opens `n` levels while

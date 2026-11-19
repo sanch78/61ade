@@ -1159,13 +1159,15 @@ tree.on("activate", () => layout.tabsOf("details")?.select("details"));
   draw the last loaded visible branches, expansion and selection in its
   first frame. A saved empty expansion keeps every branch closed. Hidden
   selections fall back to `initial`, as on a cold mount. The shell keeps up
-  to four snapshots in memory for reuse within 30 seconds, with at most
-  2000 rows and 262,144 serialized characters per snapshot. The address,
+  to four snapshots in memory for the lifetime of the loaded application
+  page, with at most 2000 rows and 262,144 serialized characters per
+  snapshot. The address,
   Tree ID, source, label, depth and initial selection must match. The authorized
-  lists recheck the roots and the reused branches, parent first. Changes
-  appear together after the check. A newer choice or collapse stays where
+  lists recheck the roots and the reused branches, parent first. An unchanged
+  result keeps the displayed tree in place. Changes appear together after
+  the check. A newer choice or collapse stays where
   its node still exists, and a changed or removed selection is reported.
-  Missing, incomplete, oversized or expired snapshots use the ordinary
+  Missing, incomplete or oversized snapshots use the ordinary
   load by parent. Explicit refresh requests current data
   ([FB-0234](feedback.md#fb-0234)).
 - **Keyboard and screen readers:** one tab stop, `role="tree"` named by the
