@@ -971,3 +971,7 @@
 <a id="fb-0237"></a>
 
 ## FB-0237 — No location bar for a top-level entry alone, and a per-view switch
+
+<a id="fb-0239"></a>
+
+## FB-0239 — Icons for tree nodes

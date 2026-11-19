@@ -76,7 +76,7 @@ $workspace = WorkspaceConfiguration::build($db, [__DIR__.'/modules/tasks.json', 
 // Key browser (registry.json `demo.registry-browser`): menu-less views for its public components. The keys as a Tree
 // need an offered list view with a hierarchy on itself (the tree navigation's node view is embedded); the values list
 // carries the toggle command `demo.subkey-values` and is read-only here (editing stays in the registry editor).
-$workspace->registry->view('demo_registry_keys', 'Kulcsok', [['id' => 'name', 'header' => 'Kulcs neve'], ['id' => 'parent_id', 'header' => 'Szülőkulcs']], ['get'], id: 'demo_registry_nodes', menu: false);
+$workspace->registry->view('demo_registry_keys', 'Kulcsok', [['id' => 'kind', 'header' => 'Kulcstípus'], ['id' => 'name', 'header' => 'Kulcs neve'], ['id' => 'parent_id', 'header' => 'Szülőkulcs']], ['get'], id: 'demo_registry_nodes', menu: false);
 $workspace->registry->subview('demo_registry_nodes', 'demo_registry_nodes', 'parent_id');
 $workspace->registry->view('demo_registry_values', 'Értékek', [['id' => 'name', 'header' => 'Név'], ['id' => 'type', 'header' => 'Típus', 'width' => 240], ['id' => 'data', 'header' => 'Adat']], ['get', 'create'], id: 'demo_registry_browser_values', menu: false, commands: ['demo.subkey-values']);
 $notes = new SqlResource('notes', 'notes', 'id', [new Field('title', 'Cím', required: true)], 'owner_id', ['owner_id' => '1']);
