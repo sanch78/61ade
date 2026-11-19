@@ -143,8 +143,9 @@ final class Executor
                 $allowed=$ctx->acl->fieldAllowed($ctx->actor->id,$resource,$name,$ctx->channel,$aclObject ?? '',$owner,$field->name,null,$deferred,$readable);
                 if(!$allowed){if(array_key_exists($field->name,$input) || ($name==='create' && $field->required))throw new Failure('A mező nem módosítható.',403);continue;}
                 // An inactive conditional field is not validated; a save that sends it or its condition field stores it empty.
+                // A field of an inactive conditional section (FB-0240) is neither validated nor stored: it keeps its stored value.
                 if(!$field->active(array_replace(is_array($target['row']??null)?$target['row']:[],$input))){
-                    if(array_key_exists($field->name,$input)||array_key_exists($field->visibleWhen['field'],$input)){$values[$field->name]='';if(!$field->secret)$fields[]=$field->name;}
+                    if($field->visibleWhen!==null&&(array_key_exists($field->name,$input)||array_key_exists($field->visibleWhen['field'],$input))){$values[$field->name]='';if(!$field->secret)$fields[]=$field->name;}
                     else unset($values[$field->name]);
                     continue;
                 }

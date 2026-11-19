@@ -67,6 +67,8 @@ export type FieldDefinition = {
   sectionCollapsible?: false;
   /** The field is its section's whole content (a textarea or file field alone in its section): the header names it. */
   sectionFill?: true;
+  /** Conditional section (FB-0240): the field's section takes part only while the field `field` holds one of `in`. */
+  sectionVisibleWhen?: { field: string; in: string[] };
   /** The form row the field shares with its consecutive neighbours of the same key (FB-0196), and its share of it. */
   row?: string;
   rowWidth?: 2 | 3;
@@ -74,14 +76,17 @@ export type FieldDefinition = {
 /** Opens the form sections holding these fields (registered by `bindFieldTypes`, fields.ts); FormValidation calls it. */
 export const sectionReveal=new WeakMap<Form,(names:string[])=>void>();
 /**
- * Whether a conditional field takes part for the form's values; a condition whose field is not in $values (not on the
+ * Whether a condition `{field, in}` holds for the form's values; a condition whose field is not in $values (not on the
  * form) leaves the decision to the server, which reads the stored value.
  */
-export function fieldActive(field: FieldDefinition, values: Record<string, unknown>): boolean {
-  const when = field.visibleWhen;
+export function conditionHolds(when: { field: string; in: string[] } | undefined, values: Record<string, unknown>): boolean {
   if (!when || !Object.hasOwn(values, when.field)) return true;
   const value = values[when.field];
   return when.in.includes(typeof value === "boolean" ? (value ? "1" : "0") : String(value ?? ""));
+}
+/** Whether a field takes part for the form's values: its own condition and its section's (`sectionVisibleWhen`) hold. */
+export function fieldActive(field: FieldDefinition, values: Record<string, unknown>): boolean {
+  return conditionHolds(field.visibleWhen, values) && conditionHolds(field.sectionVisibleWhen, values);
 }
 /** Visible Form item of a `file` field (its read-only file name); the value lives in the hidden item of the field name. */
 export const fileDisplay = (name: string) => name + "__display";
@@ -177,7 +182,7 @@ export class FormValidation {
 
   private error(field: FieldDefinition, value: unknown): string | null {
     const values = {...this.context(),...this.form.getValue()};
-    // A conditional field the form hides is not validated; the server stores it empty.
+    // A conditional field the form hides is not validated (the server stores it empty), nor a field of a hidden section.
     if (!fieldActive(field, values)) return null;
     if (fileUploadPending(this.form, field.name)) return t("Várd meg a fájl feltöltését.");
     return this.serverErrors.get(field.name) ?? fieldError(field, value, values);

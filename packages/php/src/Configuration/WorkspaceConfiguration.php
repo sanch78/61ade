@@ -114,10 +114,10 @@ final class WorkspaceConfiguration
                 'type' => 'string', 'required' => 'boolean', 'max' => 'integer',
                 'options' => 'array', 'secret' => 'boolean',
                 'options_lookup' => 'string', 'options_binding' => 'string',
-                'validation' => 'array', 'column' => 'array', 'default' => 'string', 'bulk' => 'boolean', 'file' => 'array', 'editor' => 'string', 'visible_when' => 'array', 'clears' => 'array', 'scope_only' => 'boolean', 'section' => 'string', 'section_collapsible' => 'boolean', 'section_fill' => 'boolean', 'row' => 'string', 'row_width' => 'integer',
+                'validation' => 'array', 'column' => 'array', 'default' => 'string', 'bulk' => 'boolean', 'file' => 'array', 'editor' => 'string', 'visible_when' => 'array', 'clears' => 'array', 'scope_only' => 'boolean', 'section' => 'string', 'section_collapsible' => 'boolean', 'section_fill' => 'boolean', 'row' => 'string', 'row_width' => 'integer', 'section_visible_when' => 'array',
             ], '$.fields');
-            if (isset($definition['visible_when'])) {
-                Shape::check($definition['visible_when'], ['field' => 'string', 'in' => 'array'], [], '$.fields.'.$definition['name'].'.visible_when');
+            foreach (['visible_when', 'section_visible_when'] as $condition) if (isset($definition[$condition])) {
+                Shape::check($definition[$condition], ['field' => 'string', 'in' => 'array'], [], '$.fields.'.$definition['name'].'.'.$condition);
             }
             if (isset($definition['file'])) {
                 // A file manager reference, or a file in the project's storage (`upload`, optional `get`; FB-0167).
@@ -161,6 +161,7 @@ final class WorkspaceConfiguration
                 sectionFill: $definition['section_fill'] ?? false,
                 row: $definition['row'] ?? null,
                 rowWidth: $definition['row_width'] ?? 1,
+                sectionVisibleWhen: $definition['section_visible_when'] ?? null,
             );
         }
         return $fields;

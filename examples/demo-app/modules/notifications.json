@@ -1,0 +1,140 @@
+{
+    "section_descriptions": {
+        "purpose": "Feature demo: conditional form sections (FB-0240).",
+        "covers": "Sections that a field shows or hides as a whole (section_visible_when): a checkbox shows the two message sections (section-filling textareas), a select shows one section per delivery choice. A hidden section's fields are not validated, and its stored values stay while it is hidden; accordion form sections (operations.form_sections)."
+    },
+    "resources": {
+        "demo_notifications": {
+            "storage": {
+                "table": "demo_notifications",
+                "key": "id"
+            },
+            "operations": {
+                "delete": true,
+                "form_sections": "accordion"
+            },
+            "fields": [
+                {
+                    "name": "title",
+                    "label": "Megnevezés",
+                    "required": true,
+                    "max": 120
+                },
+                {
+                    "name": "enabled",
+                    "label": "Értesítés bekapcsolva",
+                    "type": "checkbox",
+                    "default": "1"
+                },
+                {
+                    "name": "delivery",
+                    "label": "Kézbesítés",
+                    "type": "select",
+                    "required": true,
+                    "default": "immediate",
+                    "options": {
+                        "immediate": "Azonnal",
+                        "digest": "Napi összesítő",
+                        "schedule": "Ütemezve"
+                    }
+                },
+                {
+                    "name": "email_text",
+                    "label": "E-mail szövege",
+                    "type": "textarea",
+                    "required": true,
+                    "max": 2000,
+                    "section": "E-mail szövege",
+                    "section_fill": true,
+                    "section_visible_when": {
+                        "field": "enabled",
+                        "in": [
+                            "1"
+                        ]
+                    }
+                },
+                {
+                    "name": "sms_text",
+                    "label": "SMS szövege",
+                    "type": "textarea",
+                    "max": 160,
+                    "section": "SMS szövege",
+                    "section_fill": true,
+                    "section_visible_when": {
+                        "field": "enabled",
+                        "in": [
+                            "1"
+                        ]
+                    }
+                },
+                {
+                    "name": "delay_minutes",
+                    "label": "Késleltetés (perc)",
+                    "type": "number",
+                    "max": 4,
+                    "section": "Azonnali kézbesítés",
+                    "section_visible_when": {
+                        "field": "delivery",
+                        "in": [
+                            "immediate"
+                        ]
+                    }
+                },
+                {
+                    "name": "digest_time",
+                    "label": "Küldés időpontja",
+                    "required": true,
+                    "max": 5,
+                    "validation": {
+                        "pattern": {
+                            "expression": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+                            "message": "Az időpontot ÓÓ:PP formában add meg."
+                        }
+                    },
+                    "section": "Napi összesítő",
+                    "section_visible_when": {
+                        "field": "delivery",
+                        "in": [
+                            "digest"
+                        ]
+                    }
+                },
+                {
+                    "name": "schedule_rule",
+                    "label": "Ütemezés",
+                    "type": "textarea",
+                    "required": true,
+                    "max": 500,
+                    "section": "Ütemezés",
+                    "section_fill": true,
+                    "section_visible_when": {
+                        "field": "delivery",
+                        "in": [
+                            "schedule"
+                        ]
+                    }
+                }
+            ],
+            "view": {
+                "title": "Értesítési szabályok",
+                "group": "Feature demó",
+                "icon": "bi bi-bell",
+                "columns": [
+                    {
+                        "id": "title",
+                        "header": "Megnevezés"
+                    },
+                    {
+                        "id": "enabled",
+                        "header": "Értesítés bekapcsolva"
+                    },
+                    {
+                        "id": "delivery",
+                        "header": "Kézbesítés"
+                    }
+                ],
+                "guide": "Feltételes űrlapszakaszok: az Értesítés bekapcsolva jelölő az E-mail szövege és az SMS szövege szakaszt, a Kézbesítés választása a hozzá tartozó egy szakaszt mutatja vagy rejti el, fejlécével és keretével együtt.\n\nKapcsold ki az értesítést egy szabály Módosítás ablakában, majd ments: az elrejtett szakaszok mezőit a szerver nem ellenőrzi és nem írja felül, így visszakapcsoláskor a tárolt szöveg ismét ott van. A Heti összefoglaló ki van kapcsolva, a szövegei mégis megvannak.\n\nKeretrendszer-képesség: feltételes szakasz (section_visible_when)."
+            }
+        }
+    }
+}

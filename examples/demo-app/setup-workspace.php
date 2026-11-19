@@ -243,6 +243,18 @@ require_once __DIR__.'/contacts.php';
 blade_demo_contacts_setup($db);
 $rules[] = ['1', 'demo_contacts', ['list', 'get', 'create', 'update', 'delete']];
 $rules[] = [(string) $reader, 'demo_contacts', ['list', 'get']];
+// Conditional form sections (modules/notifications.json, FB-0240): notification rules whose text sections follow the
+// switch and whose delivery sections follow the delivery choice; the weekly summary is switched off and keeps its text.
+$db->exec("CREATE TABLE IF NOT EXISTS demo_notifications(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL,enabled INTEGER NOT NULL DEFAULT 1,delivery TEXT NOT NULL DEFAULT 'immediate',email_text TEXT NOT NULL DEFAULT '',sms_text TEXT NOT NULL DEFAULT '',delay_minutes TEXT NOT NULL DEFAULT '',digest_time TEXT NOT NULL DEFAULT '',schedule_rule TEXT NOT NULL DEFAULT '')");
+if (!$db->query('SELECT COUNT(*) FROM demo_notifications')->fetchColumn()) {
+    $notification = $db->prepare('INSERT INTO demo_notifications(title,enabled,delivery,email_text,sms_text,delay_minutes,digest_time,schedule_rule) VALUES (?,?,?,?,?,?,?,?)');
+    foreach ([['Rendelés visszaigazolása', 1, 'immediate', "Köszönjük a rendelést!\nA rendelés száma: {szám}.", 'Rendelését rögzítettük: {szám}.', '5', '', ''],
+        ['Napi jelentés', 1, 'digest', 'A mai nap eseményei: {lista}', '', '', '18:00', ''],
+        ['Heti összefoglaló', 0, 'schedule', 'Az elmúlt hét eseményei: {összefoglaló}', 'Elkészült a heti összefoglaló.', '', '', 'Minden hétfőn 8:00-kor']] as $row) $notification->execute($row);
+    unset($notification);
+}
+$rules[] = ['1', 'demo_notifications', ['list', 'get', 'create', 'update', 'delete']];
+$rules[] = [(string) $reader, 'demo_notifications', ['list', 'get']];
 // Approval queue: the demo account reviews; the reader has no access, so neither the entry nor its count.
 $rules[] = ['1', 'demo_approvals', ['list', 'get', 'update']];
 // Automatic changes: the demo account reviews them; the reader has no access.
