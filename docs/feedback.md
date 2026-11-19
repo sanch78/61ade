@@ -11054,3 +11054,28 @@ that exactly equals an option label lists every option. The managed
   `ListView` replacing the content while marked, an unmarked region and the
   end on destroy.
 - **Status:** implemented and verified.
+
+<a id="fb-0233"></a>
+
+## FB-0233 — Nested layout regions keep filling space after a divider drag
+
+- **Date:** 2026-11-19.
+- **Report:** dragging the left, right, left and right dividers in a nested
+  `PageLayout` could leave an empty strip beside the inner content. A
+  synthetic layout reproduced both the clipped content when its enclosing
+  panel shrank and the gap when the panel expanded.
+- **Cause and fix:** Suite assigns pixel sizes to both cells beside the
+  divider. When the second cell is the only flexible cell, Suite leaves both
+  sizes in place. The resize handler in `UiPreferences` clears that cell's
+  temporary size so the [page region](toolkit.md#pagelayout) follows
+  its parent again. The declared sizes use the existing storage format.
+- **Verification:** a temporary Chromium check on the managed demo
+  alternated the dividers on both axes. It checked that both regions of
+  the nested preview follow the enclosing edge, each divider moves
+  independently, and a double-click restores the declared size.
+  Typecheck, build, demo assets and the `ui-preferences.mjs` check passed.
+  All 16 cases in `page-layout-inner`, `page-layout-collapse`,
+  `layout-resizer` and `preferences` passed.
+  The existing `toolkit-components.mjs` test failed on both the baseline
+  and the candidate at the layout-cell detach assertion.
+- **Status:** implemented and verified.
