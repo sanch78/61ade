@@ -122,8 +122,13 @@ the first-frame restore on a browser reload in the same signed-in session
 automatically. Its asset breadcrumbs carry the category's ancestor IDs in
 `category_path`. The catalogue passes them as `initialPath` with the same
 `assets.tree` ID, keeping the open branches with the clicked category
-selected. Older depth-only links use their original target.
-[Tree contract](../toolkit.md#tree), [FB-0244](../feedback.md#fb-0244),
+selected. Under a previously visited, closed folder, the category can
+appear immediately inside the viewport. The catalogue stays visible while
+an unread parent list loads. Earlier depth-only links keep their original
+target. A direct category link keeps the usual two-level initial expansion.
+Verified on the development workbench with all Tree list responses held
+and on a fresh catalogue entry.
+[FB-0247](../feedback.md#fb-0247), [Tree contract](../toolkit.md#tree), [FB-0244](../feedback.md#fb-0244),
 [FB-0246](../feedback.md#fb-0246).
 
 ## Empty location bar (D-107)

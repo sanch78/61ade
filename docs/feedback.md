@@ -11588,7 +11588,8 @@ object. Typecheck, build and demo asset preparation passed.
   the target selected in the first frame. Missing levels are prepared
   through the list action before painting. An unavailable target falls
   back to the ordinary mount, and a broken parent chain stops at its first
-  unmatched step. Fresh background reads still apply.
+  unmatched step. Fresh background reads still apply. [FB-0247](#fb-0247)
+  refines partial-cache display, target scrolling and cold expansion.
 - **Contract.** [Tree](toolkit.md#tree).
 - **Verification.** Eleven managed-demo Chromium cases passed. The four
   temporary navigation cases checked a cached target with all responses
@@ -11598,3 +11599,31 @@ object. Typecheck, build and demo asset preparation passed.
   initial depth and the selection race. Typecheck, build and demo assets
   passed.
 - **Status.** Implemented and verified on the managed demo.
+
+<a id="fb-0247"></a>
+
+## FB-0247 — Keep the Tree usable and its breadcrumb destination visible
+
+- **Date.** 2026-11-20.
+- **Report.** Following a breadcrumb under a previously closed folder could
+  leave the entire panel empty and read that folder twice. A target below
+  the saved viewport could be selected off-screen. A direct link with no
+  saved expansion could replace the ordinary initial depth with its path.
+- **Implementation.** Bounded snapshots give visible levels priority and
+  also retain child lists from previously opened folders. A cached path
+  opens straight to its target. A genuine miss shows the kept tree while
+  resolving the path, with a newer user selection or toggle taking priority.
+  The background check reuses fresh path reads. Breadcrumb selection moves
+  the panel just enough to show its row. Cold entry combines the target
+  ancestors with the saved expansion or the bounded default depth.
+- **Contract.** [Tree navigation and snapshots](toolkit.md#tree),
+  [usage](usage.md), [previous behavior](#fb-0246).
+- **Verification.** All 11 existing Tree browser cases and six focused
+  navigation cases passed on the managed demo. The navigation cases held
+  list responses, checked the visible destination after a collapse and
+  return, counted reads for an unseen parent, exercised a newer click and
+  a wrong parent, and checked cold entries within and beyond the default
+  depth. Snapshot checks covered the existing format, invalid optional
+  branch data and the visible frame's priority at the size limit.
+  Typecheck, build and demo asset preparation passed.
+- **Status.** Implemented and verified.

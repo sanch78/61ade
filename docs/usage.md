@@ -793,10 +793,11 @@ The first visit and a changed access context load the tree from the server.
 [Verification and limits](feedback.md#fb-0244).
 
 A breadcrumb that opens a node passes its root-to-node IDs to `initialPath`
-and uses the ordinary Tree's stable `id`. The target takes the selection
-while the tree reuses the available branches. Try it through the managed
-demo's D8 `key_path` filter.
-[Tree](toolkit.md#tree), [verification](feedback.md#fb-0246).
+and uses the ordinary Tree's stable `id`. The selected row comes into view,
+including when the target was under a previously loaded, closed folder.
+During a missing child read the cached tree stays visible and usable. A
+direct entry keeps the usual initial expansion. Try the managed demo's D8
+`key_path` filter. [Tree](toolkit.md#tree), [verification](feedback.md#fb-0247).
 
 Record pages automatically retain the menu context of the first offered menu
 view for their `record` resource, including direct links and reloads. An explicit

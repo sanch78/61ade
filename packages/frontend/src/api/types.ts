@@ -1686,7 +1686,7 @@ export interface TreeOptions extends ComponentOptions {
   initial?: "first" | "none" | { id: string };
   /**
    * Selects a navigation target on mount. Give the node ids from its root through the target, at most 11.
-   * The tree reuses its kept branches and opens the target's ancestors. An unavailable path falls back to `initial`
+   * The tree keeps its ordinary expansion and brings the target row into view. An unavailable path falls back to `initial`
    * and the kept preferences. Use the same `id` and defaults as the ordinary entry to the tree.
    */
   initialPath?: readonly string[];
