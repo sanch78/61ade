@@ -799,9 +799,13 @@ without levels of its own has no bar while the full menu row marks it
 bar has no Back button unless switched on: `ApplicationDefinition(locationBack:
 true, locationIcons: true)` (JSON `application.location_back` /
 `location_icons`) for the application, `View(locationBack: …, locationIcons:
-…)` (JSON `location_back` / `location_icons`) for one view's page; the
-button is the browser's Back inside the application, disabled on the tab's
-first 61ade entry ([Back button](shell.md#location-bar-back),
+…)` (JSON `location_back` / `location_icons`) for one view's page.
+For an enabled Back button, `View(locationBackTarget: 'demo_tasks')`
+(JSON `"location_back_target": "demo_tasks"`) opens another available view
+with its own address and no required record ID. A page can override that
+target with `host.setLocation(segments, {back: () => selectFirstTab()})`.
+Otherwise Back uses the tab's in-app history and is disabled on its first
+entry ([Back button](shell.md#location-bar-back),
 [level icons](shell.md#location-bar-icons)). A page with levels of
 its own (an overview and its scenes, a parent and its children) calls
 `host.setLocation(segments)` whenever its selection changes; with

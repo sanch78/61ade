@@ -327,6 +327,7 @@
             "resource": "demo_tasks",
             "record": "demo_tasks",
             "record_title": "title",
+            "location_back_target": "demo_tasks",
             "actions": [
                 "get"
             ],

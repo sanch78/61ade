@@ -22,6 +22,7 @@ export class LocationBar {
   readonly element = document.createElement("nav");
   private list = document.createElement("ol");
   private back = document.createElement("button");
+  private goBack?: () => void;
   private divider = document.createElement("span");
   private places: Place[] = [];
   private hidden: number[] = [];
@@ -42,7 +43,9 @@ export class LocationBar {
     arrow.className = "blade-location__icon bi bi-arrow-left";
     arrow.setAttribute("aria-hidden", "true");
     this.back.append(arrow);
-    this.back.addEventListener("click", () => history.back(), { signal });
+    this.back.addEventListener("click", () => {
+      try { this.goBack?.(); } catch (error) { console.error(error); }
+    }, { signal });
     this.divider.className = "blade-location__divider";
     this.divider.setAttribute("aria-hidden", "true");
     this.back.hidden = this.divider.hidden = true;
@@ -53,14 +56,15 @@ export class LocationBar {
   }
 
   /**
-   * Shows $places, the last one the current level, after the Back button when $back is given (enabled: an earlier
-   * in-app history entry exists). No levels and no button leave the line empty and hide the `<nav>` from assistive
+   * Shows $places, the last one the current level, after the Back button when $back is given (`false` disables it).
+   * No levels and no button leave the line empty and hide the `<nav>` from assistive
    * technology until levels return (docs/shell.md#location-bar-own-path); the divider shows only between both.
    */
-  show(places: Place[], back?: boolean): void {
+  show(places: Place[], back?: (() => void) | false): void {
     this.places = places;
     this.widths = [];
     this.state = "";
+    this.goBack = back || undefined;
     this.back.hidden = back === undefined;
     this.back.disabled = back === false;
     this.divider.hidden = back === undefined || !places.length;

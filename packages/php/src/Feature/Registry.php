@@ -197,6 +197,7 @@ final class Registry
      * `Workspace::views()` call it): each `view:<id>` activation target names a record view of the list's resource, a
      * `page` activation's sub-view child still has its own page (a child changed to `menu: false` later is refused), and
      * a record view's `parent` view is a record view (of the Lookup's resource when the parent field's options are one).
+     * A fixed Back target has its own address and needs no record ID.
      */
     public function checkViews(): void
     {
@@ -210,6 +211,10 @@ final class Registry
             if($bad)throw new \InvalidArgumentException('Invalid count field: '.$resource.'.'.$name);
         }
         foreach($this->views as $view){
+            if($view->locationBackTarget!==null){
+                $target=$this->views[$view->locationBackTarget]??null;
+                if(!$target||!$target->menu||$target->record!==null||$this->embedded($target->id))throw new \InvalidArgumentException('Invalid Back target of '.$view->id.': '.$view->locationBackTarget);
+            }
             if($view->parent===null)continue;
             $parent=$this->views[$view->parent['view']]??null;
             $lookup=($this->fields((string)$view->record)[$view->parent['field']]??null)?->references();

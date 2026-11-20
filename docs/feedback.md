@@ -11520,3 +11520,27 @@ object. Typecheck, build and demo asset preparation passed.
   the managed demo. The guide test covers a new tab before dismissal, reload,
   repeat sign-in, a different account in the same profile and manual opening.
 - **Status.** Implemented and verified on the managed demo.
+
+<a id="fb-0245"></a>
+
+## FB-0245 — A Back destination for each page
+
+- **Date.** 2026-11-20.
+- **Decision.** An enabled location bar Back button first runs the page's
+  current `setLocation` action, then uses its declared view target when no
+  action is supplied. An absent or unavailable target falls back to the
+  in-app browser history from [FB-0238](#fb-0238).
+- **Implementation.** `View(locationBackTarget: …)` and JSON
+  `location_back_target` name another registered, addressable view that
+  needs no record ID. `ViewHost.setLocation(segments, {back})` supplies an
+  action for the current page state. The demo's `Feladatlap` returns to its
+  first tab from a secondary tab and opens `Feladatok` from the first tab.
+- **Contract.** [Location bar Back destination](shell.md#location-bar-back-target).
+- **Verification.** Build, type check, demo asset preparation, and PHP
+  `configuration`, `contracts`, `toolkit` and `i18n` passed. Temporary
+  PHP checks covered both JSON declaration sites and invalid targets.
+  All 27 cases in `location-bar.spec.cjs`, `task-page.spec.cjs` and
+  `window-title.spec.cjs` passed on the managed demo, including temporary
+  checks for direct landing, the page action taking precedence, and history
+  fallback with an unavailable target. The temporary checks were removed.
+- **Status.** Implemented and verified on the managed demo.

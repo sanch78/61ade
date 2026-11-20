@@ -126,12 +126,14 @@ function page(app: Application, host: ViewHost, view: ViewDefinition<PageOptions
     // The location bar after the menu path (docs/shell.md#location-bar): the task, the open tab and, in `Munka`, the
     // selected note; the task goes back to the first tab. Each change redraws only the bar.
     const pages = layout.tabsOf("notes")!, labels: Record<string, string> = { work: t("Munka"), notes: t("Jegyzetek"), sketch: t("Vázlat") };
+    const firstTab = notes ? "work" : "notes";
+    const selectFirstTab = () => void pages.select(firstTab);
     let focused: Record<string, unknown> | undefined;
     const locate = () => host.setLocation([
-      { label: title, onSelect: () => void pages.select(notes ? "work" : "notes") },
+      { label: title, onSelect: selectFirstTab },
       { label: labels[pages.active()] ?? pages.active() },
       ...(pages.active() === "work" && focused ? [{ label: String(focused.body ?? "").trim().slice(0, 60) || "#" + String(focused.id) }] : []),
-    ]);
+    ], { back: pages.active() === firstTab ? undefined : selectFirstTab });
     pages.on("change", locate, { signal });
     locate();
 
