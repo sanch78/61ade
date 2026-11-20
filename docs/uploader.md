@@ -181,8 +181,9 @@ handler failure); when no part remains the request is `400` with
   (`role="progressbar"`) and per-row Cancel, Retry and Remove buttons with
   accessible names. Below it a summary and the shared window action row
   (a native Form with `blade-form-actions`, as the file picker and record
-  forms): `Befejezettek törlése` as the flat secondary button and `Bezárás`
-  as the primary one, one rule above and the window's lower edge below (the
+  forms, `formFooter`): `Befejezettek törlése` as the flat secondary button
+  and `Bezárás` as the primary one, the shared footer band with one rule
+  above and the window's lower edge below (the
   window content has no inset; every cell brings its own). The shared
   `blade-form-actions` style owns that rule; the containing cell adds none.
 - **Flow.** Choosing files starts the upload immediately (no second

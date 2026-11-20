@@ -57,7 +57,7 @@ const mountForm=(page,options)=>page.evaluate(options=>{
  window.__form=new app.components.RecordForm(options);window.__form.mount(host);
 },options);
 const fixtureWindow=page=>page.getByRole('dialog',{name:'Fixture',exact:true});
-/** The save button sits at the lower edge of the window (the sticky action row, FB-0177). */
+/** The save button sits at the lower edge of the window (the fixed footer, FB-0177, FB-0242). */
 async function saveAtBottom(win){
  await expect.poll(async()=>{
   const frame=await win.boundingBox(),button=await win.getByRole('button',{name:'Mentés',exact:true}).boundingBox();
@@ -145,10 +145,12 @@ test('a collapsible section: closed on create, open with a stored file, opened b
  await expect(group).toBeVisible();
  await expect(group.getByRole('textbox',{name:'Kép',exact:true})).toBeVisible();
  await expect.poll(async()=>(await form.boundingBox()).height).toBeGreaterThan(closedHeight+100);
- // A tall form (FB-0177): the window stops at 800 px; the fields scroll between its header and the action row, which
+ // A tall form (FB-0177, FB-0242): the window stops at 800 px; the body scrolls between its header and the footer, which
  // stays at the window's lower edge.
  await expect.poll(async()=>(await form.boundingBox()).height).toBeLessThanOrEqual(800);
- expect(await form.locator('.dhx_form').evaluate(element=>element.scrollHeight>element.clientHeight+100)).toBe(true);
+ expect(await form.locator('.blade-form-body').evaluate(element=>element.scrollHeight>element.clientHeight+100)).toBe(true);
+ // Only the body scrolls, so its scrollbar ends at the footer's rule; the form itself does not scroll.
+ expect(await form.locator('.dhx_form').evaluate(element=>element.scrollHeight<=element.clientHeight+1)).toBe(true);
  await saveAtBottom(form);
  await page.keyboard.press('Space');
  await expect(toggle).toHaveAttribute('aria-expanded','false');
@@ -211,7 +213,7 @@ test('a fitted window stops at its maxHeight with the action row at its lower ed
  await expect.poll(async()=>Math.round((await win.boundingBox()).height)).toBe(420);
  await saveAtBottom(win);
  // Scrolled to the end and back, the action row stays where it is; the last field scrolls into view above it.
- const scroller=win.locator('.dhx_form');
+ const scroller=win.locator('.blade-form-body');
  await scroller.evaluate(element=>{element.scrollTop=element.scrollHeight;});
  await saveAtBottom(win);
  await expect(win.getByRole('button',{name:'Képek',exact:true})).toBeInViewport();

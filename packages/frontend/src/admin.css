@@ -462,15 +462,18 @@ body,
 [data-dhx-theme="dark"] .blade-grid-views .dhx_grid-header { box-shadow: 0 3px 8px rgb(0 0 0 / 55%); }
 /* Native Form columns remain a horizontal action group at every theme size. */
 .blade-form-actions { flex-wrap: nowrap; justify-content: flex-end; gap: 8px; }
-/* The action row of a form that scrolls (a fitted window at its maxHeight, a short panel) stays on the lower edge of
-   the form's scroll area while the fields scroll behind it (FB-0177): a footer with one rule above it across the
-   whole form (the form's overflow clips the band to its edges). fitWindow pauses it while measuring. */
-.dhx_form > .blade-form-actions {
-  position: sticky; bottom: 0; z-index: 2; padding-top: 12px;
-  /* A painted outset (no scrollable overflow): the rule and the background reach the form's edges and below. */
-  border-image: linear-gradient(var(--dhx-border-color) 0 1px, var(--dhx-background-primary) 1px) 0 fill / 0 / 0 100vw 100px;
-}
-[data-blade-measure] .dhx_form > .blade-form-actions { position: static; }
+/* A framework form (WindowSizing.ts formLayout, FB-0242): the fields scroll in their own body and the action row is the
+   form's fixed footer below it, the message dialog's footer (a rule, the secondary band, 12 px above and below the
+   buttons). A scrollbar runs beside the fields only; the form itself never scrolls. The body's last field or section
+   keeps no margin of its own, so the body's inset alone separates it from the footer. fitWindow measures the body at
+   its natural height. */
+.dhx_widget.dhx_form:has(> .blade-form-body) { overflow: hidden; }
+.dhx_widget.dhx_form > .blade-form-body { flex: 1 1 auto !important; min-height: 0; overflow: auto; }
+.dhx_widget.dhx_form > .blade-form-body > :last-child,
+.dhx_widget.dhx_form > .blade-form-body > :last-child > .dhx_form-group { margin-bottom: 0; }
+.dhx_form > .blade-form-actions { flex: none !important; border-top: 1px solid var(--dhx-border-color); background: var(--dhx-background-secondary); }
+.dhx_form > .blade-form-actions .dhx_form-group { margin-bottom: 0; }
+[data-blade-measure] .dhx_widget.dhx_form > .blade-form-body { flex: 0 0 auto !important; overflow: visible; }
 .blade-form-actions .dhx_button { white-space: nowrap; }
 /* Semantic field state (fields.ts input), not every readonly DOM input: an editable file field's name is readonly too.
    A flat, filled surface distinguishes read-only values while keeping their contrast and copyable text. */
@@ -517,10 +520,10 @@ body,
    the record details and an element bring their own padding. */
 .blade-content-window .dhx_window-content { padding: 0; }
 /* Suite sizes a textarea from its Form cell: the cell takes the window height beyond the fitted
-   content, so a clamped or resized window has no gap below its actions. fitWindow pauses it. */
-.blade-content-window .dhx_form > .dhx_form-element:has(> .dhx_form-group--textarea) { flex-grow: 1; }
+   content, so a clamped or resized window has no gap above its footer. fitWindow pauses it. */
+.blade-content-window :is(.dhx_form, .blade-form-body) > .dhx_form-element:has(> .dhx_form-group--textarea) { flex-grow: 1; }
 /* The measure flag is on the window element itself (fitWindow: `win.getContainer()`). */
-.blade-content-window[data-blade-measure] .dhx_form > .dhx_form-element:has(> .dhx_form-group--textarea) { flex-grow: 0; }
+.blade-content-window[data-blade-measure] :is(.dhx_form, .blade-form-body) > .dhx_form-element:has(> .dhx_form-group--textarea) { flex-grow: 0; }
 /* Non-blocking success notice (Suite message); themes override the accent through the Suite variable. */
 .blade-toast { border-left: 4px solid var(--dhx-color-success); }
 /* `app.ui.toast(text, severity)`: the text carries the meaning, the accent only repeats it. */

@@ -11449,3 +11449,52 @@ object. Typecheck, build and demo asset preparation passed.
   `subview-demos.spec.cjs`, `tenancy.spec.cjs` and `form-accordion.spec.cjs`
   passed all 25 cases. No full-smoke claim.
 - **Status.** Implemented and verified as above.
+
+<a id="fb-0242"></a>
+
+## FB-0242 — Form windows: a scrolling body and a fixed footer
+
+- **Date.** 2026-11-20.
+- **Report.** Owner, on a consumer's action form window (recorded without
+  consumer names): the scrollbar hangs oddly on the right, running beside the
+  button row down to the window's corner, where its lower arrow sits below the
+  buttons; the margins have no rhythm (below the buttons in particular). The
+  form of [FB-0177](#fb-0177) scrolled as a whole: the action row stuck to the
+  lower edge of that scroll area (`position: sticky`, a painted
+  `border-image` outset), so the scrollbar covered the footer and the form's
+  bottom padding, and the band above and below the buttons was uneven.
+- **Decision.** Every framework form has one frame, `formLayout(rows,
+  actions, inset)` (`WindowSizing.ts`): the fields in one Form block,
+  `blade-form-body`, which alone scrolls, with the inset (20 px; 16 px in the
+  card field editor and a `SettingsForm`, 24 px in the details panel) on
+  every side; the action row (`formFooter`) below it as a fixed footer with
+  the message dialog's footer metrics: one rule, the secondary background,
+  12 px above and below the buttons, the body's inset beside them. The body's
+  last field or section keeps no margin, so the inset alone separates it from
+  the rule. It stays one Form (validation, the disabled state and every
+  `form` event unchanged), as FB-0177 required. A window or panel taller than
+  its content keeps the footer at its lower edge; a fitted window measures to
+  the footer and no longer counts other buttons of that form (a field's own
+  scrolling list).
+- **Contract.** [Window sizing](workspaces.md#window-sizing).
+- **Implemented.** `WindowSizing.ts` `formLayout`, `formFooter`,
+  `fitWindow`; `admin.css` (body and footer, sticky row removed, the textarea
+  growth inside the body); `form-section.css` (accordion and flush rules
+  address the body); the list's form and bulk windows, `RecordForm`,
+  `SettingsForm`, the card editor and details panel, the file manager's,
+  file picker's, uploader's, diagram's and calendar's forms.
+- **Verification.** `npm run typecheck`, `npm run build`, `npm run
+  demo:assets`; a temporary browser check with visible scrollbars captured a
+  tall record form (the scrollbar ends at the footer's rule) and a fitted one
+  (20 px to the rule, 12 px around the buttons) and was removed.
+  `record-forms.spec.cjs` (now also: the form itself does not scroll),
+  `form-accordion.spec.cjs`, `form-rows.spec.cjs`, `uploader-reopen.spec.cjs`
+  (footer rule as a border), `settings-form.spec.cjs`, `files.spec.cjs`,
+  `calendar.spec.cjs`, `diagram.spec.cjs`, `stored-file.spec.cjs` and
+  `related-fields.spec.cjs` passed. `uploader.spec.cjs` passed except its
+  resume case, which failed twice on the step after a reload that looks for
+  the run's folder in Drive A's root without scrolling: five `pu*-batch`
+  folders left by stopped runs of 2026-10-31 to 2026-11-02 lengthen that root
+  (the condition noted in [FB-0177](#fb-0177)); no form is involved. Not
+  removed here. No full-smoke claim.
+- **Status.** Implemented and verified as above.

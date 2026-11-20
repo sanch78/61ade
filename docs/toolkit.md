@@ -265,9 +265,9 @@ name. A fitted window (`fit`, a `RecordForm`) grows to its content up to
 `ApplicationDefinition` or JSON `application.window_max_height`, else 800 px;
 at most the viewport minus 24 px; `Infinity` for the viewport; a number below
 120 throws `TypeError`; [FB-0225](feedback.md#fb-0225)); a taller form
-scrolls between the fixed header and its action row, which sticks to the
-window's lower edge ([window sizing](workspaces.md#window-sizing),
-[FB-0177](feedback.md#fb-0177)). A window opened with `fit: false`, and
+scrolls its fields between the fixed header and its action row, a fixed
+footer at the window's lower edge ([window sizing](workspaces.md#window-sizing),
+[FB-0177](feedback.md#fb-0177), [FB-0242](feedback.md#fb-0242)). A window opened with `fit: false`, and
 every window below 768 px (full screen there), keeps its size: `fit()` does
 nothing for it, so a `RecordForm` or `SettingsForm` in it fills it instead
 of resizing it ([FB-0178](feedback.md#fb-0178)).
@@ -957,8 +957,8 @@ form.mount(win);
   FB-0172, FB-0177) are framed panels inside the form: collapsible ones open
   by themselves when one of their fields has a value or an error, fixed ones
   (`sectionCollapsible: false`) are always open; the window refits when one
-  opens or closes. In a window, the action row sticks to the window's lower
-  edge while a tall form scrolls ([window sizing](workspaces.md#window-sizing)).
+  opens or closes. The action row is the form's fixed footer; only the fields
+  scroll ([window sizing](workspaces.md#window-sizing)).
   An action declaring `formSections: 'accordion'` or `'accordion-multiple'`
   (`FormDescription.formSections`, FB-0178) shows them as
   [accordion sections](workspaces.md#form-accordion) instead: the

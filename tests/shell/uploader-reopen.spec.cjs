@@ -10,12 +10,13 @@ test('uploader reopened across routes stays modal and keeps its content',async({
   await expect(page.locator('.blade-uploader__zone')).toBeVisible();
   await expect(page.locator('.blade-uploader__commands')).toBeVisible();
   if(!index){
-   // The footer is the shared window action row: native Form buttons, flush with the window's lower edge, no rule below.
+   // The footer is the shared form footer (formFooter): native Form buttons, flush with the window's lower edge, a rule
+   // above it and none below.
    const footer=await page.locator('.blade-uploader-window').evaluate(win=>{
     const content=win.querySelector('.dhx_window-content').getBoundingClientRect(),cell=win.querySelector('.blade-uploader__commands'),box=cell.getBoundingClientRect();
-    return {toolbars:win.querySelectorAll('.dhx_window-content .dhx_toolbar').length,actions:!!cell.querySelector('.blade-form-actions'),gap:Math.round(content.bottom-box.bottom),
+    return {toolbars:win.querySelectorAll('.dhx_window-content .dhx_toolbar').length,actions:!!cell.querySelector('.blade-form-actions'),gap:Math.abs(Math.round(content.bottom-box.bottom)),
      inset:Math.round(box.left-content.left),below:getComputedStyle(cell).borderBottomWidth,above:getComputedStyle(cell).borderTopWidth,
-     rule:getComputedStyle(cell.querySelector('.blade-form-actions')).borderImageSource.includes('linear-gradient'),
+     rule:getComputedStyle(cell.querySelector('.blade-form-actions')).borderTopWidth==='1px',
      primary:cell.querySelector('.dhx_button--color_primary')?.textContent.trim()};
    });
    expect(footer).toEqual({toolbars:0,actions:true,gap:0,inset:0,below:'0px',above:'0px',rule:true,primary:'Bezárás'});

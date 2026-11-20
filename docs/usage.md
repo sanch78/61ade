@@ -514,9 +514,9 @@ with `page.header(id, {count})`
 A form window fits its content up to 800 px, or up to the application's
 `windowMaxHeight` (JSON `application.window_max_height`, 320–4000 px) for
 other screens; `app.ui.window` `maxHeight` sets one window's cap. A taller
-form scrolls between the window header and its action row, which stays at
-the window's lower edge ([window sizing](workspaces.md#window-sizing),
-[FB-0225](feedback.md#fb-0225)). A Tree's `expandControl` is
+form scrolls its fields between the window header and its action row, a
+fixed footer at the window's lower edge ([window sizing](workspaces.md#window-sizing),
+[FB-0225](feedback.md#fb-0225), [FB-0242](feedback.md#fb-0242)). A Tree's `expandControl` is
 two icon buttons ([Tree expansion](toolkit.md#tree-expansion)).
 
 A project page shows tabbed panels with [`app.components.Tabs`](toolkit.md#tabs) or a declared `tabs` branch of

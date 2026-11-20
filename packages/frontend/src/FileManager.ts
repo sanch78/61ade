@@ -4,7 +4,7 @@ import { ResponsiveToolbar } from "./ResponsiveToolbar";
 import { ResponsiveGrid } from "./ResponsiveGrid";
 import { TreeAdapter } from "./TreeAdapter";
 import { widgetIcons } from "./WidgetIcons";
-import { fitWindow } from "./WindowSizing";
+import { fitWindow, formLayout } from "./WindowSizing";
 import { FormValidation, type FieldDefinition } from "./FormValidation";
 import { acknowledge, requestChoice, requestConfirmation } from "./MessageDialog";
 import { escape, clearedText, findMediaType, mediaTypeEntries, mergeUsages, type Usage } from "./RecordPresentation";
@@ -732,10 +732,9 @@ export class FileManager {
     const id=ids[0],name=this.nameOf(panel,id),mount=panel.mount;
     const win=this.window(t("Átnevezés"),420,260);
     this.inputs.set(win,()=>true);
-    const form=new Form(document.createElement("div"),{padding:20,rows:[
+    const form=new Form(document.createElement("div"),formLayout([
       {type:"input",name:"name",label:field.label,labelPosition:"top",required:true,maxlength:field.max,value:name},
-      formActions({name:"submit",text:t("Mentés"),icon:"bi bi-floppy"}),
-    ]} as any);
+    ],formActions({name:"submit",text:t("Mentés"),icon:"bi bi-floppy"})));
     win.attach(form);win.show();void fitWindow(win);form.events.on("afterValidate",()=>{void fitWindow(win);});
     const validation=new FormValidation(form,[field]);let saving=false;
     const submit=()=>{
@@ -804,10 +803,9 @@ export class FileManager {
     if(!directory||!field)return;
     const win=this.window(t("Új mappa"),420,260);
     this.inputs.set(win,()=>true);
-    const form=new Form(document.createElement("div"),{padding:20,rows:[
+    const form=new Form(document.createElement("div"),formLayout([
       {type:"input",name:"name",label:field.label,labelPosition:"top",required:true,maxlength:field.max},
-      formActions({name:"submit",text:t("Létrehozás"),icon:"bi bi-plus-lg"}),
-    ]} as any);
+    ],formActions({name:"submit",text:t("Létrehozás"),icon:"bi bi-plus-lg"})));
     win.attach(form);win.show();void fitWindow(win);form.events.on("afterValidate",()=>{void fitWindow(win);});
     const validation=new FormValidation(form,[field]);let saving=false;
     form.events.on("click",(name:string)=>{

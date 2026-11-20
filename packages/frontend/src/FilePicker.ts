@@ -7,6 +7,7 @@ import { queueGrid, uploadActive, uploadRules, uploads, type UploadResult, type 
 import "./uploader.css";
 import { fileDisplay, fileUploadPending, fieldActive, type FieldDefinition, type FileFieldConfig, type MountFileFieldConfig, type StoredFileFieldConfig } from "./FormValidation";
 import "./file-field.css";
+import { formFooter } from "./WindowSizing";
 import type { Row } from "./Realtime";
 import type { ViewDefinition } from "./components/list/types";
 
@@ -463,7 +464,7 @@ export class FilePicker{
     this.grid=new ResponsiveGrid(document.createElement("div"),columns,()=>this.rows,id=>{this.selected=id;this.capabilities();},()=>this.choose(),direction=>{if(direction==="next")void this.more();},()=>{},
       {rowNumbers:false,idColumn:false,fields:columns,tiles:true,tileMinWidth:150});
     this.grid.setMode("tiles");
-    this.form=new Form(document.createElement("div"),{padding:"8px 16px 16px",rows:[actions({name:"choose",text:t("Kiválasztás"),icon:"bi bi-check-lg"})]} as any);
+    this.form=new Form(document.createElement("div"),{padding:0,rows:[formFooter(actions({name:"choose",text:t("Kiválasztás"),icon:"bi bi-check-lg"}),16)]} as any);
     this.form.getItem("choose").disable();
     this.form.events.on("click",(name:string)=>{if(name==="cancel")this.close();else if(name==="choose")this.choose();});
     this.find.events.on("click",(id:string|number)=>{

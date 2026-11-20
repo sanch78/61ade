@@ -5,6 +5,7 @@ import { UiPreferences } from "../../UiPreferences";
 import type { MountTarget, SettingsChip, SettingsField, SettingsForm as SettingsFormApi, SettingsFormEvents, SettingsFormOptions, SettingsGroup } from "../../api/types";
 import { Component } from "../list/component";
 import { bindFieldTypes, formActions, input } from "../list/fields";
+import { formLayout } from "../../WindowSizing";
 
 const NAME=/^[A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)*$/;
 const TYPES=new Set(["text","number","select","multiselect","textarea","checkbox","date","switch","segmented","range","color","chips"]);
@@ -71,8 +72,8 @@ export class SettingsForm extends Component<SettingsFormEvents> implements Setti
     this.state={...this.defaults,...this.accepted(options.values),...this.accepted(this.preferences?.settings())};
     // The Form items are built from the state, so every field starts with its value.
     this.layout=new Layout(this.host,{type:"none",rows:[{id:"form",css:"blade-settings"}]});
-    this.form=new Form(document.createElement("div"),{padding:16,rows:[...rows.map(row=>this.items(row)),
-      ...(options.submit?[formActions({name:"blade-submit",text:options.submit.label,icon:options.submit.icon??"bi bi-check-lg",color:"primary"},false)]:[])]} as any);
+    this.form=new Form(document.createElement("div"),formLayout(rows.map(row=>this.items(row)),
+      options.submit?formActions({name:"blade-submit",text:options.submit.label,icon:options.submit.icon??"bi bi-check-lg",color:"primary"},false):undefined,16));
     const definitions=this.fields.filter(field=>BUILTIN.has(field.type)).map(field=>this.definition(field));
     this.validation=new FormValidation(this.form,definitions,()=>this.state);
     this.releaseTypes=bindFieldTypes(this.form,definitions.map(({visibleWhen,clears,...field})=>field as FieldDefinition));
