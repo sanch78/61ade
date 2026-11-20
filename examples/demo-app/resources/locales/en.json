@@ -449,5 +449,18 @@
   "Szimulált lezárás…": "Simulated finish…",
   "Az ellenőrzés kész.": "The check is done.",
   "Csatolás": "Attach",
-  "Csatolmányok": "Attachments"
+  "Csatolmányok": "Attachments",
+  "Szolgáltatásjelentés": "Service report",
+  "Szolgáltatáslap": "Service page",
+  "Régió": "Region",
+  "Működik": "Up",
+  "Lassú": "Slow",
+  "Leállt": "Down",
+  "Válaszidő (ms)": "Latency (ms)",
+  "Felelős csapat": "Team",
+  "Részletek": "Details",
+  "Újraellenőrzés": "Re-check",
+  "{count} leállt szolgáltatás": "{count} services down",
+  "A szolgáltatáslap egy szolgáltatáshoz nyílik meg.": "The service page opens for one service.",
+  "A szolgáltatásjelentés nem érhető el.": "The service report is not available."
 }

@@ -2,7 +2,7 @@ import { t } from "./I18n";
 import { server } from "./api/Server";
 export type LiveConfig={transport:"poll"|"websocket";endpoint:string;interval:number};
 export type Row={id:string;revision?:string;_actions?:string[];_editable?:string[];_position?:Record<string,unknown>;[key:string]:unknown};
-export type Snapshot={items:Row[];previous:string|null;next:string|null;version?:string;total?:number;matched?:number};
+export type Snapshot={items:Row[];previous:string|null;next:string|null;version?:string;total?:number;matched?:number;notice?:{text:string;tone:"info"|"warning"|"danger"}};
 /** Live protocol version; live-server.mjs closes a different one with 4409 (docs/workspaces.md, live channel). */
 export const LIVE_PROTOCOL=2;
 const RELOAD="blade-live-reload",BATCH=64,BATCH_BYTES=48000;
@@ -201,7 +201,7 @@ export class Realtime {
     for(const row of message.upserts)this.rows.set(String(row.id),row);
     const visible=new Set(message.order);for(const id of this.rows.keys())if(!visible.has(id))this.rows.delete(id);
     this.version=message.version;
-    this.update({items:message.order.map((id:string)=>this.rows.get(id)).filter(Boolean),previous:message.previous,next:message.next,version:message.version,total:message.total,matched:message.matched});
+    this.update({items:message.order.map((id:string)=>this.rows.get(id)).filter(Boolean),previous:message.previous,next:message.next,version:message.version,total:message.total,matched:message.matched,...(message.notice?{notice:message.notice}:{})});
   }
   /**
    * `denied` of this subscription: 403/404 revoke the list; 429 (too many lists) only stops its live updates. A record

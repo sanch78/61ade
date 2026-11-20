@@ -79,7 +79,7 @@ foreach ($demoViews as $view) {
 }
 $demoKinds = array_column($demoViews, 'kind', 'id');
 verify($demoKinds['demo_tasks'] === 'list' && $demoKinds['files'] === 'files' && $demoKinds['topology'] === 'diagram' && $demoKinds['signage_schedule'] === 'calendar', 'Every built-in kind is named explicitly');
-verify(!array_filter($demoViews, static fn(array $view) => $view['kind'] !== 'list' && array_intersect_key($view['options'], ['columns' => 1, 'filters' => 1, 'singleton' => 1])), 'Non-list kinds carry no list placeholders');
+verify(!array_filter($demoViews, static fn(array $view) => $view['kind'] !== 'list' && array_intersect_key((array) $view['options'], ['columns' => 1, 'filters' => 1, 'singleton' => 1])), 'Non-list kinds carry no list placeholders');
 // Toolkit D3 (docs/demos.md#toolkit-consumer): the readings dashboard is a project kind with JSON options beside the
 // Mérések list, whose value column (table, cards and details) names the module's presentation.
 $demoById = array_column($demoViews, null, 'id');

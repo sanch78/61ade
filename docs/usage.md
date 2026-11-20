@@ -734,6 +734,18 @@ window opens wide enough for its widest row. Forms without rows are
 unchanged. The feature demo's `Kapcsolatok` uses it;
 `tests/shell/form-rows.spec.cjs` checks it at 1366, 880 and 390 px.
 
+A list whose rows are not an SQL table (an API, files, a report computed from
+several sources) is a [provider list](workspaces.md#provider-lists)
+(`ProviderResource`, [FB-0252](feedback.md#fb-0252)). A closure gives every row
+of a small set, or a `ListProvider` answers one window. The standard list view,
+`Adatok`, record views, record actions and the live channel then work as for an
+SQL list, with the same validation and ACL. The list's `notice` carries
+view-level facts such as the generation time. The section lists the limits
+(no count fields, read-only, no tenant column) and the checks
+(`provider-lists.php`, `provider-list.spec.cjs`). The feature demo's
+`Szolgáltatásjelentés` uses it. The change is additive: existing `SqlResource`
+lists are unchanged.
+
 No list or page region is a bare blank area
 ([loading and empty states](toolkit.md#loading-and-empty-states)): every list
 shows a loading indicator (`aria-busy`) while it loads and says when it has

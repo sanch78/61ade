@@ -80,7 +80,7 @@ wss.on('connection',(ws,req)=>{
    if(data.version!==s.previous?.version){
     const old=new Map((s.previous?.items || []).map(row=>[String(row.id),JSON.stringify(row)]));
     const order=data.items.map(row=>String(row.id)),visible=new Set(order);
-    send({type:'update',id:s.id,version:data.version,order,upserts:data.items.filter(row=>old.get(String(row.id))!==JSON.stringify(row)),removed:[...old.keys()].filter(id=>!visible.has(id)),previous:data.previous,next:data.next,total:data.total,matched:data.matched});s.previous=data;
+    send({type:'update',id:s.id,version:data.version,order,upserts:data.items.filter(row=>old.get(String(row.id))!==JSON.stringify(row)),removed:[...old.keys()].filter(id=>!visible.has(id)),previous:data.previous,next:data.next,total:data.total,matched:data.matched,...(data.notice?{notice:data.notice}:{})});s.previous=data;
    }
   }catch{s.retry=Date.now()+Math.min(30000,interval*2**s.failures++);}
  };

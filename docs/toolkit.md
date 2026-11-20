@@ -3911,6 +3911,7 @@ markup may change without notice.
 
 | Date | Change | Feedback |
 | --- | --- | --- | --- |
+| 2026-11-20 | `Snapshot.notice` (`{text, tone}`): a list answer's view-level notice, shown above the rows and kept by the live channel's `update` frame; PHP `ProviderResource`, `ListProvider`, `ListQuery` and the `ListReader` interface of `Action::$listSource` (formerly `?ListSource`), [provider lists](workspaces.md#provider-lists). Additive: `ListSource` implements `ListReader`, and SQL lists read, validate and answer as before. | [FB-0252](feedback.md#fb-0252) |
 | 2026-11-20 | `Application.viewport` (`Viewport`), `AppEvents["viewport:change"]`; `PageLayoutOptions.narrow`, `PageLayoutEvents.variant`, `PageLayout.narrow` (M101). Additive. | [FB-0250](feedback.md#fb-0250) |
 | 2026-11-20 | New components `Attachments` and `Steps` (types `AttachmentItem`, `AttachmentsOptions`, `AttachmentsEvents`, `Attachments`, `StepDefinition`, `StepState`, `StepsOptions`, `Steps`); `Ui.progress` (`ProgressOptions`, `ProgressDialog`), `WindowOptions.closable` (M102, M103). Additive. | [FB-0250](feedback.md#fb-0250) |
 | 2026-11-20 | `Live.watch` (`RecordLiveHandlers`; wire query `{record}`, protocol 2); `CallOptions.version` for `Server.request`; `Ui.copy`, `Ui.submitKeys` (`SubmitKeysOptions`) (M104–M106). `LiveHandlers.denied` is documented without 429, as it always behaved. A singleton watch is authorized like `get`. `Ui.toast` escapes its text. | [FB-0250](feedback.md#fb-0250) |

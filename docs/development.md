@@ -441,6 +441,7 @@ PHP scripts use the demo Composer autoloader and throw on failure.
 | JSON/env/validation | PHP `configuration.php`, `validation.php`, affected `contracts.php` |
 | Inline/related fields | PHP `grid-edit.php`, `related-fields.php`; shell `grid-edit.spec.cjs`, `related-fields.spec.cjs` |
 | Sorting/list presentation | PHP `sorting.php`, `list-presentation.php`, `lists.php`; shell `list-presentation.spec.cjs`, `list-integration.spec.cjs`, `grid-sort.spec.cjs` |
+| Provider lists (`ProviderResource`, `ListProvider`, `ListQuery`, `ListReader`), list `notice` | PHP `provider-lists.php`, `lists.php`, `sorting.php`, `counts.php`; `node tools/build.mjs` then `node tests/shell/live-protocol.mjs`; shell `provider-list.spec.cjs`, `workspace.spec.cjs`, `list-integration.spec.cjs`, `empty-states.spec.cjs` |
 | Localization | `php8.4 tests/shell/i18n.php`; shell `i18n.spec.cjs` |
 | Dialogs | `npm run test:browser -- --project=shell tests/shell/dialogs.spec.cjs` |
 | Location bar (`LocationBar.ts`, `ViewHost.setLocation`, `recordTitle`, a record view's `parent`) | `npm run typecheck`, `npm run build`, `npm run demo:assets`; PHP `contracts.php`, `configuration.php`, `toolkit.php`, `i18n.php`; shell `location-bar.spec.cjs` (themes, a skin, record page, parent records, 1366 and 390 px), `task-page.spec.cjs`, `window-title.spec.cjs` |

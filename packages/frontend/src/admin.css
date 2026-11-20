@@ -466,6 +466,12 @@ body,
 .blade-list-panel > .dhx_layout-cell-header .dhx_layout-cell-header__collapse-icon { order: 2; }
 /* Cards use the command shadow; tables separate scrolling rows below the header. */
 .blade-command-row { z-index: 2; box-shadow: 0 3px 7px rgb(0 0 0 / 22%); }
+/* A provider list's view-level notice (docs/workspaces.md#provider-lists): one line above the rows, toned like a toast. */
+.blade-list-notice { display: flex; align-items: flex-start; gap: 8px; padding: 8px 16px; font-size: 13px; line-height: 18px; color: var(--dhx-font-color-primary); background: color-mix(in srgb, var(--blade-notice-tone) 10%, var(--dhx-background-primary)); border-bottom: 1px solid color-mix(in srgb, var(--blade-notice-tone) 35%, transparent); overflow-wrap: anywhere; }
+.blade-list-notice .bi { color: var(--blade-notice-tone); flex-shrink: 0; }
+.blade-list-notice--info { --blade-notice-tone: var(--dhx-color-primary); }
+.blade-list-notice--warning { --blade-notice-tone: var(--dhx-color-warning); }
+.blade-list-notice--danger { --blade-notice-tone: var(--dhx-color-danger); }
 /* A CommandBar mounted in the upper cell of a rows Layout (the Tree's control, a project page's bar) is the same command
    row: its cell stacks above the content below and does not clip the shadow. */
 .dhx_layout-rows > .dhx_layout-cell:not(:last-child):has(> .dhx_layout > .blade-command-row:only-child:not(.blade-command-row--bottom)) { position: relative; z-index: 2; overflow: visible; }

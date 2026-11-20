@@ -144,7 +144,7 @@ export class Workspace implements ActionHost {
     else{
       // A declared search (`view.search`) gets its own native Toolbar input: the command bar may collapse into a menu.
       const search=!!view.search?.fields?.length;
-      this.content=new Layout(document.createElement("div"),{type:"none",css:"blade-grid-content",rows:[scope?.compact?{id:"commands",height:0,hidden:true}:scope?.shared?{id:"commands",height:0,hidden:true}:search?{height:48,css:"blade-command-row",cols:[{id:"search",width:Math.min(280,Math.max(150,Math.round(innerWidth*.4))),css:"blade-search-cell"},{id:"commands"}]}:{id:"commands",height:48,css:"blade-command-row"},{id:"data"}]});
+      this.content=new Layout(document.createElement("div"),{type:"none",css:"blade-grid-content",rows:[scope?.compact?{id:"commands",height:0,hidden:true}:scope?.shared?{id:"commands",height:0,hidden:true}:search?{height:48,css:"blade-command-row",cols:[{id:"search",width:Math.min(280,Math.max(150,Math.round(innerWidth*.4))),css:"blade-search-cell"},{id:"commands"}]}:{id:"commands",height:48,css:"blade-command-row"},{id:"notice",height:"content",hidden:true,css:"blade-list-notice-row"},{id:"data"}]});
       this.content.getCell("commands").attach(this.commands);
       if(search)this.search=new ListSearch(this.content.getCell("search"),()=>void this.load());
       const dataHost=document.createElement("div");
@@ -560,6 +560,16 @@ export class Workspace implements ActionHost {
     // The server's total ignores filters; a nested view's records are its parent record's, so it counts the scoped match.
     const text=this.scope?typeof data.matched==="number"?t("Találat: {count}",{count:data.matched.toLocaleString(locale())}):"":typeof data.total==="number"?t("Összes: {count}",{count:data.total.toLocaleString(locale())})+(Object.keys(this.filters).length||this.search?.value?" / "+t("Találat: {count}",{count:(data.matched??0).toLocaleString(locale())}):""):"";
     this.layout.getRootNode()?.style.setProperty("--blade-list-count",JSON.stringify(text));
+    this.notice(data.notice);
+  }
+  /** The list's view-level notice (a provider list's `notice`, docs/workspaces.md#provider-lists), in its row above the rows; only a changed one is announced again. */
+  private shownNotice="";
+  private notice(notice:Snapshot["notice"]):void{
+    const cell=this.content?.getCell("notice");if(!cell)return;
+    const key=notice?JSON.stringify([notice.text,notice.tone]):"";if(key===this.shownNotice)return;this.shownNotice=key;
+    if(!notice){cell.hide();cell.attachHTML("");return;}
+    const icon=notice.tone==="info"?"bi-info-circle":"bi-exclamation-triangle";
+    cell.attachHTML(`<div class="blade-list-notice blade-list-notice--${notice.tone}" role="status"><span class="bi ${icon}" aria-hidden="true"></span><span class="blade-list-notice__text">${escape(notice.text)}</span></div>`);cell.show();
   }
   /** A top-level list's first load only: the position its history entry kept when it was left for a page (openPage). */
   private returning=true;

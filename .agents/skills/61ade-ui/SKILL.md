@@ -203,6 +203,12 @@ tree as decoration for a flat list.
   partially readable sort/filter fields. Use cursor windows and virtualization
   with explicit limits; never fake a full table with placeholders, client-only
   sorting, or an unbounded download.
+- Rows that are not an SQL table (an API, files, a computed report) are a
+  provider list (`ProviderResource`, [provider lists](../../../docs/workspaces.md#provider-lists)),
+  never a hand-built grid with its own filters, counts or details window. The
+  same validation, cursor rules and ACL apply. View-level facts that are not
+  rows (generation time, source, warnings) go to the list's `notice`, never a
+  page-made banner ([FB-0252](../../../docs/feedback.md#fb-0252)).
 - When the adapter supports integrated header filters, expose typed controls for
   filterable fields that are visible in the grid. An empty control removes that
   field from the request; changing it reloads the server window and counts.

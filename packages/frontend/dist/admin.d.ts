@@ -584,6 +584,11 @@ export interface Snapshot {
     version?: string;
     total?: number;
     matched?: number;
+    /** A provider list's view-level notice (docs/workspaces.md#provider-lists), shown above the list's rows. */
+    notice?: {
+        text: string;
+        tone: "info" | "warning" | "danger";
+    };
 }
 /** Query of a registered `list` action (docs/workspaces.md, list protocol). */
 export interface ListQuery {
