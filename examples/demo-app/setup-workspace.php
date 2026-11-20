@@ -208,6 +208,8 @@ blade_demo_accounts($db, [
     [null, 'guest@example.test', bin2hex(random_bytes(32)), 'Guest', 1, 0],
     // Delegated access (modules/collections.json, FB-0180): reaches collections only through the link tables.
     [null, 'delegate@example.test', '61ade-demo', 'Delegated Demo', 1, 0],
+    // A Blade Night child skin with public Blade palette overrides (application.php, docs/shell.md#blade-palette).
+    [null, 'bladeskin@example.test', '61ade-demo', 'Blade Skin Demo', 1, 0],
 ]);
 $reader = $db->query("SELECT id FROM accounts WHERE email = 'reader@example.test'")->fetchColumn();
 $guest = (string) $db->query("SELECT id FROM accounts WHERE email = 'guest@example.test'")->fetchColumn();

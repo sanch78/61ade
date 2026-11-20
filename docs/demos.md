@@ -174,7 +174,7 @@ The subpath uses `cookiePath: '/admin/'`, `assets: '../assets'`; see [shell](she
 | Dialogs | Six severity/mode combinations, long messages and mobile | Select a task and use `Párbeszéd: …` actions, confirmation then acknowledgment; [details](dialogs.md); also at ≤480 px |
 | Menu | Unimplemented disabled item and policy-filtered item | `Nyilvántartás` |
 | Appearance | Blade/Blade Night/light/dark, lower information bar and mobile menu; in Blade and Blade Night the [theme motion](shell.md#theme-motion) of accordion sections, accordion form sections, collapsable panels and tree folders | Any view; `Médiatár` asset viewer (`Adatok`/`Szerkesztés`), `Kulcsböngésző` (collapse `Kulcsok`, open and close `HKEY_CURRENT_USER`), `Kapcsolatok` → `Hozzáadás` (open `Cím`); switch to light to compare |
-| Application skins | Synthetic neutral skins over a factory base instead of the factory themes: one skin without selector, a light- and a dark-based skin in the selector ([details](shell.md#application-skins)) | `skin@example.test`, `skins@example.test` |
+| Application skins | Synthetic neutral skins over a factory base instead of the factory themes: one skin without selector, a light- and a dark-based skin in the selector, and the `demo-ember` Blade Night child recolouring the chrome through the [public Blade palette](shell.md#blade-palette) ([details](shell.md#application-skins)) | `skin@example.test`, `skins@example.test`, `bladeskin@example.test` |
 | Sign-in customization | The framework's [product logo](brand.md) kept with `new Logo(placement: 'both')` (inline SVG named `blade`: above the sign-in, e-mail confirmation and password-change forms, and a hidden-from-screen-readers copy at the end of the top row; after sign-in at the end of the top menu row), light or dark variant by the applied theme; the starter admin and the tenant demo show it by default (window placement); `branding/sign-in.css` on the signed-out pages only, through the supported hooks (smaller window logo, a green primary hue before sign-in); a notice below the form; the sign-in module `branding/sign-in.js` writing a theme line into the footer slot ([details](shell.md#sign-in-branding)) | Sign-in page in Blade and `Éjjeli` (reload); sign in and switch the theme; `skins@example.test` → `Tinta`; `twofactor@example.test` for the confirmation window; narrow to 390 px (the top row leaves the logo out) |
 
 <a id="toolkit-consumer"></a>
@@ -934,8 +934,8 @@ Synthetic accounts: `demo@example.test` (admin), `viewer@example.test`
 (menu only), `blocked@example.test` (consumer `active=0`),
 `twofactor@example.test` (code, English default), `oauth@example.test`
 (OAuth only; random unknown password), `reader@example.test` (read-only Tasks
-without the description field; file manager browse/read only), `skin@example.test`
-and `skins@example.test` (application skins only). Shared synthetic password: `61ade-demo`.
+without the description field; file manager browse/read only), `skin@example.test`,
+`skins@example.test` and `bladeskin@example.test` (application skins only). Shared synthetic password: `61ade-demo`.
 Setup adds missing synthetic accounts to an existing database without changing
 existing ones; an account added later takes the next free id.
 

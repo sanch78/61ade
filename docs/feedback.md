@@ -1015,3 +1015,7 @@
 <a id="fb-0248"></a>
 
 ## FB-0248 — One standard panel header: CommandBar title, popup and icons
+
+<a id="fb-0249"></a>
+
+## FB-0249 — Public Blade palette for Blade-family child skins

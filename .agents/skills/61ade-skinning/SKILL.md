@@ -42,10 +42,13 @@ the same independent skin through `stylesheets` or a browser module.
    override belongs under its exact `[data-blade-skin="<id>"]` root selector:
    all offered skin stylesheets load together, including inactive ones.
 3. Override documented Suite `--dhx-*` variables and explicitly documented
-   61ade customization properties only. Internal `--blade-*` tokens are not
-   automatically public. Keep the chosen family's inherited chrome and
-   geometry; Suite colour or radius changes do not recolour or reshape every
-   framework surface. Consult the [current limitations](../../../docs/skinning.md#customization-limits).
+   61ade customization properties only. A child of `blade` or `blade-night`
+   may also override the [public Blade palette](../../../docs/shell.md#blade-palette)
+   (`--blade-chrome`, `--blade-button`, `--blade-corner-color` and the rest of
+   that table) to recolour the glossy chrome; it is not public for a Generic
+   child. Other `--blade-*` tokens are internal. Keep the chosen family's
+   inherited character and geometry; Suite colour or radius changes do not
+   recolour or reshape every framework surface. Consult the [current limitations](../../../docs/skinning.md#customization-limits).
 4. Let the shell set `data-blade-theme`, `data-dhx-theme`, `data-blade-skin`
    and call `setTheme`. Never write these markers or call `setTheme` from the
    project. Avoid internal `.dhx_*`/`.blade-*` selectors; a missing public

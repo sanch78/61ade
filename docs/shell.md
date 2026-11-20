@@ -548,6 +548,8 @@ and one light sweep crosses the card on an overlay above its content; the
 cursor and the focused card keep their own rings. The edge colour is
 `--blade-card-hover-edge` (the theme's `--blade-hover-ring` in Blade and
 Blade Night); reduced motion turns the sweep off ([FB-0189](feedback.md#fb-0189)).
+A child skin of the Blade family recolours this character through the
+[public Blade palette](#blade-palette).
 
 The grid's cursor row and the selected row of every tree look the same in a
 skin: the selection tint (`--blade-select-tint`), a thin blue frame, a
@@ -651,9 +653,11 @@ return new ApplicationDefinition(
   variable wins over the same base variable at equal specificity. All offered
   stylesheets load together, so scope each variant's differences to its exact
   skin ID. Use documented `--dhx-*` variables and explicitly documented 61ade
-  customization properties, such as [motion duration](#theme-motion) or the
-  [card hover edge](#61ade-character). Other `--blade-*` implementation tokens
-  and selectors on framework or Suite classes are not a supported contract.
+  customization properties, such as [motion duration](#theme-motion), the
+  [card hover edge](#61ade-character) and, for a skin on `blade` or
+  `blade-night`, the [public Blade palette](#blade-palette). Other `--blade-*`
+  implementation tokens, the Blade palette under a `light` or `dark` base, and
+  selectors on framework or Suite classes are not a supported contract.
   Suite colour/radius overrides do not restyle every character-layer surface;
   see [customization limits](skinning.md#customization-limits).
 - The closure runs on the server for the effective identity: an authenticated
@@ -677,11 +681,79 @@ return new ApplicationDefinition(
   reach every skin built on that base. The shell owns all theme markers;
   project code reads them and never calls `setTheme` or writes them.
 
+<a id="blade-palette"></a>
+
+#### Public Blade palette
+
+A skin on `blade` or `blade-night` may override the 30 palette properties
+below ([FB-0249](feedback.md#fb-0249)). Both palette blocks of
+`themes/blade.css` define all of them; 61ade keeps these names stable. Set
+them under the skin's exact `[data-blade-skin="<id>"]` selector: skin
+stylesheets load after `blade.css` at equal specificity, so the later value
+wins. Override only what differs; an unset property keeps the base's value.
+They are a Blade-family contract. Generic (`light`/`dark`) rules do not
+consume all of them, so a Generic child does not get them as public API.
+Other `--blade-*` tokens stay internal.
+
+| Property | What it paints |
+| --- | --- |
+| `--blade-chrome` | Glossy gradient of the navigation row, location bar, menu bar, toolbars, panel and window headers, grid header and footer cells, tab rows, non-collapsible form-section legends, selects and the calendar header |
+| `--blade-highlight` | 1 px inner top highlight on chrome surfaces and the inner edge of menus |
+| `--blade-emboss` | Text shadow of chrome titles, grid headers, closed tabs, glossy buttons, the location bar place and the calendar's current view |
+| `--blade-hover` | Hover and keyboard-focus gradient of menu and toolbar buttons, glossy buttons and calendar buttons |
+| `--blade-hover-ring` | 1 px inset ring with that hover; also the pressed toolbar button's hover ring and the default of `--blade-card-hover-edge` |
+| `--blade-button` | Gradient of flat primary and secondary buttons |
+| `--blade-button-text` | Text colour of those buttons and of the calendar's current view |
+| `--blade-bevel` | Bevel shadow of those buttons |
+| `--blade-pressed` | Gradient of a pressed button and the calendar's current view |
+| `--blade-pressed-bevel` | Bevel shadow of that pressed state |
+| `--blade-input` | Background of input fields (not grid filters or the search bar) |
+| `--blade-row-alternate` | Alternate grid rows and Tree stripes |
+| `--blade-canvas-top` | Top colour stop of the default `--blade-canvas` and `--blade-tab` |
+| `--blade-canvas` | Background of the workspace and the session bar |
+| `--blade-panel-border` | Panel borders, the rule under panel headers, the navigation and location rows and the tab row |
+| `--blade-panel-shadow` | Shadow of workspace panels |
+| `--blade-lift-shadow` | Lift shadow of hovered cards, tiles and grid rows |
+| `--blade-card-hover-edge` | Edge colour of a hovered card or tile ([61ade character](#61ade-character)) |
+| `--blade-select-tint` | Tint of the grid's cursor row and the selected Tree row |
+| `--blade-mark-tint` | Background of marked grid rows, cards and tiles |
+| `--blade-corner-color` | The breathing corner brackets of workspace panel headers |
+| `--blade-rule` | Reserved: no current framework rule paints with it |
+| `--blade-tab` | Reserved: no current framework rule paints with it |
+| `--blade-tab-rule` | Reserved: no current framework rule paints with it |
+| `--blade-tab-glow` | Reserved: no current framework rule paints with it |
+| `--blade-pill` | Gradient of a hovered or focused popup-menu item |
+| `--blade-pill-ring` | Inset ring of that item |
+| `--blade-pill-glow` | Outer glow of that item |
+| `--blade-sheen` | The light sweep that now and then crosses workspace panel headers |
+| `--blade-window-shadow` | Shadow and outer ring of windows |
+
+A property defined from another, such as `--blade-canvas` from
+`--blade-canvas-top`, follows an override of the source when the skin leaves
+the derived one unset. Overriding a reserved property has no visible effect
+until a framework rule uses it for the named role. The palette recolours the
+chrome only: typography, geometry, motion and the shared cyan/blue accents
+(`--blade-gradient`, the selection frame) are not part of it; see
+[customization limits](skinning.md#customization-limits).
+
+```css
+/* skins/ember.css: a Blade Night child (base: 'blade-night'). */
+[data-blade-skin="ember"] {
+  --dhx-h-primary: 18; --dhx-s-primary: 80%; --dhx-l-primary: 56%;
+  --blade-chrome: linear-gradient(to bottom, #4a2a1c 0%, #3a2016 46%, #2f1a12 50%, #3a2117 100%);
+  --blade-button: linear-gradient(to bottom, #7a3a1e 0%, #66301a 45%, #552814 50%, #6c341c 100%);
+  --blade-corner-color: #ff8a3d;
+}
+```
+
 The feature demo grants the synthetic neutral `demo-slate` skin (light base) to
-`skin@example.test`, and `demo-slate` plus `demo-ink` (dark base) to
-`skins@example.test`; other accounts keep the factory themes. `skins.spec.cjs`
-checks both cases including the dark base, the unskinned user, the sign-in page
-and that `blade-theme` stays untouched.
+`skin@example.test`, `demo-slate` plus `demo-ink` (dark base) to
+`skins@example.test`, and `demo-ember` (Blade Night base with Blade palette
+overrides) to `bladeskin@example.test`; other accounts keep the factory
+themes. `skins.spec.cjs` checks these cases including the dark base, the
+Blade palette override on the navigation row with the `blade-night`/`dark`
+markers kept, the unskinned user, the sign-in page and that `blade-theme`
+stays untouched.
 
 Workspace switching detaches/disposes the previous DHTMLX layout, waits for
 redraw and attaches the new view. Only the latest rapid switch mounts.

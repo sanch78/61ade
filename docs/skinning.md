@@ -52,11 +52,18 @@ character rather than compensating with selectors on private classes.
 Not every `--blade-*` implementation token is public. Properties explicitly
 documented for customization include the logo dimensions in the
 [CSS hooks](shell.md#sign-in-css-hooks), the
-[motion duration](shell.md#theme-motion) and the card hover edge in
-[61ade character](shell.md#61ade-character). An application that needs another
-shared visual capability requests a public hook from 61ade; its consumer
-session does not modify this library or fork its stylesheet. A complete public
-brand-token inventory remains a proposed improvement below.
+[motion duration](shell.md#theme-motion), the card hover edge in
+[61ade character](shell.md#61ade-character) and, since 2026-11-20, the 30
+[public Blade palette](shell.md#blade-palette) properties for a child of
+`blade` or `blade-night` ([FB-0249](feedback.md#fb-0249)). With them a
+Blade-family child can recolour the glossy chrome, buttons, hover, selection
+and panel surfaces that Suite variables do not reach. They are a Blade-family
+contract only; Generic children keep Suite variables and the other documented
+properties. Other `--blade-*` tokens, including the shared cyan/blue accents
+and the radii, stay internal. An application that needs another shared visual
+capability requests a public hook from 61ade; its consumer session does not
+modify this library or fork its stylesheet. Generic semantic colour/state
+tokens and geometry tokens remain a proposed improvement below.
 
 <a id="consistency-assessment"></a>
 
@@ -110,6 +117,12 @@ were not inspected or changed.
    inherited accent is a defect. Follow-up: publish the supported semantic
    colour/state/geometry tokens before promising complete project rebranding;
    do not expose all implementation tokens as public API by implication.
+   **Update 2026-11-20 ([FB-0249](feedback.md#fb-0249)):** the Blade palette
+   is now public for Blade-family children: the 30 properties of both
+   palette blocks, listed in the [public Blade palette](shell.md#blade-palette),
+   with stable names. The `demo-ember` child skin over Blade Night shows and
+   tests an override reaching the chrome. Generic semantic colour/state
+   tokens and the geometry tokens remain a proposed improvement.
 3. **Documentation had drifted from inheritance and identity behavior.**
    The skin guide described only signed-in actors, omitted `base` from its
    bootstrap description, restricted all customization to Suite variables
@@ -120,7 +133,9 @@ were not inspected or changed.
 4. **Browser coverage does not prove whole-family consistency.**
    The matrix below covers useful common controls, but there is no established
    Blade-derived child skin, public-actor skin scenario, or complete
-   cross-family focused-error/disabled/motion matrix. Add those combinations
+   cross-family focused-error/disabled/motion matrix. The Blade-derived child
+   skin was added on 2026-11-20 ([FB-0249](feedback.md#fb-0249)) for the
+   palette override only. Add the other combinations
    when qualifying or changing the affected capability; they are proposed
    follow-up work, not implementation claims.
 
@@ -131,7 +146,7 @@ These are source-backed descriptions of existing tests, not new pass results.
 | Test area | Present coverage | Important limit |
 | --- | --- | --- |
 | [SettingsForm](../tests/shell/settings-form.spec.cjs), `view controls render in …` | All four bases plus Slate/Ink, 1366 and 390 px; selected text contrast, pressed state, overflow and page errors | Selected controls only; its [contrast helper](../tests/shell/view-controls.cjs) composites solid background colours and does not measure gradients or overlays |
-| [Skins](../tests/shell/skins.spec.cjs) | One/multiple Generic-derived skins, variables, switching, reload, fallback and factory-choice isolation, unskinned user/sign-in | No Blade-derived skin or public-identity skin |
+| [Skins](../tests/shell/skins.spec.cjs) | One/multiple Generic-derived skins, variables, switching, reload, fallback and factory-choice isolation, unskinned user/sign-in; since [FB-0249](feedback.md#fb-0249) one Blade Night child whose palette override reaches the navigation row with its base markers kept | No public-identity skin; the Blade child is checked by computed style only, not across components or states |
 | [Sign-in branding](../tests/shell/sign-in-branding.spec.cjs) | Supported hooks/order, light/dark logos, dark child skin, narrow layout | No four-base matrix |
 | [Theme motion](../tests/shell/theme-motion.spec.cjs) | Blade versus light, reduced-motion Blade, region/tree behavior | No child-skin duration or full family matrix |
 | [Mobile grid](../tests/shell/mobile-grid.spec.cjs) | Keyboard and visible focus under Blade/light/dark | Blade Night and full invalid/disabled-state matrix absent |

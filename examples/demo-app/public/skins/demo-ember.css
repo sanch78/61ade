@@ -1,0 +1,14 @@
+/* Synthetic demo skin: an ember palette over Blade Night: a Suite primary hue and public Blade palette tokens
+   (docs/shell.md#blade-palette). */
+[data-blade-skin="demo-ember"] {
+  --dhx-h-primary: 18;
+  --dhx-s-primary: 80%;
+  --dhx-l-primary: 56%;
+  --blade-chrome: linear-gradient(to bottom, #4a2a1c 0%, #3a2016 46%, #2f1a12 50%, #3a2117 100%);
+  --blade-hover: linear-gradient(to bottom, rgb(255 150 80 / 24%) 0%, rgb(230 90 30 / 16%) 50%, rgb(230 90 30 / 26%) 100%);
+  --blade-hover-ring: rgb(255 140 70 / 55%);
+  --blade-button: linear-gradient(to bottom, #7a3a1e 0%, #66301a 45%, #552814 50%, #6c341c 100%);
+  --blade-button-text: #ffeadc;
+  --blade-bevel: inset 0 0 0 1px #9a4f2a, inset 0 1px 0 rgb(255 255 255 / 12%), 0 1px 2px rgb(0 0 0 / 40%);
+  --blade-corner-color: #ff8a3d;
+}
