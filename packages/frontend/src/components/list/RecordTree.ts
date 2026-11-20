@@ -62,6 +62,10 @@ export class NodeTree {
   });
   private scrollTop=0;
   private pendingScroll?:number;
+  private scrollTarget?:string;
+  private closedBranches=new Map<string,Branch>();
+  private pathRead?:AbortController;
+  private interactions=0;
   private prefix="blade-tree-"+(++trees)+"-";
   private ids=new Map<string,string>();
   /** The latest load per level: an older answer (a reload overtook it) is dropped. */
@@ -149,7 +153,7 @@ export class NodeTree {
     if(initial==="first")return this.children("")[0];
     if(typeof initial==="object"&&this.exists(initial.id))return initial.id;
   }
-  /** Captures complete visible levels only. Preferences still govern which expansion is kept. */
+  /** Save complete visible levels first, then previously read levels below closed folders within the same budget. */
   snapshot(preferences:Remembered):TreeSnapshot|undefined{
     if(!this.cacheable||this.restoring||this.running||!this.loaded.has(""))return;
     const opened=new Set(preferences.expanded??this.opened);
@@ -167,79 +171,129 @@ export class NodeTree {
         if(opened.has(id)&&this.isOpen(id)&&this.adapter.widget.data.haveItems(id))queue.push(id);
       }
     }
-    return {branches,opened:[...opened],preferences:JSON.stringify(preferences),scrollTop:this.pendingScroll??this.scrollTop};
+    const closedBranches:TreeSnapshot["branches"]=[];
+    const seen=new Set(queue);
+    const candidates=branches.flatMap(([,branch])=>branch.rows);
+    for(let index=0;index<candidates.length;index++){
+      const row=candidates[index],id=String(row.id);
+      if(seen.has(id)||Number(row._subview)===0)continue;
+      seen.add(id);
+      const branch=this.loaded.has(id)&&this.exists(id)?this.branch(id):this.closedBranches.get(id);
+      if(!branch||count+branch.rows.length>NODES)continue;
+      count+=branch.rows.length;closedBranches.push([id,branch]);candidates.push(...branch.rows);
+    }
+    return {branches,closedBranches,opened:[...opened],preferences:JSON.stringify(preferences),scrollTop:this.pendingScroll??this.scrollTop};
   }
   private branch(parent:string):Branch{
     return {rows:this.children(parent).map(id=>this.rows.get(id)!),cut:this.cut.has(parent)};
   }
-  /** Prepares a navigation target off-screen, reusing any loaded parent lists. */
+  /** Keep the old frame usable during a cache miss; install the resolved path in one render. */
   startAt(path:readonly string[],initial:Initial,remembered:Remembered,depth:number,snapshot?:TreeSnapshot):void{
     this.element.dataset.bladeEmpty=t("Betöltés…");
-    const control=this.linked();
+    const control=this.pathRead=this.linked(),signal=control.signal;
+    const branches=new Map(snapshot?.branches),fresh=new Map<string,Branch>();
+    this.closedBranches=new Map(snapshot?.closedBranches);
+    let preview=false;
+    const interactions=this.interactions;
+    const read=async(parent:string)=>{
+      if(snapshot&&!preview){
+        preview=true;
+        this.restore(snapshot,initial,remembered,false);
+      }
+      const branch=await this.read(parent,signal);
+      fresh.set(parent,branch);
+      return branch;
+    };
     const prepare=async()=>{
-      const branches=new Map(snapshot?.branches);
-      const found=await this.readPath(path,branches,control.signal);
-      if(control.signal.aborted)return;
-      if(!found){
-        if(snapshot)this.restore(snapshot,initial,remembered);
-        else await this.begin(initial,remembered,depth,!remembered.expanded&&depth>0?this.newBulk():undefined);
-        return;
+      let parent="";
+      for(const [index,id] of path.entries()){
+        const matches=(branch?:Branch)=>branch?.rows.some(row=>String(row.id)===id&&
+          (index===path.length-1||row._subview===undefined||Number(row._subview)>0));
+        let branch=branches.get(parent)??this.closedBranches.get(parent);
+        if(!matches(branch))branch=await read(parent);
+        if(signal.aborted)return;
+        if(!branch||!matches(branch)){
+          // A warm miss has already shown its ordinary frame.
+          if(!snapshot)await this.begin(initial,remembered,depth,!remembered.expanded&&depth>0?this.newBulk():undefined);
+          return;
+        }
+        branches.set(parent,branch);
+        parent=id;
       }
       const opened=new Set(snapshot?.opened??remembered.expanded);
-      for(const id of path.slice(0,-1))opened.add(id);
-      // On a cold mount keep the user's other open branches, reusing the levels just read for the target.
-      if(!snapshot&&remembered.expanded&&!await this.readLevels(control,row=>
-        opened.has(String(row.id))&&(row._subview===undefined||Number(row._subview)>0),branches))return;
-      if(control.signal.aborted)return;
-      this.restore({branches:[...branches],opened:[...opened],scrollTop:snapshot?.scrollTop??0},initial,
-        {expanded:[...opened],selected:path[path.length-1]},!!snapshot);
+      const ancestors=path.slice(0,-1);
+      const defaultDepth=!snapshot&&!remembered.expanded?depth:0;
+      const keepExpansion=remembered.expanded!==undefined||ancestors.some((id,i)=>!opened.has(id)&&i>=defaultDepth);
+      for(const id of ancestors)opened.add(id);
+
+      // Reserve each default child list as a worker starts it; an unknown count may grow after the read.
+      let total=[...branches.values()].reduce((sum,branch)=>sum+branch.rows.length,0);
+      const estimates=new Map<string,number>();
+      const follow=(row:Row,level:number)=>{
+        if(Number(row._subview)===0)return false;
+        const id=String(row.id);
+        if(opened.has(id))return true;
+        if(level>defaultDepth)return false;
+        estimates.set(id,Math.min(CHILDREN,Math.max(1,Number(row._subview)||1)));
+        return true;
+      };
+      const planned=await this.readLevels(control,follow,branches,async parent=>{
+        const estimate=estimates.get(parent)??0;
+        if(estimate&&total+estimate>NODES)return;
+        total+=estimate;
+        const branch=this.closedBranches.get(parent)??await read(parent);
+        total+=branch.rows.length-estimate;
+        if(estimate&&branch.rows.length)opened.add(parent);
+        return branch;
+      });
+      if(!planned||signal.aborted||(preview&&this.interactions!==interactions))return;
+      const target=path[path.length-1];
+      this.scrollTarget=target;
+      this.restore({branches:[...branches],opened:[...opened],scrollTop:preview?this.scrollTop:snapshot?.scrollTop??0},initial,
+        {expanded:keepExpansion?[...opened]:undefined,selected:target},false);
       this.save();
     };
-    this.settled=prepare().catch(async error=>{if(!control.signal.aborted)await this.failed(error);}).finally(()=>control.abort());
-  }
-  /** Each step must occur under its named parent in an authorized branch. */
-  private async readPath(path:readonly string[],branches:Map<string,Branch>,signal:AbortSignal):Promise<boolean>{
-    let parent="";
-    for(const [index,id] of path.entries()){
-      const matches=(branch?:Branch)=>branch?.rows.some(row=>String(row.id)===id&&
-        (index===path.length-1||row._subview===undefined||Number(row._subview)>0));
-      if(!matches(branches.get(parent))){
-        const branch=await this.read(parent,signal);
-        if(signal.aborted||!matches(branch))return false;
-        branches.set(parent,branch);
-      }
-      parent=id;
-    }
-    return true;
+    this.settled=prepare().then(()=>{
+      if(snapshot&&!signal.aborted)this.check(preview&&this.interactions!==interactions?undefined:fresh);
+    }).catch(async error=>{if(!signal.aborted)await this.failed(error);}).finally(()=>{
+      if(this.pathRead===control)this.pathRead=undefined;
+      control.abort();
+    });
   }
   /** Hydrates one complete first frame. The host receives the initial selection after its synchronous mount. */
   restore(snapshot:Omit<TreeSnapshot,"preferences">,initial:Initial,remembered:Remembered,recheck=true):void{
     this.changed=remembered.expanded!==undefined;
     this.opened=new Set(snapshot.opened);
     this.pendingScroll=snapshot.scrollTop;
+    if(snapshot.closedBranches)this.closedBranches=new Map(snapshot.closedBranches);
     const branches=new Map(snapshot.branches);
     this.replace(branches);
     this.current=this.initialSelection(initial,remembered);
     this.adapter.choose(this.current);
-    const picks=this.picks;
-    const control=this.warm=this.linked();
+    const picks=this.picks,current=this.current,signal=this.reads.signal;
     void Promise.resolve().then(()=>{
-      if(control.signal.aborted)return;
-      if(this.current!==undefined&&this.picks===picks)this.hooks.select(this.current);
-      if(recheck)return this.revalidate(branches,control);
-    }).catch(error=>console.error("61ade: Tree restore failed",error)).finally(()=>{
+      if(!signal.aborted&&current!==undefined&&this.current===current&&this.picks===picks)this.hooks.select(current);
+    });
+    if(recheck)this.check();
+  }
+  private check(fresh?:Map<string,Branch>):void{
+    this.warm?.abort();
+    const control=this.warm=this.linked();
+    void this.revalidate(new Set(this.loaded),control,fresh).catch(error=>console.error("61ade: Tree restore failed",error)).finally(()=>{
       if(this.warm===control){this.warm=undefined;this.replacedDuringWarm.clear();}
       control.abort();
     });
   }
   /** Reads requested branches in hierarchy order, reusing any levels already available. */
-  private async readLevels(control:AbortController,follow:(row:Row)=>boolean,branches=new Map<string,Branch>()):Promise<Map<string,Branch>|undefined>{
-    let level=[""];
+  private async readLevels(control:AbortController,follow:(row:Row,level:number)=>boolean,branches=new Map<string,Branch>(),
+    read:(parent:string)=>Promise<Branch|undefined>=parent=>this.read(parent,control.signal)):Promise<Map<string,Branch>|undefined>{
+    let depth=0;
+    let level=[""];const visited=new Set(level);
     while(level.length&&!control.signal.aborted){
       let failure:{error:unknown}|undefined;
       await this.pool(level,async parent=>{
         if(branches.has(parent))return;
-        try{branches.set(parent,await this.read(parent,control.signal));}
+        try{const branch=await read(parent);if(branch)branches.set(parent,branch);}
         catch(error){
           if(!control.signal.aborted){failure={error};control.abort();}
           return false;
@@ -250,13 +304,20 @@ export class NodeTree {
         await this.failed(failure.error);
         return;
       }
-      level=level.flatMap(parent=>(branches.get(parent)?.rows??[]).filter(follow).map(row=>String(row.id)));
+      depth++;
+      const next:string[]=[];
+      for(const parent of level)for(const row of branches.get(parent)?.rows??[]){
+        const id=String(row.id);
+        if(!visited.has(id)&&follow(row,depth)){visited.add(id);next.push(id);}
+      }
+      level=next;
     }
     if(!control.signal.aborted)return branches;
   }
   /** Rechecks the old visible branches, parent first, then updates them in one render. */
-  private async revalidate(previous:Map<string,Branch>,control:AbortController):Promise<void>{
-    const fresh=await this.readLevels(control,row=>previous.has(String(row.id)));
+  private async revalidate(previous:ReadonlySet<string>,control:AbortController,checked?:Map<string,Branch>):Promise<void>{
+    const fresh=await this.readLevels(control,row=>previous.has(String(row.id)),new Map(),async parent=>
+      checked?.get(parent)??await this.read(parent,control.signal));
     if(!fresh||control.signal.aborted)return;
     // A branch loaded or explicitly refreshed during the check keeps its newer response.
     for(const parent of this.replacedDuringWarm)if(this.loaded.has(parent)&&this.exists(parent))fresh.set(parent,this.branch(parent));
@@ -278,10 +339,19 @@ export class NodeTree {
     void awaitRedraw().then(()=>this.restoreScroll());
   }
   private restoreScroll():void{
-    if(this.pendingScroll===undefined||!this.element.isConnected)return;
+    if((this.pendingScroll===undefined&&!this.scrollTarget)||!this.element.isConnected)return;
     const scroller=this.element.querySelector<HTMLElement>(".blade-tree");
     if(!scroller?.clientHeight)return;
-    scroller.scrollTop=this.pendingScroll;
+    if(this.pendingScroll!==undefined)scroller.scrollTop=this.pendingScroll;
+    if(this.scrollTarget){
+      const item=this.element.querySelector<HTMLElement>("#"+CSS.escape(this.elementId(this.scrollTarget)));
+      const row=item?.querySelector(":scope > .dhx_tree-folder")??item;
+      if(!row?.getClientRects().length)return;
+      const bounds=scroller.getBoundingClientRect(),rect=row.getBoundingClientRect();
+      if(rect.top<bounds.top)scroller.scrollTop+=rect.top-bounds.top;
+      else if(rect.bottom>bounds.bottom)scroller.scrollTop+=rect.bottom-bounds.bottom;
+      this.scrollTarget=undefined;
+    }
     this.scrollTop=scroller.scrollTop;
     this.pendingScroll=undefined;
   }
@@ -291,7 +361,7 @@ export class NodeTree {
     this.rows.clear();this.loaded.clear();this.cut.clear();
     const visit=(parent:string)=>{
       const branch=branches.get(parent)!;
-      this.loaded.add(parent);
+      this.loaded.add(parent);this.closedBranches.delete(parent);
       if(branch.cut)this.cut.add(parent);
       for(const row of branch.rows){
         const id=String(row.id);
@@ -311,7 +381,7 @@ export class NodeTree {
   /** Discards rows and any in-flight reads when this Tree's access is no longer current. */
   invalidate(revoked=true,notify=true):void{
     this.cacheable=false;
-    this.scrollTop=0;this.pendingScroll=undefined;
+    this.scrollTop=0;this.pendingScroll=undefined;this.scrollTarget=undefined;this.closedBranches.clear();
     this.reads.abort();this.reads=new AbortController();this.loads.clear();
     this.replace(new Map());
     if(revoked)this.element.dataset.bladeEmpty=t("A hozzáférés megszűnt");
@@ -355,7 +425,9 @@ export class NodeTree {
   /** Reloads the roots and every expanded level, or only the children of $id; the selection stays where it still exists. */
   refresh(id?:string):Promise<void>{
     if(id!==undefined&&(!this.exists(id)||!this.loaded.has(id)))return Promise.resolve();
-    if(id===undefined)this.warm?.abort();
+    if(this.pathRead&&!this.loaded.has(""))return this.settled.then(()=>this.abort.signal.aborted?undefined:this.refresh(id));
+    this.interactions++;
+    if(id===undefined){this.pathRead?.abort();this.warm?.abort();this.closedBranches.clear();}
     this.bulk?.abort();
     const run=this.reloadLevels(id),previous=this.settled;
     this.settled=Promise.all([previous,run]).then(()=>{},()=>{});
@@ -564,6 +636,7 @@ export class NodeTree {
   private async expanded(id:string):Promise<void>{
     if(id.endsWith(PENDING))return;
     // Suite reports an already open node again (an ancestor `reveal` opens): no change then.
+    if(!this.quiet)this.interactions++;
     if(!this.opened.has(id)){this.opened.add(id);if(!this.quiet)this.changed=true;}
     if(!this.quiet)this.closed.delete(id);
     this.save();
@@ -572,6 +645,7 @@ export class NodeTree {
     if(this.children(id).some(child=>this.opened.has(child)))await this.reopen([...this.opened].filter(other=>!this.exists(other)||!this.isOpen(other)));
   }
   private collapsed(id:string):void{
+    if(!this.quiet)this.interactions++;
     this.opened.delete(id);this.full=false;
     if(!this.quiet){this.changed=true;this.closed.add(id);}
     this.save();
@@ -580,6 +654,7 @@ export class NodeTree {
   }
   private choose(id:string|undefined):void{
     if(id!==undefined&&!this.exists(id))return;
+    this.interactions++;this.scrollTarget=undefined;
     if(id!==undefined)this.focusOn(id);
     if(id===this.current){this.adapter.choose(id);this.annotate();return;}
     this.current=id;this.picks++;

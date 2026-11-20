@@ -275,9 +275,12 @@ tree as decoration for a flat list.
   shell learns access has changed.
   [FB-0234](../../../docs/feedback.md#fb-0234), [FB-0244](../../../docs/feedback.md#fb-0244).
 - A breadcrumb into a Tree uses its ordinary stable identity and gives it
-  the root-to-target IDs. Reuse the shown branches, select the target in the
-  first frame and load only the missing target levels when that state is
-  cached. [FB-0246](../../../docs/feedback.md#fb-0246).
+  the root-to-target IDs. Keep loaded branches available across a collapse,
+  within the snapshot budget. Bring the target row into its panel with the
+  smallest scroll. Keep the old frame interactive while a missing level
+  loads, and reuse that reply when rechecking the visible tree. A direct
+  entry keeps the ordinary default depth or the user's saved expansion.
+  [FB-0246](../../../docs/feedback.md#fb-0246), [FB-0247](../../../docs/feedback.md#fb-0247).
 - Whole-tree controls (expand/collapse all) are view controls: one icon-only
   toggle whose icon and name follow the state (open everything while anything
   is collapsed, close everything once all is open or a cap stopped the

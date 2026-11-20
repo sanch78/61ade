@@ -1,7 +1,7 @@
 import type { Row } from "../../api/types";
 
 export type Branch={rows:Row[];cut:boolean};
-export type TreeSnapshot={branches:[string,Branch][];opened:string[];preferences:string;scrollTop:number};
+export type TreeSnapshot={branches:[string,Branch][];closedBranches?:[string,Branch][];opened:string[];preferences:string;scrollTop:number};
 type AccessChange="denied"|"changed"|"ended";
 type Entry={resource:string;json:string};
 
@@ -52,15 +52,18 @@ export class TreeCache{
     try{
       const snapshot=JSON.parse(entry.json) as TreeSnapshot;
       if(snapshot?.preferences!==preferences||!Array.isArray(snapshot.opened)||!Number.isFinite(snapshot.scrollTop))return;
-      if(!Array.isArray(snapshot.branches)||snapshot.branches[0]?.[0]!==""||!snapshot.branches.every(pair=>
+      const valid=(pairs:TreeSnapshot["branches"])=>Array.isArray(pairs)&&pairs.every(pair=>
         Array.isArray(pair)&&typeof pair[0]==="string"&&Array.isArray(pair[1]?.rows)&&
-        pair[1].rows.every(row=>typeof row?.id==="string"||typeof row?.id==="number")))return;
+        pair[1].rows.every(row=>typeof row?.id==="string"||typeof row?.id==="number"));
+      if(!valid(snapshot.branches)||snapshot.branches[0]?.[0]!==""||(snapshot.closedBranches!==undefined&&!valid(snapshot.closedBranches)))return;
       return snapshot;
     }catch{}
   }
 
   store(key:string,resource:string,snapshot:TreeSnapshot):void{
-    const json=JSON.stringify(snapshot);
+    let json=JSON.stringify(snapshot);
+    // Keep the visible frame first when optional closed branches would exceed the size limit.
+    if(json.length>CHARACTERS&&snapshot.closedBranches)json=JSON.stringify({...snapshot,closedBranches:undefined});
     this.entries.delete(key);
     if(json.length>CHARACTERS)return;
     if(this.entries.size>=ENTRIES)this.entries.delete(this.entries.keys().next().value!);

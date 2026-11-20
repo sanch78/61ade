@@ -1007,3 +1007,7 @@
 <a id="fb-0246"></a>
 
 ## FB-0246 — A breadcrumb can select a node in the kept Tree
+
+<a id="fb-0247"></a>
+
+## FB-0247 — Keep the Tree usable and its breadcrumb destination visible

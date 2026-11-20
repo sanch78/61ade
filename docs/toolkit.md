@@ -1148,14 +1148,19 @@ tree.on("activate", () => layout.tabsOf("details")?.select("details"));
   the requested node, including both ends. Use the same `id`, source and
   initial defaults as the ordinary entry. For example, a category breadcrumb
   may open the usual catalogue with `initialPath: ["world", "characters", "actor"]`.
-  With a matching snapshot, the tree keeps its open branches and highlights
-  the target in the first frame. It reads any missing levels along the path
-  before painting and opens the target's ancestors. A cold mount also
-  restores any saved expanded branches. The chosen node and its open
-  ancestors become the saved state. An unavailable path uses the remembered
-  selection and `initial` fallback. The path must contain 1–11 distinct
-  nonempty strings of at most 100 characters. Every step must match its
-  parent in the authorized list. [FB-0246](feedback.md#fb-0246).
+  A matching snapshot keeps its visible branches. A previously loaded
+  closed folder can supply its child list from the same bounded cache.
+  With a cached path, its ancestors open and its selected row is in view
+  in the first frame. Only the Tree panel scrolls, and only as
+  far as necessary. When a level is missing, the old tree stays usable
+  during the authorized read. A newer selection or manual expansion wins.
+  The background check reuses levels just read for the path.
+  A cold entry opens the saved branches or the ordinary bounded `expand`
+  depth, plus any ancestors needed for the target. Navigating within the
+  default depth keeps the expansion automatic. An unavailable path uses
+  the remembered selection and `initial` fallback. The path must contain
+  1–11 distinct nonempty strings of at most 100 characters. Every step must match its
+  parent in the authorized list. [FB-0246](feedback.md#fb-0246), [FB-0247](feedback.md#fb-0247).
 - `select(id)` selects a loaded node, expands its ancestors and returns
   `true`; an id that is not loaded (below a parent never expanded) returns
   `false` and changes nothing.
@@ -1179,7 +1184,8 @@ tree.on("activate", () => layout.tabsOf("details")?.select("details"));
   position in the first frame. A saved empty expansion keeps every branch
   closed. Hidden selections fall back to `initial`. The shell keeps up to
   four snapshots in memory, with at most 2000 rows and 262,144 serialized
-  characters per snapshot. On leaving an authenticated page the shell
+  characters per snapshot. Visible branches take priority over retained closed branches.
+  On leaving an authenticated page the shell
   hands them over through `sessionStorage`. The next document consumes the
   handoff once and reuses it on a browser reload with the same signed-in
   session, user, tenant, language and list permissions. The address, Tree ID,
