@@ -1,5 +1,6 @@
 const {test,expect}=require('../../tools/playwright-test.cjs');
-// Optional application skins (FB-0072): skin@ has one (light base), skins@ two (light and dark base), demo@ none.
+// Optional application skins (FB-0072): skin@ has one (light base), skins@ two (light and dark base), bladeskin@ one
+// Blade Night child with public Blade palette overrides (FB-0249), demo@ none.
 const WIDE={width:1600,height:900};
 async function login(page,email){
  await page.setViewportSize(WIDE);
@@ -9,7 +10,7 @@ async function login(page,email){
  await page.getByRole('button',{name:'Bejelentkezés',exact:true}).click();
  await expect(page.getByRole('dialog',{name:'Bejelentkezés',exact:true})).toHaveCount(0);
 }
-const LABELS=/^(Blade|Blade Night|Világos|Éjjeli|Pala|Tinta)$/;
+const LABELS=/^(Blade|Blade Night|Világos|Éjjeli|Pala|Tinta|Parázs)$/;
 const stored=(page,key)=>page.evaluate(key=>localStorage.getItem(key),key);
 const navigationSurface=page=>page.locator('.blade-navigation-row').evaluate(e=>getComputedStyle(e).backgroundColor);
 const selector=page=>page.locator('.blade-navigation-row').getByRole('button',{name:LABELS});
@@ -59,6 +60,26 @@ test('several skins: the selector lists only them, a dark-based skin brings the 
  expect(await stored(page,'blade-skin')).toBe('demo-ink');
  expect(await stored(page,'blade-theme')).toBe('light');
  await page.evaluate(()=>{localStorage.removeItem('blade-theme');localStorage.removeItem('blade-skin');});
+});
+
+test('a Blade Night child skin recolours the Blade chrome through the public palette and keeps its base',async({page})=>{
+ await page.goto('/');
+ await page.evaluate(()=>{localStorage.removeItem('blade-theme');localStorage.removeItem('blade-skin');});
+ await login(page,'bladeskin@example.test');
+ await expect(html(page)).toHaveAttribute('data-blade-skin','demo-ember');
+ await expect(html(page)).toHaveAttribute('data-blade-theme','blade-night');
+ await expect(html(page)).toHaveAttribute('data-dhx-theme','dark');
+ await expect(selector(page)).toHaveCount(0);
+ const root=name=>page.evaluate(name=>getComputedStyle(document.documentElement).getPropertyValue(name).trim(),name);
+ expect(await root('--dhx-h-primary')).toBe('18');
+ expect(await root('--blade-corner-color')).toBe('#ff8a3d');
+ // Blade Night's own chrome starts at #243651; the skin's starts at #4a2a1c on the navigation row.
+ const chrome=await page.locator('.blade-navigation-row').evaluate(e=>getComputedStyle(e).backgroundImage);
+ expect(chrome).toContain('rgb(74, 42, 28)');
+ expect(chrome).not.toContain('rgb(36, 54, 81)');
+ // A token the skin leaves alone keeps the Blade Night value.
+ expect(await root('--blade-input')).toBe('#101924');
+ expect(await stored(page,'blade-theme')).toBeNull();
 });
 
 test('an unskinned user keeps the factory themes and switching',async({page})=>{

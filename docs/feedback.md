@@ -11669,3 +11669,45 @@ object. Typecheck, build and demo asset preparation passed.
   with and without this change.
 - **Status.** Implemented and verified on the managed demo; consumer
   migration pending in the consumers' own sessions.
+
+<a id="fb-0249"></a>
+
+## FB-0249 — Public Blade palette for Blade-family child skins
+
+- **Date.** 2026-11-20.
+- **Report.** A consumer admin needs a distinctive Blade-derived skin so its
+  admin can be told apart from others at a glance. Suite `--dhx-*`
+  variables cannot recolour the Blade chrome: the glossy headers, toolbars,
+  buttons, hover and panel surfaces are painted from `--blade-*` palette
+  tokens, which were implementation details, so a child skin could only
+  change them without a supported contract.
+- **Owner decision.** The Blade palette tokens become public customization
+  properties for a `Skin` with base `blade` or `blade-night`, with stable
+  names. A child skin overrides them under its exact
+  `[data-blade-skin="<id>"]` selector. They are a Blade-family contract
+  only; Generic bases do not consume all of them. Other `--blade-*` tokens
+  stay internal. No runtime CSS, TypeScript or PHP behavior and no API
+  signature changes.
+- **Implementation.** Documentation of the 30 properties that both palette
+  blocks of `themes/blade.css` define, with the surface each one paints;
+  four of them (`--blade-rule`, `--blade-tab`, `--blade-tab-rule`,
+  `--blade-tab-glow`) are defined but consumed by no current rule and are
+  listed as reserved. Feature demo: the synthetic `demo-ember` skin (`Parázs`,
+  base `blade-night`, a Suite primary hue and seven palette overrides) for
+  the new `bladeskin@example.test` account.
+- **Contract.** [Public Blade palette](shell.md#blade-palette),
+  [application skins](shell.md#application-skins),
+  [61ade character](shell.md#61ade-character),
+  [customization limits](skinning.md#customization-limits) and the
+  [consistency assessment](skinning.md#consistency-assessment) follow-up,
+  [usage](usage.md), [demos](demos.md), the
+  [61ade-skinning skill](../.agents/skills/61ade-skinning/SKILL.md).
+- **Verification.** On the managed demo, all four `skins.spec.cjs` cases
+  passed, including the new case: `bladeskin@example.test` gets
+  `demo-ember` with `data-blade-theme="blade-night"` and
+  `data-dhx-theme="dark"`, no selector, the skin's primary hue and corner
+  colour, the skin's chrome gradient on the navigation row instead of
+  Blade Night's, and an unset token keeping its Blade Night value. The web
+  instance setup added the account. Computed styles only; no visual review
+  across components and states.
+- **Status.** Implemented and verified on the managed demo.

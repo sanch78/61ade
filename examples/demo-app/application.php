@@ -144,16 +144,18 @@ $oauth = new AuthHandlerLogin(
     $accounts, $identities, $workspace, $runtime.'/oauth-identities.sqlite', $site,
 );
 
-// Application skins (synthetic, neutral palettes over a light and a dark base): granted per account, everyone else
-// keeps the factory themes.
+// Application skins (synthetic, neutral palettes over a light and a dark base, and a Blade Night child with the public
+// Blade palette): granted per account, everyone else keeps the factory themes.
 $slate = new Skin('demo-slate', 'Pala', 'skins/demo-slate.css');
 $ink = new Skin('demo-ink', 'Tinta', 'skins/demo-ink.css', base: 'dark');
-$skins = static function (Identity $actor) use ($db, $slate, $ink): array {
+$ember = new Skin('demo-ember', 'Parázs', 'skins/demo-ember.css', base: 'blade-night');
+$skins = static function (Identity $actor) use ($db, $slate, $ink, $ember): array {
     $email = $db->prepare('SELECT email FROM accounts WHERE id = ?');
     $email->execute([$actor->id]);
     return match ($email->fetchColumn()) {
         'skin@example.test' => [$slate],
         'skins@example.test' => [$slate, $ink],
+        'bladeskin@example.test' => [$ember],
         default => [],
     };
 };

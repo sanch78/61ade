@@ -894,9 +894,11 @@ and public accounts an appearance derived from a factory base. Project
 appearances must extend the Blade (`blade`/`blade-night`) or Generic
 (`light`/`dark`) family through scoped differences, preserving native controls;
 use [61ade-skinning](../.agents/skills/61ade-skinning/SKILL.md) and the
-[family contract and consistency assessment](skinning.md). One skin
-hides the selector; several fill it with only those skins. Presentation only;
-without the option nothing changes.
+[family contract and consistency assessment](skinning.md). A child of
+`blade` or `blade-night` may also override the
+[public Blade palette](shell.md#blade-palette) to recolour the Blade chrome.
+One skin hides the selector; several fill it with only those skins.
+Presentation only; without the option nothing changes.
 
 Every application shows the 61ade [product logo](brand.md) unless it declares its own or `Logo::none()`.
 
