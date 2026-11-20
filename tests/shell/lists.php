@@ -30,6 +30,56 @@ verify(array_column($batch,'id')===['a','7','c']&&$batch[0]['ok']&&count($batch[
 verify(!$batch[1]['ok']&&$batch[1]['status']===404&&$batch[2]['ok']&&($batch[2]['data']['unchanged']??false),'An unknown list is refused alone; an unchanged one answers its version only');
 try{$w->watch($ctx,array_fill(0,Workspace::WATCH_LIMIT+1,['id'=>'x','resource'=>'records','query'=>[]]));verify(false,'Batch limit');}catch(Failure $e){verify($e->status===413,'Batch limit');}
 try{$w->watch($ctx,[['id'=>['x'],'resource'=>'records']]);verify(false,'Malformed batch entry');}catch(Failure $e){verify($e->status===400,'Malformed batch entry');}
+// A record watch (`{record: id}`, live.watch): the ordinary `get` answer, authorized again on every read, no list view needed.
+$status=function(callable $read):int{try{$read();return 200;}catch(Failure $e){return $e->status;}};
+$plain=$w->executor->execute($ctx,'records','get','1',[]);$count=(int)$db->query('SELECT COUNT(*) FROM blade_audit')->fetchColumn();
+$record=$w->observe($ctx,'records',['record'=>'1']);
+verify($record['items']===[$plain]&&$record['previous']===null&&$record['next']===null&&is_string($record['version']),'A record watch answers the ordinary get');
+verify((int)$db->query('SELECT COUNT(*) FROM blade_audit')->fetchColumn()===$count+1&&$db->query("SELECT action||'/'||object_id FROM blade_audit ORDER BY id DESC LIMIT 1")->fetchColumn()==='subscribe/1','A record watch journals one subscribe with its id');
+$same=$w->observe($ctx,'records',['record'=>'1'],$record['version']);
+verify($same===['version'=>$record['version'],'unchanged'=>true]&&(int)$db->query('SELECT COUNT(*) FROM blade_audit')->fetchColumn()===$count+1,'An unchanged record answers its version only, without audit');
+$db->exec("UPDATE records SET title='Watched 1' WHERE record_id=1");$edited=$w->observe($ctx,'records',['record'=>'1'],$record['version']);
+verify($edited['version']!==$record['version']&&$edited['items'][0]['title']==='Watched 1','A changed record is observed');
+// A refusal is journaled once per attempt, like a refused `get` (the channel ends that subscription).
+$last=fn()=>$db->query("SELECT resource||'/'||action||'/'||object_id||'/'||outcome FROM blade_audit ORDER BY id DESC LIMIT 1")->fetchColumn();
+verify($status(fn()=>$w->observe($ctx,'records',['record'=>'2']))===403&&$last()==='records/subscribe/2/rejected','Another owner\'s record is refused (403) and journaled');
+verify($status(fn()=>$w->observe($ctx,'records',['record'=>'999999']))===404&&$last()==='records/subscribe/999999/rejected','A missing record is refused (404) and journaled');
+verify($status(fn()=>$w->observe($ctx,'missing',['record'=>'1']))===404&&$last()==='missing/subscribe/1/rejected','A missing resource is refused (404) and journaled');
+$registry->add(new Blade\Feature\Action('pings','ping','Ping',[],fn()=>['ok'=>true]));
+verify($status(fn()=>$w->observe($ctx,'pings',['record'=>'1']))===404,'A resource without a get action is refused (404)');
+// `audit_action` stays out of the answer, as in the ordinary get; a developer error (5xx, retried by the channel) is not journaled.
+$registry->add(new Blade\Feature\Action('previews','get','Előnézet',[],fn($c,$t)=>['id'=>$t['id'],'audit_action'=>'get_preview'],resolve:fn($c,$id)=>['id'=>$id,'owner'=>null]));
+$registry->add(new Blade\Feature\Action('broken','get','Hibás',[],fn()=>'x',resolve:fn($c,$id)=>['id'=>$id,'owner'=>null]));
+$db->exec("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user','1','previews','get','ui','allow','all','',''),('user','1','broken','get','ui','allow','all','','')");
+verify($w->observe($ctx,'previews',['record'=>'5'])['items']===[$w->executor->execute($ctx,'previews','get','5',[])],'audit_action never reaches the record watch');
+$count=(int)$db->query('SELECT COUNT(*) FROM blade_audit')->fetchColumn();
+try{$w->observe($ctx,'broken',['record'=>'1']);verify(false,'A non-record get answer accepted');}catch(LogicException){}
+verify((int)$db->query('SELECT COUNT(*) FROM blade_audit')->fetchColumn()===$count,'A developer error of a record watch is not journaled');
+verify($status(fn()=>$w->observe(new Context(new Identity('1','One'),'api',$w->acl,$db,['records.get']),'records',['record'=>'1']))===403,'A record watch is ui only');
+$count=(int)$db->query('SELECT COUNT(*) FROM blade_audit')->fetchColumn();
+foreach([['record'=>'1','limit'=>1],['record'=>1],['record'=>''],['record'=>null]] as $bad)verify($status(fn()=>$w->observe($ctx,'records',$bad))===400,'Malformed record query refused');
+verify((int)$db->query('SELECT COUNT(*) FROM blade_audit')->fetchColumn()===$count+4&&$last()==='records/subscribe//rejected','Malformed record queries are journaled');
+$db->exec("DELETE FROM blade_rules WHERE subject_id='1' AND resource='records' AND action='get'");
+verify($status(fn()=>$w->observe($ctx,'records',['record'=>'1'],$edited['version']))===403,'A revoked get ends a running record watch');
+$q->execute(['get']);
+$batch=$w->watch($ctx,[['id'=>'r','resource'=>'records','query'=>['record'=>'1']],['id'=>'d','resource'=>'records','query'=>['record'=>'2']]]);
+verify($batch[0]['ok']&&$batch[0]['data']['items'][0]['id']==='1'&&!$batch[1]['ok']&&$batch[1]['status']===403,'Batched record watches are answered one by one');
+// Every observation reads again: a value derived at read time (a heartbeat) changes the version without any write.
+$beats=0;$registry->add(new Blade\Feature\Action('heartbeat','get','Állapot',[],function()use(&$beats){return ['id'=>'self','beat'=>++$beats];},resolve:fn($c,$id)=>['id'=>'self','owner'=>null]));
+$db->exec("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user','1','heartbeat','get','ui','allow','all','','')");
+$beat=$w->observe($ctx,'heartbeat',['record'=>'self']);$next=$w->observe($ctx,'heartbeat',['record'=>'self'],$beat['version']);
+verify($beat['items'][0]['beat']===1&&$next['items'][0]['beat']===2&&$next['version']!==$beat['version'],'A record is read again on every observation');
+// A singleton list view watches its `self` record the same way (a list query is ignored).
+$registry->view('heartbeat','Állapot',[['id'=>'beat','header'=>'Ütés']],['get'],singleton:true,id:'heartbeat');
+verify($w->observe($ctx,'heartbeat',['limit'=>100])['items'][0]['beat']===3,'A singleton list watches its self record');
+$db->exec("DELETE FROM blade_rules WHERE resource='heartbeat'");
+verify($status(fn()=>$w->observe($ctx,'heartbeat',[]))===403&&$status(fn()=>$w->observe($ctx,'heartbeat',['record'=>'self']))===403,'A refused get refuses the singleton and the record watch');
+// The object ACL is the ordinary get's: a resolver's `acl_id` (a calendar space, a file mount) decides, not the record id.
+$registry->add(new Blade\Feature\Action('events','get','Esemény',[],fn($c,$t)=>['id'=>$t['id']],resolve:fn($c,$id)=>['id'=>$id,'acl_id'=>'space-a','owner'=>null]));
+$db->exec("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user','1','events','get','ui','allow','id','7','')");
+verify($status(fn()=>$w->observe($ctx,'events',['record'=>'7']))===403&&$status(fn()=>$w->executor->execute($ctx,'events','get','7',[]))===403,'A record id alone grants no record watch');
+$db->exec("UPDATE blade_rules SET object_id='space-a' WHERE resource='events'");
+verify($w->observe($ctx,'events',['record'=>'7'])['items']===[['id'=>'7']],'The acl_id decides the record watch, as in the ordinary get');
 try{new ViewLayout('panel',['cols'=>[['id'=>'grid']]]);throw new RuntimeException('Missing form accepted');}catch(InvalidArgumentException){}
 $views=$w->views($ctx->actor);verify($views[0]['options']['layout']['formMode']==='panel','Layout reaches consumer');
 

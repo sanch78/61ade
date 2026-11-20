@@ -769,5 +769,16 @@
   "Törölve:": "Removed:",
   "Hozzáadva:": "Added:",
   "Hely": "Location",
-  "További szintek": "More levels"
+  "További szintek": "More levels",
+  "Másolva.": "Copied.",
+  "{label} másolva.": "{label} copied.",
+  "A másolás nem sikerült.": "Copying failed.",
+  "várakozik": "pending",
+  "folyamatban": "in progress",
+  "kész": "done",
+  "sikertelen": "failed",
+  "Sikertelen feltöltés.": "Upload failed.",
+  "Csatolva: {name}": "Attached: {name}",
+  "A fájl már a feltöltési sorban van.": "The file is already in the upload queue.",
+  "{name} eltávolítása": "Remove {name}"
 }

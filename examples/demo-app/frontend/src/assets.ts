@@ -14,7 +14,6 @@ type ViewerOptions = { loop?: boolean; details?: string };
 const KIND = "demo.asset-viewer";
 /** The playlist items of one asset (signage.php): offered without a menu entry. */
 const ITEMS = "signage_asset_items";
-const PHONE = "(max-width: 767px)";
 const STEP = 5;
 
 /** `m:ss`, from one hour `h:mm:ss`, like the framework's length text. */
@@ -55,7 +54,7 @@ function viewer(app: Application, host: ViewHost, view: ViewDefinition<ViewerOpt
   const editable = !!list?.actions.some(action => action.name === "update") && (!Array.isArray(row._actions) || row._actions.includes("update"));
   // The asset's playlist items: a list view without a menu entry (`menu: false`, signage.php), offered by the ACL.
   const usages = app.viewDefinition(ITEMS) as ViewDefinition<ListKindOptions> | undefined;
-  const preferences = app.preferences.scope(KIND), phone = matchMedia(PHONE);
+  const preferences = app.preferences.scope(KIND);
   let loop = preferences.get<boolean>("loop") ?? !!view.options?.loop;
   let build: AbortController | undefined, player: MediaPlayer | undefined, resume = 0;
   // The scene's frame and its last `scene.state` (its clock runs inside the frame; the viewer only follows it).
@@ -78,8 +77,9 @@ function viewer(app: Application, host: ViewHost, view: ViewDefinition<ViewerOpt
     const details: PageRegion = extra.length
       ? { accordion: [{ id: "details", header: t("Adatok"), open: true }, ...extra] }
       : { id: "details", header: t("Adatok"), collapsable: true };
-    const layout = new app.components.PageLayout({ id: `${view.id}.${phone.matches ? "narrow" : "wide"}${extra.map(section => "." + section.id).join("")}`,
-      tree: phone.matches
+    const phone = app.viewport.narrow;
+    const layout = new app.components.PageLayout({ id: `${view.id}.${phone ? "narrow" : "wide"}${extra.map(section => "." + section.id).join("")}`,
+      tree: phone
         ? { rows: [{ id: "player", height: kind === "audio" ? 380 : Math.max(220, Math.round(innerHeight * 0.4)), resizable: true }, { ...details, minHeight: 120 }] }
         : { cols: [{ id: "player", minWidth: 240, resizable: true }, { ...details, width: 380, minWidth: 240 }] } });
     // The command row belongs to the left-hand player region, beside the collapsible metadata region.
@@ -217,7 +217,9 @@ function viewer(app: Application, host: ViewHost, view: ViewDefinition<ViewerOpt
   };
 
   render();
-  phone.addEventListener("change", render, { signal: host.signal });
+  // Rebuilt by hand rather than with a `narrow` tree: the stage may hold a SandboxFrame, whose frame reloads when it is
+  // moved in a browser without `moveBefore`, and the viewer resumes the playback position itself.
+  app.events.on("viewport:change", render, { signal: host.signal });
   return { destroy: () => { build?.abort(); player = undefined; frame = undefined; } };
 }
 

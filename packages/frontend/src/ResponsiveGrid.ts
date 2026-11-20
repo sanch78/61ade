@@ -6,6 +6,7 @@ import { RESERVED, alias, gridEditor, unalias } from "./GridEditing";
 import type { Row } from "./Realtime";
 
 import { escape, toned, recordFields, recordCheckbox, recordIcon, recordMedia, recordSlot, hasSlot, imageSlot, optionText, isIcon, isMedia, isImage, mediaOf, presentedFields, thumbnailFailed, derivedOf, derivedText, columnText, withDerived } from "./RecordPresentation";
+import { narrow } from "./Viewport";
 type Position={id?:string;offset:number;x:number;y:number};
 export type GridMode="table"|"cards"|"tiles";
 export type ResponsiveGridOptions={rowNumbers?:boolean;selection?:boolean;rowSelection?:boolean;fields?:ViewDefinition["columns"];filters?:{name:string;label:string;type?:string;options?:Record<string,string>}[];details?:(id:string)=>void;marked?:(ids:string[])=>void;edit?:(id:string,field:string,anchor:HTMLElement)=>void;idColumn?:boolean;
@@ -435,7 +436,7 @@ export class ResponsiveGrid {
     const counts=width?{cards:Math.max(1,Math.min(this.options.cardColumns??Infinity,Math.floor((width-24)/340))),tiles:Math.max(1,Math.floor((width-8)/(this.tileMinWidth+8)))}:{cards:this.perRow.cards||1,tiles:this.perRow.tiles||1};
     const changed={cards:counts.cards!==this.perRow.cards,tiles:counts.tiles!==this.perRow.tiles};
     for(const kind of ["cards","tiles"] as const)if(changed[kind]){this.perRow[kind]=counts[kind];this.list(kind).config.itemsInRow=counts[kind];}
-    const mobile=innerWidth<768;
+    const mobile=narrow();
     const mode:GridMode=this.options.table?"table":this.preferred==="tiles"&&this.tilesOffered?"tiles":mobile||this.preferred==="cards"?"cards":"table";
     this.modeChanged(mode!=="table",mobile,mode);
     if(mode===this.current){if(this.stale){this.syncRows();this.refreshMarks();}else if(mode!=="table"&&changed[mode]&&this.list().getRootNode())this.list().paint();return;}

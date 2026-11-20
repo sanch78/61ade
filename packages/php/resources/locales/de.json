@@ -769,5 +769,16 @@
   "Törölve:": "Entfernt:",
   "Hozzáadva:": "Hinzugefügt:",
   "Hely": "Position",
-  "További szintek": "Weitere Ebenen"
+  "További szintek": "Weitere Ebenen",
+  "Másolva.": "Kopiert.",
+  "{label} másolva.": "{label} kopiert.",
+  "A másolás nem sikerült.": "Kopieren fehlgeschlagen.",
+  "várakozik": "ausstehend",
+  "folyamatban": "läuft",
+  "kész": "fertig",
+  "sikertelen": "fehlgeschlagen",
+  "Sikertelen feltöltés.": "Hochladen fehlgeschlagen.",
+  "Csatolva: {name}": "Angehängt: {name}",
+  "A fájl már a feltöltési sorban van.": "Die Datei ist bereits in der Upload-Warteschlange.",
+  "{name} eltávolítása": "{name} entfernen"
 }

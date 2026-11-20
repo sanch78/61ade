@@ -6,6 +6,7 @@ import { checkPopupItems, popupMenu } from "../../PopupMenu";
 import type { CommandBar as CommandBarApi, CommandBarEvents, CommandBarOptions, CommandButton, CommandChanges, CommandItem, CommandMenu, CommandOption, CommandPopup, CommandRange, CommandSelect, CommandTitle, CommandToggle, PopupMenu } from "../../api/types";
 import { Component } from "./component";
 import { escape } from "./fields";
+import { narrow as narrowViewport } from "../../Viewport";
 
 const ID=/^[A-Za-z0-9_.:-]+$/;
 /** A range reports at most this often while it is dragged (and once more on release). */
@@ -61,6 +62,8 @@ export class CommandBar extends Component<CommandBarEvents> implements CommandBa
     this.layout=new Layout(this.host,{type:"none",rows:[{id:"commands",css:"blade-command-row"+(options.placement==="bottom"?" blade-command-row--bottom":"")}]});
     this.bar=new ResponsiveToolbar(undefined,{data},{id:"blade-command-menu"+this.prefix,value:t("Műveletek"),icon:"bi bi-grid",narrow:!icons});
     this.toolbar=this.bar;
+    // Mounted into a plain element, the bar takes the standard panel-header height (a Layout cell decides itself).
+    this.host.classList.add("blade-command-bar");
     const root=this.bar.getRootNode() as HTMLElement;
     this.name();
     this.bar.events.on("click",(id:string|number)=>this.clicked(String(id)));
@@ -82,12 +85,13 @@ export class CommandBar extends Component<CommandBarEvents> implements CommandBa
   private name():void{
     const title=[...this.entries.values()].find(entry=>entry.kind==="title")?.item.label;
     const name=this.label??title;
-    const root=this.bar.getRootNode() as HTMLElement;
-    if(name)root.setAttribute("aria-label",name);else root.removeAttribute("aria-label");
+    // Suite redraws the role="toolbar" element's name from `config.ariaLabel` (its default when unset).
+    (this.bar.config as {ariaLabel?:string}).ariaLabel=name;
+    this.bar.paint();
   }
   /** `narrow: "icons"`: below 768 px the narrowable items show their icon only (the label as tooltip and hidden text). */
   private narrow():void{
-    const narrow=innerWidth<768;
+    const narrow=narrowViewport();
     if(narrow===this.narrowed)return;
     this.narrowed=narrow;
     for(const [suiteId,id] of this.narrowable){

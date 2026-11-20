@@ -3845,7 +3845,7 @@ var check = (request) => new Promise((resolve, reject) => {
   checks.push({ request, resolve, reject });
   pump();
 });
-var rows = (query) => Number.isSafeInteger(query.limit) ? Math.min(600, Math.max(1, query.limit)) : 100;
+var rows = (query) => typeof query.record === "string" ? 1 : Number.isSafeInteger(query.limit) ? Math.min(600, Math.max(1, query.limit)) : 100;
 wss.on("connection", (ws, req) => {
   const path = new URL(req.url, "http://localhost").pathname;
   let ticket = null, ready = false, alive = true, active = 0, timer = null;

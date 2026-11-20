@@ -123,6 +123,14 @@ polling tab keeps its session alive. This is unchanged behavior and an open L5
 item ([plan](live-channel-plan.md#7-risks)).
 Batched polling (`__watch` with `subscriptions`) answers each entry under the
 same request's session, tenant and ACL; a 401 still fails the whole request.
+A [record watch](toolkit.md#record-watch) (query `{record: "<id>"}`) and a
+singleton list's watch read through the resource's `get` with the full
+`Executor` authorization (tenant, `ui` channel, resolver, delegation, object
+ACL including a resolver's `acl_id`, field ACL) on every tick; a rule on the
+record id alone grants nothing when the resolver names another ACL object
+([FB-0250](feedback.md#fb-0250)). A refused record watch is journaled as
+`subscribe`/`rejected` with the requested id, once per attempt, like a refused
+`get`.
 With [client-address binding](authentication.md#client-address-binding), an
 address change ends the session on its next HTTP request. The deleted session
 file then fails the per-observation recheck, so the channel closes with 4401;

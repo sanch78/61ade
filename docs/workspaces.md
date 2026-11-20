@@ -1824,6 +1824,18 @@ declared, its icon only.
 
 <a id="conditional-fields"></a>
 
+<a id="form-submit-keys"></a>
+
+## Form submit keys
+
+In a textarea of a framework form (record and action forms, the edit window,
+`SettingsForm`, the calendar and file manager forms) Ctrl+Enter, or Cmd+Enter on
+macOS, commits the typed value and presses the form's primary button (the
+last one of its action row). Validation and confirmation run as for a click
+([FB-0250](feedback.md#fb-0250)). Nothing happens when that button is
+disabled, inert or missing. Plain Enter keeps its line break. A
+project's own text field uses [`app.ui.submitKeys`](toolkit.md#submit-keys).
+
 ## Conditional fields
 
 A field can take part only while another field of the same record holds one

@@ -59,6 +59,52 @@ every caller uses `acknowledge`, `requestConfirmation`, `showDialog` or the
 choice dialogs with `DialogOptions` (project code: `app.ui.dialog`). Content is
 always plain text. DHTMLX `message()` remains a toast, outside this dialog API.
 
+<a id="progress"></a>
+
+## Progress dialog
+
+`app.ui.progress(options)` blocks the page for one running operation that
+the user must not leave or repeat, such as a publish or a restore
+([FB-0250](feedback.md#fb-0250)). It replaces a project window that hides
+its own close button, Suite `progressShow()` and a hand-made
+`beforeunload` guard.
+
+```ts
+const progress = app.ui.progress({ title: t("Közzététel"), message: t("Az oldal másolása…"),
+  steps: [{ id: "copy", label: t("Másolás") }, { id: "publish", label: t("Közzététel") }] });
+try {
+  await app.server.call("pages", "copy", { id, signal: progress.signal });
+  progress.step("publish"); progress.message(t("Közzététel…"));
+  await app.server.call("pages", "publish", { id, signal: progress.signal });
+} finally { progress.close(); }
+```
+
+- **Window.** A modal framework window (420 px wide, fitted to its content,
+  not resizable) with `closable: false`: no close button, Escape and the
+  backdrop do nothing, and the page behind it is inert as behind every
+  [modal window](toolkit.md#modal-windows). Only `close()` and the caller's
+  `signal` close it; the handle's own `signal` aborts when it closes. Pass it
+  to the calls it waits for. Closing returns the focus to the opener.
+- **Content.** The message is a polite `role="status"`; `message(text)`
+  replaces it. A native `<progress>` named after the title is indeterminate
+  until `percent(0–100)`, and `percent(null)` makes it indeterminate again.
+  With `steps` a [`Steps`](toolkit.md#steps) list labelled with the title
+  follows, its first step current; `step(id)` makes a step current (the
+  earlier ones done), `state(id, "failed")` marks one stopped.
+- **Leaving.** While it is open a `beforeunload` handler makes the browser
+  ask before the tab is closed or reloaded, as the uploader does while it
+  sends files. Closing releases it.
+- **Errors.** A blank `title` or `message`, invalid `steps` (as `Steps`),
+  `percent` outside 0–100 or `null` as the start value, and a `signal` that
+  is not an `AbortSignal` throw `TypeError` before anything opens.
+  `percent()` outside 0–100 throws `TypeError`; `step`/`state` without steps
+  or with an undeclared id throw `Error`.
+- **Not for.** A short call needs no dialog: a region shows its own
+  [busy mark](toolkit.md#busy-filled-region). A background job the user may
+  leave belongs in a non-modal window or region with `Steps` and a
+  [live watch](toolkit.md#record-watch). There is no cancel button; an
+  operation that can be cancelled is a command the page offers itself.
+
 <a id="szerver-által-deklarált-megerősítés"></a>
 
 ## Server-declared confirmation
@@ -125,5 +171,6 @@ Applications must use it rather than create their own modal.
 - No queue: simultaneous dialogs stack; only the top handles keys.
 - Browser tests cover six combinations, keyboard and 320×480. Real iOS safe-area devices and screen readers were not tested.
 - Text only; no HTML content.
+- The progress dialog has no cancel button and no queue of operations.
 - `Action.confirm` is UI-only and never blocks API calls.
 - The referenced screenshot attachment was unavailable during the original task; the “too window-like” appearance was assessed from DHTMLX defaults and source.

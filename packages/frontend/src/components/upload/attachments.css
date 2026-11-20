@@ -1,0 +1,21 @@
+/* Attachments (docs/toolkit.md#attachments): a wrapping row of file chips whose height follows its content. */
+.blade-attachments-layout, .blade-attachments-layout .dhx_layout-cell { height: auto; min-height: 0; }
+.blade-attachments { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 8px; outline: none; }
+.blade-attachments[hidden] { display: none; }
+.blade-attachment {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 100%; box-sizing: border-box; height: 32px; padding: 0 2px 0 8px;
+  border: var(--dhx-border); border-radius: var(--dhx-border-radius); background: var(--dhx-background-secondary);
+  color: var(--dhx-font-color-primary); font-size: var(--dhx-font-size-small); line-height: 1.2; min-width: 0;
+}
+.blade-attachment:focus-visible { outline: 2px solid var(--dhx-border-color-focused, var(--dhx-color-primary)); outline-offset: 1px; }
+.blade-attachment__thumb { width: 24px; height: 24px; object-fit: cover; border-radius: 3px; flex: none; }
+.blade-attachment__icon { flex: none; font-size: 16px; color: var(--dhx-font-color-secondary); }
+.blade-attachment__name { min-width: 0; max-width: 16em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.blade-attachment__detail { flex: none; max-width: 14em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--dhx-font-color-secondary); font-variant-numeric: tabular-nums; }
+.blade-attachment__remove {
+  display: inline-flex; align-items: center; justify-content: center; flex: none; width: 26px; height: 26px; padding: 0; border: 0;
+  border-radius: var(--dhx-border-radius); background: transparent; color: var(--dhx-font-color-secondary); cursor: pointer;
+}
+.blade-attachment__remove:hover { background: var(--dhx-background-additional); color: var(--dhx-font-color-primary); }
+.blade-attachment--failed { border-color: var(--dhx-color-danger); }
+.blade-attachment--failed .blade-attachment__icon, .blade-attachment--failed .blade-attachment__detail { color: var(--dhx-color-danger); }

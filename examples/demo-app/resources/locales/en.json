@@ -438,5 +438,16 @@
   "Küldés időpontja": "Sending time",
   "Az időpontot ÓÓ:PP formában add meg.": "Enter the time as HH:MM.",
   "Ütemezés": "Schedule",
-  "Feltételes űrlapszakaszok: az Értesítés bekapcsolva jelölő az E-mail szövege és az SMS szövege szakaszt, a Kézbesítés választása a hozzá tartozó egy szakaszt mutatja vagy rejti el, fejlécével és keretével együtt.\n\nKapcsold ki az értesítést egy szabály Módosítás ablakában, majd ments: az elrejtett szakaszok mezőit a szerver nem ellenőrzi és nem írja felül, így visszakapcsoláskor a tárolt szöveg ismét ott van. A Heti összefoglaló ki van kapcsolva, a szövegei mégis megvannak.\n\nKeretrendszer-képesség: feltételes szakasz (section_visible_when).": "Conditional form sections: the Notification on checkbox shows or hides the E-mail text and SMS text sections, and the Delivery choice the one section that belongs to it, together with its header and frame.\n\nSwitch the notification off in a rule's Edit window and save: the server neither checks nor overwrites the fields of the hidden sections, so the stored text is there again when you switch it back on. The Weekly summary is switched off, yet its texts are kept.\n\nFramework capability: conditional section (section_visible_when)."
+  "Feltételes űrlapszakaszok: az Értesítés bekapcsolva jelölő az E-mail szövege és az SMS szövege szakaszt, a Kézbesítés választása a hozzá tartozó egy szakaszt mutatja vagy rejti el, fejlécével és keretével együtt.\n\nKapcsold ki az értesítést egy szabály Módosítás ablakában, majd ments: az elrejtett szakaszok mezőit a szerver nem ellenőrzi és nem írja felül, így visszakapcsoláskor a tárolt szöveg ismét ott van. A Heti összefoglaló ki van kapcsolva, a szövegei mégis megvannak.\n\nKeretrendszer-képesség: feltételes szakasz (section_visible_when).": "Conditional form sections: the Notification on checkbox shows or hides the E-mail text and SMS text sections, and the Delivery choice the one section that belongs to it, together with its header and frame.\n\nSwitch the notification off in a rule's Edit window and save: the server neither checks nor overwrites the fields of the hidden sections, so the stored text is there again when you switch it back on. The Weekly summary is switched off, yet its texts are kept.\n\nFramework capability: conditional section (section_visible_when).",
+  "Ellenőrzés (demó)": "Check (demo)",
+  "Feladat ellenőrzése": "Checking the task",
+  "A feladat beolvasása…": "Reading the task…",
+  "Beolvasás": "Read",
+  "Ellenőrzés (szimulált)": "Check (simulated)",
+  "Lezárás (szimulált)": "Finish (simulated)",
+  "Szimulált ellenőrzés…": "Simulated check…",
+  "Szimulált lezárás…": "Simulated finish…",
+  "Az ellenőrzés kész.": "The check is done.",
+  "Csatolás": "Attach",
+  "Csatolmányok": "Attachments"
 }

@@ -23,12 +23,16 @@
   --blade-glint: color-mix(in srgb, var(--blade-cyan) 85%, white);
 }
 [data-dhx-theme="light"] {
+  --blade-panel-header: var(--dhx-background-primary);
+  --blade-tab-row: var(--dhx-background-primary);
   --dhx-h-primary: 212;
   --dhx-s-primary: 96%;
   --dhx-l-primary: 45%;
   --dhx-border-radius: var(--blade-control-radius);
 }
 [data-dhx-theme="dark"] {
+  --blade-panel-header: var(--dhx-background-primary);
+  --blade-tab-row: var(--dhx-background-primary);
   --dhx-h-primary: 210;
   --dhx-s-primary: 100%;
   --dhx-l-primary: 60%;

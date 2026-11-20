@@ -59,7 +59,10 @@ documented for customization include the logo dimensions in the
 Blade-family child can recolour the glossy chrome, buttons, hover, selection
 and panel surfaces that Suite variables do not reach. They are a Blade-family
 contract only; Generic children keep Suite variables and the other documented
-properties. Other `--blade-*` tokens, including the shared cyan/blue accents
+properties. In both families `--blade-panel-header` and `--blade-tab-row`
+recolour panel header bands and tab rows ([tokens](shell.md#panel-header-tokens),
+[FB-0250](feedback.md#fb-0250)). Painting `.dhx_layout-cell-header` or
+`.dhx_tabbar-tab-button` from a skin is no longer needed. Other `--blade-*` tokens, including the shared cyan/blue accents
 and the radii, stay internal. An application that needs another shared visual
 capability requests a public hook from 61ade; its consumer session does not
 modify this library or fork its stylesheet. Generic semantic colour/state

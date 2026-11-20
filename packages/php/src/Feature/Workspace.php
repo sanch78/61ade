@@ -123,28 +123,52 @@ final class Workspace
     }
     /** Field metadata of $field for the actor of $ctx (ViewMetadata::field). */
     public function fieldMetadata(Context $ctx,Field $field):array { return (new ViewMetadata($this->registry))->field($ctx,$field); }
-    /** Technical observation; unchanged snapshots do not create business read events. */
+    /**
+     * Technical observation; unchanged snapshots do not create business read events. $query is a list window, or
+     * `{record: id}` (`live.watch`): one record of $resource's `get` action, no list view needed. A record, like a
+     * singleton list's `self`, is read on every observation as the ordinary `get` reads it: Executor::authorize
+     * (channel, tenant, resolver, delegation, object ACL), then the handler, whose field ACL is the same; the answer is
+     * `items: [record]`, without the handler's `audit_action` (as Executor::execute). The first observation journals
+     * `subscribe` (a record's with its id); a refused record watch (4xx) journals `subscribe` `rejected` with the
+     * requested id, as a refused `get` is journaled. Both transports end a refused subscription, so that is one row
+     * per attempt; a 5xx is retried (poll every interval, WebSocket with backoff) and only logged by the caller.
+     */
     public function observe(Context $ctx,string $resource,array $query,string $version=''):array
     {
         if($ctx->channel!=='ui')throw new Failure('Nem érhető el.',403);
         $this->acl->invalidate();$view=null;
-        foreach($this->registry->views() as $candidate)if($candidate->resource===$resource&&$candidate->kind==='list')$view=$candidate;
-        if(!$view)throw new Failure('Ismeretlen lista.',404);
+        $record=array_key_exists('record',$query);
+        if(!$record){
+            foreach($this->registry->views() as $candidate)if($candidate->resource===$resource&&$candidate->kind==='list')$view=$candidate;
+            if(!$view)throw new Failure('Ismeretlen lista.',404);
+        }
         \Blade\Infrastructure\Transaction::begin($this->db);
         try{
-            if($view->options['singleton']??false){
-                $action=$this->registry->get($resource,'get');$target=($action->resolve)($ctx,'self');
-                if(!$this->acl->allows($ctx->actor->id,$resource,'get','ui',$target['id'],$target['owner']??null))throw new Failure('Nincs hozzáférés.',403);
-                $result=['items'=>[($action->handler)($ctx,$target,[])],'previous'=>null,'next'=>null];
+            $object='';
+            if($record&&(count($query)!==1||!is_string($query['record'])||$query['record']===''))throw new Failure('Hibás feliratkozás.');
+            if($record||($view->options['singleton']??false)){
+                $action=$this->registry->get($resource,'get');$target=$this->executor->authorize($ctx,$action,$record?$query['record']:'self');
+                $row=($action->handler)($ctx,$target,[]);
+                if(!is_array($row))throw new \LogicException("The get action of $resource answers a record (array).");
+                if(array_key_exists('audit_action',$row)){
+                    if(!is_string($row['audit_action'])||!preg_match('/^[a-z][a-z0-9_]{0,99}$/D',$row['audit_action']))throw new \LogicException('Invalid audit action.');
+                    unset($row['audit_action']);
+                }
+                $result=['items'=>[$row],'previous'=>null,'next'=>null];
+                if($record)$object=substr((string)($target['id']??''),0,100);
             }else{
                 $action=$this->registry->get($resource,'list');
                 if(!$action->listSource)throw new Failure('A lista nem megfigyelhető.');
                 $result=$action->listSource->read($ctx,[...$query,'mode'=>'watch']);
             }
             $hash=hash('sha256',json_encode($result,JSON_THROW_ON_ERROR));
-            if($version==='')$this->journal->record($ctx->actor->id,'ui',$resource,'subscribe','','success',tenant:$ctx->tenant);
+            if($version==='')$this->journal->record($ctx->actor->id,'ui',$resource,'subscribe',$object,'success',tenant:$ctx->tenant);
             $this->db->commit();return hash_equals($hash,$version)?['version'=>$hash,'unchanged'=>true]:[...$result,'version'=>$hash];
-        }catch(\Throwable $e){if($this->db->inTransaction())$this->db->rollBack();throw $e;}
+        }catch(\Throwable $e){
+            if($this->db->inTransaction())$this->db->rollBack();
+            if($record&&$e instanceof Failure&&$e->status<500)$this->journal->record($ctx->actor->id,'ui',substr($resource,0,100),'subscribe',is_string($query['record'])?substr($query['record'],0,100):'','rejected',tenant:$ctx->tenant);
+            throw $e;
+        }
     }
     /** At most this many subscriptions per batched `__watch` (and per WebSocket connection, live-server.mjs). */
     public const WATCH_LIMIT=64;

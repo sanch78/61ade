@@ -46,7 +46,9 @@ the same independent skin through `stylesheets` or a browser module.
    may also override the [public Blade palette](../../../docs/shell.md#blade-palette)
    (`--blade-chrome`, `--blade-button`, `--blade-corner-color` and the rest of
    that table) to recolour the glossy chrome; it is not public for a Generic
-   child. Other `--blade-*` tokens are internal. Keep the chosen family's
+   child. A child of any base may set [`--blade-panel-header` and
+   `--blade-tab-row`](../../../docs/shell.md#panel-header-tokens) for panel
+   header bands and tab rows. Other `--blade-*` tokens are internal. Keep the chosen family's
    inherited character and geometry; Suite colour or radius changes do not
    recolour or reshape every framework surface. Consult the [current limitations](../../../docs/skinning.md#customization-limits).
 4. Let the shell set `data-blade-theme`, `data-dhx-theme`, `data-blade-skin`

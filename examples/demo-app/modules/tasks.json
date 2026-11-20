@@ -191,6 +191,7 @@
                 ],
                 "commands": [
                     "demo.copy-text",
+                    "demo.progress",
                     "demo.task-page"
                 ],
                 "layout": {

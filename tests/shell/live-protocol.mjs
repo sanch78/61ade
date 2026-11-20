@@ -60,6 +60,15 @@ try{
  a.send({type:'subscribe',id:'c',resource:'blade_users',query:{}});
  const replaced=await a.wait(m=>m.type==='update'&&m.id==='c'&&m.upserts.some(r=>JSON.stringify(r).includes(name)),8000,'replaced c');
  check(replaced.order.length===replaced.upserts.length,'subscribe on an existing id replaces it with a full window');
+ // A record watch (live.watch): query {record: id}, the resource's `get` read again on every tick.
+ a.send({type:'subscribe',id:'w',resource:'blade_users',query:{record:'1'}});
+ const watched=await a.wait(m=>m.type==='update'&&m.id==='w',8000,'record w');
+ check(watched.order.length===1&&watched.order[0]==='1'&&watched.upserts.length===1&&watched.previous===null,'record watch → update with its one record');
+ name='Live W '+Date.now();rename(name);
+ await a.wait(m=>m.type==='update'&&m.id==='w'&&m.upserts.some(r=>JSON.stringify(r).includes(name)),8000,'write on w');
+ check(true,'an external write reaches the record watch');
+ a.send({type:'subscribe',id:'m',resource:'blade_users',query:{record:'999999'}});
+ check((await a.wait(m=>m.type==='denied'&&m.id==='m',8000,'denied m')).status===404&&a.ws.readyState===WebSocket.OPEN,'a missing record → denied {status: 404}, channel open');
 
  // A tenant-scoped list without an active tenant fails closed (403); the global list beside it keeps working.
  const plain=connect('/live/tenants');await hello(plain,ticket('none@example.test','tenant'));
@@ -116,6 +125,9 @@ try{
  rich.send({type:'subscribe',id:'r5',resource:'blade_users',query:{limit:200}});
  await rich.wait(m=>m.type==='update'&&m.id==='r5',8000,'r5 within budget');
  check(true,'a subscription within the remaining budget is served');
+ rich.send({type:'unsubscribe',id:'r5'});rich.send({type:'subscribe',id:'r6',resource:'blade_users',query:{limit:199}});rich.send({type:'subscribe',id:'rw',resource:'blade_users',query:{record:'1'}});
+ await rich.wait(m=>m.type==='update'&&m.id==='rw',8000,'record within budget');
+ check(rich.frames.filter(m=>m.type==='denied').length===1,'a record watch costs one row of the budget');
  rich.ws.close();
 
  // The bridge rechecks the session on every observation: a removed session closes the whole channel.

@@ -48,7 +48,6 @@ function sceneState(payload) {
 // examples/demo-app/frontend/src/assets.ts
 var KIND = "demo.asset-viewer";
 var ITEMS = "signage_asset_items";
-var PHONE = "(max-width: 767px)";
 var STEP = 5;
 function clock(seconds) {
   const s = Math.max(0, Math.floor(Number.isFinite(seconds) ? seconds : 0)), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, r = String(s % 60).padStart(2, "0");
@@ -75,7 +74,7 @@ function viewer(app, host, view) {
   const playable = kind !== void 0, timed = kind === "video" || kind === "audio" || kind === "scene";
   const editable = !!list?.actions.some((action) => action.name === "update") && (!Array.isArray(row._actions) || row._actions.includes("update"));
   const usages = app.viewDefinition(ITEMS);
-  const preferences = app.preferences.scope(KIND), phone = matchMedia(PHONE);
+  const preferences = app.preferences.scope(KIND);
   let loop = preferences.get("loop") ?? !!view.options?.loop;
   let build, player, resume = 0;
   let frame, scene;
@@ -91,9 +90,10 @@ function viewer(app, host, view) {
     previous?.abort();
     const extra = [...editable ? [{ id: "edit", header: t("Szerkeszt\xE9s") }] : [], ...usages ? [{ id: "items", header: t("Lej\xE1tsz\xE1si list\xE1kban") }] : []];
     const details = extra.length ? { accordion: [{ id: "details", header: t("Adatok"), open: true }, ...extra] } : { id: "details", header: t("Adatok"), collapsable: true };
+    const phone = app.viewport.narrow;
     const layout = new app.components.PageLayout({
-      id: `${view.id}.${phone.matches ? "narrow" : "wide"}${extra.map((section) => "." + section.id).join("")}`,
-      tree: phone.matches ? { rows: [{ id: "player", height: kind === "audio" ? 380 : Math.max(220, Math.round(innerHeight * 0.4)), resizable: true }, { ...details, minHeight: 120 }] } : { cols: [{ id: "player", minWidth: 240, resizable: true }, { ...details, width: 380, minWidth: 240 }] }
+      id: `${view.id}.${phone ? "narrow" : "wide"}${extra.map((section) => "." + section.id).join("")}`,
+      tree: phone ? { rows: [{ id: "player", height: kind === "audio" ? 380 : Math.max(220, Math.round(innerHeight * 0.4)), resizable: true }, { ...details, minHeight: 120 }] } : { cols: [{ id: "player", minWidth: 240, resizable: true }, { ...details, width: 380, minWidth: 240 }] }
     });
     layout.mount(root);
     const left = new app.dhx.Layout(null, { type: "none", rows: [{ id: "commands", height: 48 }, { id: "stage" }] });
@@ -248,7 +248,7 @@ function viewer(app, host, view) {
     }, { once: true });
   };
   render();
-  phone.addEventListener("change", render, { signal: host.signal });
+  app.events.on("viewport:change", render, { signal: host.signal });
   return { destroy: () => {
     build?.abort();
     player = void 0;
@@ -765,7 +765,6 @@ var playlist_default = playlist;
 var KIND3 = "demo.readings-dashboard";
 var BAR = "demo.reading-bar";
 var SCALE = 100;
-var NARROW = "(max-width: 767px)";
 var escape2 = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 var numeric = (value) => {
   if (typeof value === "number") return Number.isFinite(value) ? value : null;
@@ -838,13 +837,12 @@ function dashboard(app, host, view) {
   const signed = formatter(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1, signDisplay: "exceptZero" });
   const step = options.max / options.buckets;
   const ranges = Array.from({ length: options.buckets }, (_, index) => `${whole.format(index * step)}\u2013${whole.format((index + 1) * step)}`);
-  const narrow = matchMedia(NARROW);
   let session, list, closed = false;
   let presets = { ...host.filters };
   const build = () => {
     session?.abort();
     const controller = session = new AbortController(), signal = controller.signal;
-    const compact = narrow.matches;
+    const compact = app.viewport.narrow;
     const summaryHeader = compact ? {} : { header: t("\xD6sszes\xEDt\xE9s") };
     const overview = compact ? { type: "space", height: 324, rows: [{ id: "summary", height: 104 }, { id: "chart", header: t("\xC9rt\xE9keloszl\xE1s") }] } : { type: "space", height: 260, cols: [{ id: "summary", width: 340, ...summaryHeader }, { id: "chart", header: t("\xC9rt\xE9keloszl\xE1s") }] };
     const layout = new app.dhx.Layout(null, { type: "none", css: "demo-readings", rows: [overview, { id: "list" }] });
@@ -909,7 +907,7 @@ function dashboard(app, host, view) {
     closed = true;
     session?.abort();
   };
-  narrow.addEventListener("change", () => {
+  app.events.on("viewport:change", () => {
     if (!closed) build();
   }, { signal: host.signal });
   host.signal.addEventListener("abort", close, { once: true });
@@ -1057,6 +1055,38 @@ var tasks = (app) => {
       app2.ui.toast(app2.i18n.t("V\xE1g\xF3lapra m\xE1solva: {count} feladat.", { count: targets.length }));
     }
   });
+  app.commands.register("demo.progress", {
+    label: "Ellen\u0151rz\xE9s (dem\xF3)",
+    icon: "bi bi-list-check",
+    placement: "record",
+    enabled: ({ row }) => !!row,
+    run: async ({ app: app2, view, row, signal }) => {
+      if (!row || !view.resource) return;
+      const t = app2.i18n.t;
+      const progress = app2.ui.progress({ title: t("Feladat ellen\u0151rz\xE9se"), message: t("A feladat beolvas\xE1sa\u2026"), signal, steps: [
+        { id: "read", label: t("Beolvas\xE1s") },
+        { id: "check", label: t("Ellen\u0151rz\xE9s (szimul\xE1lt)") },
+        { id: "finish", label: t("Lez\xE1r\xE1s (szimul\xE1lt)") }
+      ] });
+      const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      try {
+        await app2.server.call(view.resource, "get", { id: String(row.id), signal: progress.signal });
+        progress.step("check");
+        progress.message(t("Szimul\xE1lt ellen\u0151rz\xE9s\u2026"));
+        for (let percent = 0; percent <= 100; percent += 25) {
+          progress.percent(percent);
+          await wait(300);
+        }
+        progress.step("finish");
+        progress.percent(null);
+        progress.message(t("Szimul\xE1lt lez\xE1r\xE1s\u2026"));
+        await wait(800);
+      } finally {
+        progress.close();
+      }
+      if (!signal.aborted) app2.ui.toast(t("Az ellen\u0151rz\xE9s k\xE9sz."));
+    }
+  });
 };
 var tasks_default = tasks;
 
@@ -1188,7 +1218,7 @@ var playlist_editor_default = playlistEditor;
 // examples/demo-app/frontend/src/task-page.ts
 var KIND5 = "demo.task-page";
 var NOTE = "demo.task-note";
-var PHONE2 = "(max-width: 767px)";
+var PHONE = "(max-width: 767px)";
 var COLORS = { ink: "", blue: "#1f6feb", red: "#d1242f" };
 function sketchPad(label, signal) {
   const canvas = document.createElement("canvas"), context = canvas.getContext("2d");
@@ -1280,11 +1310,18 @@ function page(app, host, view) {
   const list = app.viewDefinition(view.options?.details ?? host.record.resource);
   const notes = view.options?.notes ? app.viewDefinition(view.options.notes) : void 0;
   const editable = !!list?.actions.some((action) => action.name === "update") && (!Array.isArray(row._actions) || row._actions.includes("update"));
-  const phone = matchMedia(PHONE2);
+  const phone = matchMedia(PHONE);
   let build;
   const sketch = sketchPad(t("V\xE1zlat"), host.signal);
-  let title = String(row.title ?? task);
+  let title = String(row.title ?? task), latest = row, refresh = () => {
+  };
   host.setTitle(`${view.title}: ${title}`);
+  app.live.watch(host.record.resource, task, { update: (record) => {
+    latest = record;
+    title = String(record.title ?? task);
+    host.setTitle(`${view.title}: ${title}`);
+    refresh();
+  } }, { signal: host.signal });
   const root = document.createElement("div");
   root.style.cssText = "width:100%;height:100%";
   host.attach(root);
@@ -1316,8 +1353,13 @@ function page(app, host, view) {
       { id: "edit", label: t("Szerkeszt\xE9s"), disabled: !editable }
     ], open: ["details"] });
     layout.attach("control", sections);
-    const details = list ? new app.components.RecordDetails({ view: list, record: row, signal, showId: false }) : void 0;
+    const details = list ? new app.components.RecordDetails({ view: list, record: latest, signal, showId: false }) : void 0;
     details?.mount(sections.cell("details"));
+    refresh = () => {
+      locate();
+      void details?.show(latest).catch(() => {
+      });
+    };
     let form;
     const edit = () => {
       if (form || signal.aborted) return;
@@ -1528,7 +1570,6 @@ var task_page_default = taskPage;
 // examples/demo-app/frontend/src/registry-browser.ts
 var KIND6 = "demo.registry-browser";
 var TOGGLE = "demo.subkey-values";
-var PHONE3 = "(max-width: 767px)";
 function browser(app, host, view) {
   const t = app.i18n.t, options = view.options ?? {};
   const nodes = options.tree ? app.viewDefinition(options.tree) : void 0;
@@ -1540,98 +1581,89 @@ function browser(app, host, view) {
     host.attach(empty);
     return { destroy: () => empty.remove() };
   }
-  const media = matchMedia(PHONE3);
-  let build, keys, list;
+  const controller = new AbortController(), signal = controller.signal;
+  host.signal.addEventListener("abort", () => controller.abort(), { once: true, signal });
+  let list;
   const path = host.filters.key_path?.split(",");
-  let initialPath = path && path.length <= 11 && new Set(path).size === path.length && path.every((id) => /^\d{1,20}$/.test(id)) ? path : void 0;
-  const root = document.createElement("div");
-  root.style.cssText = "width:100%;height:100%";
-  host.attach(root);
-  const render = () => {
-    if (host.signal.aborted) return;
-    const previous = build, controller = build = new AbortController(), signal = controller.signal;
-    host.signal.addEventListener("abort", () => controller.abort(), { once: true, signal });
-    previous?.abort();
-    const phone = media.matches;
-    const center = { tabs: [{ id: "values", header: t("\xC9rt\xE9kek") }, { id: "key", header: t("Kulcs adatai") }], minWidth: 240 };
-    const tree = phone ? { rows: [{ id: "tree", header: nodes.title, height: 220, minHeight: 120, resizable: true, collapsable: true }, { ...center, minHeight: 200 }, { id: "value", header: t("\xC9rt\xE9k adatai"), height: 200, collapsable: true, collapsed: true }] } : { cols: [{ id: "tree", header: nodes.title, width: 280, minWidth: 180, resizable: true, collapsable: true }, center, { id: "value", header: t("\xC9rt\xE9k adatai"), width: 300, minWidth: 200, resizable: true, collapsable: true }] };
-    const layout = new app.components.PageLayout({ id: `${view.id}.${phone ? "narrow" : "wide"}`, tree });
-    layout.mount(root);
-    const nodeTree = keys = new app.components.Tree({ view: nodes, label: "name", iconField: "kind", id: `${view.id}.tree`, expandControl: true, initialPath });
-    nodeTree.mount(layout.cell("tree"));
-    layout.placeholder("key", { text: t("V\xE1lassz egy kulcsot a f\xE1ban.") });
-    layout.placeholder("value", { text: t("V\xE1lassz egy \xE9rt\xE9ket a list\xE1ban.") });
-    layout.placeholder("values", { text: values ? t("V\xE1lassz egy kulcsot a f\xE1ban.") : t("Az \xE9rt\xE9kek nem \xE9rhet\u0151k el.") });
-    let keyDetails, valueDetails;
-    let node;
-    let subkeys = app.preferences.scope(TOGGLE).get(values?.id ?? "") === true;
-    const showValue = (row) => {
-      if (!values) return;
-      if (!row) {
-        valueDetails?.destroy();
-        valueDetails = void 0;
-        return;
-      }
-      if (valueDetails) {
-        void valueDetails.show(row).catch(() => {
-        });
-        return;
-      }
-      valueDetails = new app.components.RecordDetails({ view: values, record: row, showId: false });
-      valueDetails.mount(layout.cell("value"));
-    };
-    const showList = () => {
-      list?.destroy();
-      list = void 0;
-      showValue(void 0);
-      if (!values || !node) return;
-      list = new app.components.ListView({
-        view: values,
-        scope: { field: subkeys ? "parent_key_id" : "key_id", id: String(node.id) },
-        panel: false,
-        showId: false,
-        preferencesKey: `${view.id}.values`,
-        emptyText: subkeys ? t("Az alkulcsoknak nincs \xE9rt\xE9ke.") : t("A kulcsnak nincs saj\xE1t \xE9rt\xE9ke."),
-        ...subkeys ? { createDefaults: { key_id: String(node.id) } } : {}
-      });
-      list.on("select", ({ row }) => showValue(row));
-      list.on("toggle", ({ command, pressed: pressed2 }) => {
-        if (command === TOGGLE && pressed2 !== subkeys) {
-          subkeys = pressed2;
-          showList();
-        }
-      });
-      list.mount(layout.cell("values"));
-    };
-    nodeTree.on("select", ({ row }) => {
-      initialPath = void 0;
-      const changed = String(row?.id ?? "") !== String(node?.id ?? "");
-      node = row;
-      if (!row) {
-        keyDetails?.destroy();
-        keyDetails = void 0;
-      } else if (keyDetails) void keyDetails.show(row).catch(() => {
-      });
-      else {
-        keyDetails = new app.components.RecordDetails({ view: nodes, record: row, showId: false });
-        keyDetails.mount(layout.cell("key"));
-      }
-      if (changed) showList();
-    });
-    nodeTree.on("activate", () => layout.tabsOf("key")?.select("key"));
-    signal.addEventListener("abort", () => {
-      list?.destroy();
-      list = void 0;
-      keyDetails?.destroy();
+  const initialPath = path && path.length <= 11 && new Set(path).size === path.length && path.every((id) => /^\d{1,20}$/.test(id)) ? path : void 0;
+  const center = { tabs: [{ id: "values", header: t("\xC9rt\xE9kek") }, { id: "key", header: t("Kulcs adatai") }], minWidth: 240 };
+  const layout = new app.components.PageLayout({
+    id: view.id,
+    tree: { cols: [{ id: "tree", header: nodes.title, width: 280, minWidth: 180, resizable: true, collapsable: true }, center, { id: "value", header: t("\xC9rt\xE9k adatai"), width: 300, minWidth: 200, resizable: true, collapsable: true }] },
+    narrow: { rows: [{ id: "tree", header: nodes.title, height: 220, minHeight: 120, resizable: true, collapsable: true }, { ...center, minHeight: 200 }, { id: "value", header: t("\xC9rt\xE9k adatai"), height: 200, collapsable: true, collapsed: true }] }
+  });
+  host.attach(layout);
+  const nodeTree = new app.components.Tree({ view: nodes, label: "name", iconField: "kind", id: `${view.id}.tree`, expandControl: true, initialPath });
+  nodeTree.mount(layout.cell("tree"));
+  layout.placeholder("key", { text: t("V\xE1lassz egy kulcsot a f\xE1ban.") });
+  layout.placeholder("value", { text: t("V\xE1lassz egy \xE9rt\xE9ket a list\xE1ban.") });
+  layout.placeholder("values", { text: values ? t("V\xE1lassz egy kulcsot a f\xE1ban.") : t("Az \xE9rt\xE9kek nem \xE9rhet\u0151k el.") });
+  let keyDetails, valueDetails;
+  let node;
+  let subkeys = app.preferences.scope(TOGGLE).get(values?.id ?? "") === true;
+  const showValue = (row) => {
+    if (!values) return;
+    if (!row) {
       valueDetails?.destroy();
-      nodeTree.destroy();
-      layout.destroy();
-    }, { once: true });
+      valueDetails = void 0;
+      return;
+    }
+    if (valueDetails) {
+      void valueDetails.show(row).catch(() => {
+      });
+      return;
+    }
+    valueDetails = new app.components.RecordDetails({ view: values, record: row, showId: false });
+    valueDetails.mount(layout.cell("value"));
   };
-  render();
-  media.addEventListener("change", render, { signal: host.signal });
-  return { destroy: () => build?.abort(), refresh: () => {
-    void keys?.refresh();
+  const showList = () => {
+    list?.destroy();
+    list = void 0;
+    showValue(void 0);
+    if (!values || !node) return;
+    list = new app.components.ListView({
+      view: values,
+      scope: { field: subkeys ? "parent_key_id" : "key_id", id: String(node.id) },
+      panel: false,
+      showId: false,
+      preferencesKey: `${view.id}.values`,
+      emptyText: subkeys ? t("Az alkulcsoknak nincs \xE9rt\xE9ke.") : t("A kulcsnak nincs saj\xE1t \xE9rt\xE9ke."),
+      ...subkeys ? { createDefaults: { key_id: String(node.id) } } : {}
+    });
+    list.on("select", ({ row }) => showValue(row));
+    list.on("toggle", ({ command, pressed: pressed2 }) => {
+      if (command === TOGGLE && pressed2 !== subkeys) {
+        subkeys = pressed2;
+        showList();
+      }
+    });
+    list.mount(layout.cell("values"));
+  };
+  nodeTree.on("select", ({ row }) => {
+    const changed = String(row?.id ?? "") !== String(node?.id ?? "");
+    node = row;
+    if (!row) {
+      keyDetails?.destroy();
+      keyDetails = void 0;
+    } else if (keyDetails) void keyDetails.show(row).catch(() => {
+    });
+    else {
+      keyDetails = new app.components.RecordDetails({ view: nodes, record: row, showId: false });
+      keyDetails.mount(layout.cell("key"));
+    }
+    if (changed) showList();
+  });
+  nodeTree.on("activate", () => layout.tabsOf("key")?.select("key"));
+  signal.addEventListener("abort", () => {
+    list?.destroy();
+    list = void 0;
+    keyDetails?.destroy();
+    valueDetails?.destroy();
+    nodeTree.destroy();
+    layout.destroy();
+  }, { once: true });
+  return { destroy: () => controller.abort(), refresh: () => {
+    void nodeTree.refresh();
     list?.refresh();
   } };
 }
@@ -1694,7 +1726,14 @@ var workbench = (app) => {
         return days <= 0 ? clock3.format(at) : days < 7 ? relative.format(-days, "day") : date.format(at);
       };
       let draft = list[0].id, model, effort = "";
-      const layout = new app.dhx.Layout(document.createElement("div"), { type: "none", rows: [{ id: "head", height: 48 }, { id: "body" }, { id: "composer", height: 48 }] });
+      const layout = new app.dhx.Layout(document.createElement("div"), { type: "none", rows: [{ id: "head", height: 48 }, { id: "body" }, { id: "attachments", height: "content" }, { id: "composer", height: 48 }] });
+      const stored = app.viewDefinition("demo_attachments")?.actions.flatMap((a) => a.fields ?? []).find((f) => f.file && "upload" in f.file)?.file;
+      const policy = stored && "upload" in stored && stored.canUpload ? stored.policy : null;
+      const files = policy ? new app.components.Attachments({
+        label: t("Csatolm\xE1nyok"),
+        signal,
+        upload: { resource: "demo_attachments", action: "file_upload", target: null, targetLabel: t("Munkaasztal"), policy }
+      }) : void 0;
       const modelText = () => model ? `${t(model.label)}${model.efforts.length > 1 ? " \xB7 " + t(EFFORTS[effort]) : ""}` : t("Automatikus");
       const head = new app.components.CommandBar({ label: t("Munkaasztal"), narrow: "icons", signal, items: [
         { type: "title", id: "title", label: list[0].name },
@@ -1710,6 +1749,7 @@ var workbench = (app) => {
         head.update("title", { label: list.find((x) => x.id === item).name });
       });
       const composer = new app.components.CommandBar({ label: t("Modell"), placement: "bottom", signal, items: [
+        ...files ? [{ id: "attach", label: t("Csatol\xE1s"), icon: "bi bi-paperclip" }] : [],
         { type: "popup", id: "model", label: t("Modell: {choice}", { choice: modelText() }), menuLabel: t("Modell"), icon: "bi bi-sliders", items: () => {
           const groups = [{ type: "group", label: t("Modell"), items: [
             { id: "model:auto", label: t("Automatikus"), detail: t("a feladat alapj\xE1n"), checked: !model },
@@ -1720,6 +1760,9 @@ var workbench = (app) => {
           return groups;
         } }
       ] });
+      composer.on("click", ({ id }) => {
+        if (id === "attach") files?.choose();
+      });
       composer.on("select", ({ item }) => {
         if (item.startsWith("model:")) {
           model = MODELS.find((m) => "model:" + m.id === item);
@@ -1744,6 +1787,7 @@ var workbench = (app) => {
       });
       head.mount(layout.getCell("head"));
       layout.getCell("body").attach(form);
+      files?.mount(layout.getCell("attachments"));
       composer.mount(layout.getCell("composer"));
       win.attach(layout);
       signal.addEventListener("abort", () => layout.destructor(), { once: true });
@@ -1809,7 +1853,6 @@ var media_sheet_default = mediaSheet;
 
 // examples/demo-app/frontend/src/media-browser.ts
 var KIND8 = "demo.media-browser";
-var PHONE4 = "(max-width: 767px)";
 function browser2(app, host, view) {
   const t = (key) => app.i18n.t(key);
   const list = app.viewDefinition(view.options?.list ?? "demo_media_sheets");
@@ -1817,87 +1860,85 @@ function browser2(app, host, view) {
   const fields = list.options.detailFields ?? list.options.columns, image = fields.find((field) => field.id === "file_id");
   const section = fields.find((field) => field.id === "title")?.section;
   const data = fields.filter((field) => section !== void 0 && field.section === section).map((field) => field.id);
-  const phone = matchMedia(PHONE4), root = document.createElement("div");
-  root.style.cssText = "width:100%;height:100%";
-  host.attach(root);
-  let build, selected;
+  const controller = new AbortController(), signal = controller.signal;
+  host.signal.addEventListener("abort", () => controller.abort(), { once: true, signal });
   const unplaced = () => host.setLocation([], { from: "root" });
   unplaced();
-  const render = () => {
-    if (host.signal.aborted) return;
-    build?.abort();
-    const controller = build = new AbortController(), signal = controller.signal;
-    host.signal.addEventListener("abort", () => controller.abort(), { once: true, signal });
-    const inner = phone.matches ? { rows: [{ id: "data", height: 180, minHeight: 80, resizable: true }, { id: "image", minHeight: 120 }, { id: "brief", height: 180, minHeight: 80, resizable: true }] } : { rows: [{ cols: [{ id: "data", width: 320, minWidth: 200, resizable: true }, { id: "image", minWidth: 160 }] }, { id: "brief", height: 200, minHeight: 80, resizable: true }] };
-    const selection = { id: "selected", header: t("Kiv\xE1lasztott m\xE9dialap"), inner };
-    const page2 = new app.components.PageLayout({ id: `${view.id}.${phone.matches ? "narrow" : "wide"}`, tree: phone.matches ? { rows: [{ id: "sheets", header: list.title, height: 260, minHeight: 140, resizable: true, collapsable: true }, { ...selection, minHeight: 240 }] } : { cols: [{ id: "sheets", header: list.title, width: 420, minWidth: 260, resizable: true, collapsable: true }, { ...selection, minWidth: 360 }] } });
-    page2.mount(root);
-    let details;
-    const brief = document.createElement("div");
-    brief.className = "demo-media-brief";
-    brief.setAttribute("role", "region");
-    brief.setAttribute("aria-label", t("Le\xEDr\xE1s"));
-    let player, epoch = 0;
-    const empty = () => {
-      for (const id of ["data", "image", "brief"]) page2.placeholder(id, { text: t("V\xE1lassz egy m\xE9dialapot a list\xE1ban.") });
-    };
-    const show = async (id) => {
-      const current = ++epoch;
-      selected = id;
-      if (!id) {
-        empty();
-        unplaced();
-        return;
-      }
-      for (const region of ["data", "image", "brief"]) page2.placeholder(region, { busy: true });
-      const row = await app.server.call(list.resource, "get", { id, signal }).catch(() => void 0);
-      if (signal.aborted || current !== epoch) return;
-      if (!row) {
-        empty();
-        host.setLocation([]);
-        return;
-      }
-      const channel = String(row.channel ?? ""), options = fields.find((field) => field.id === "channel")?.options ?? {};
-      host.setLocation([
-        { label: list.title, ...list.icon ? { icon: list.icon } : {}, target: { view: list.id } },
-        ...channel ? [{ label: options[channel] ?? channel, target: { view: list.id, filters: { channel } } }] : [],
-        { label: String(row.title ?? "#" + id) }
-      ], { from: "root" });
-      if (details) await details.show(row);
-      else (details = new app.components.RecordDetails({ view: list, fields: data, record: row, showId: false, signal })).mount(page2.cell("data"));
-      player?.destroy();
-      player = void 0;
-      const media = row._media?.file_id;
-      if (media && image?.media) {
-        player = new app.components.MediaPlayer({
-          source: { resource: image.media, action: "content_stream", id: media.id, version: media.revision },
-          mime: media.mime_type,
-          name: media.name,
-          toolbar: false,
-          signal
-        });
-        player.mount(page2.cell("image"));
-      } else page2.placeholder("image", { text: t("Ehhez a m\xE9dialaphoz nincs k\xE9p."), busy: false });
-      brief.textContent = String(row.brief ?? "") || "\u2014";
-      if (!brief.isConnected) page2.attach("brief", brief);
-      page2.placeholder("brief", { busy: false });
-    };
-    empty();
-    const sheets = new app.components.ListView({ view: list, panel: false, signal });
-    sheets.on("select", ({ row }) => {
-      void show(row ? String(row.id) : void 0);
-    });
-    sheets.mount(page2.cell("sheets"));
-    if (selected) void show(selected);
-    signal.addEventListener("abort", () => {
-      details?.destroy();
-      player?.destroy();
-      page2.destroy();
-    }, { once: true });
+  const selection = (inner) => ({ id: "selected", header: t("Kiv\xE1lasztott m\xE9dialap"), inner });
+  const page2 = new app.components.PageLayout({
+    id: view.id,
+    tree: { cols: [{ id: "sheets", header: list.title, width: 420, minWidth: 260, resizable: true, collapsable: true }, { ...selection({ rows: [
+      { cols: [{ id: "data", width: 320, minWidth: 200, resizable: true }, { id: "image", minWidth: 160 }] },
+      { id: "brief", height: 200, minHeight: 80, resizable: true }
+    ] }), minWidth: 360 }] },
+    narrow: { rows: [{ id: "sheets", header: list.title, height: 260, minHeight: 140, resizable: true, collapsable: true }, { ...selection({ rows: [
+      { id: "data", height: 180, minHeight: 80, resizable: true },
+      { id: "image", minHeight: 120 },
+      { id: "brief", height: 180, minHeight: 80, resizable: true }
+    ] }), minHeight: 240 }] }
+  });
+  host.attach(page2);
+  let details;
+  const brief = document.createElement("div");
+  brief.className = "demo-media-brief";
+  brief.setAttribute("role", "region");
+  brief.setAttribute("aria-label", t("Le\xEDr\xE1s"));
+  let player, epoch = 0;
+  const empty = () => {
+    for (const id of ["data", "image", "brief"]) page2.placeholder(id, { text: t("V\xE1lassz egy m\xE9dialapot a list\xE1ban.") });
   };
-  render();
-  phone.addEventListener("change", render, { signal: host.signal });
-  return { destroy: () => build?.abort() };
+  const show = async (id) => {
+    const current = ++epoch;
+    if (!id) {
+      empty();
+      unplaced();
+      return;
+    }
+    for (const region of ["data", "image", "brief"]) page2.placeholder(region, { busy: true });
+    const row = await app.server.call(list.resource, "get", { id, signal }).catch(() => void 0);
+    if (signal.aborted || current !== epoch) return;
+    if (!row) {
+      empty();
+      host.setLocation([]);
+      return;
+    }
+    const channel = String(row.channel ?? ""), options = fields.find((field) => field.id === "channel")?.options ?? {};
+    host.setLocation([
+      { label: list.title, ...list.icon ? { icon: list.icon } : {}, target: { view: list.id } },
+      ...channel ? [{ label: options[channel] ?? channel, target: { view: list.id, filters: { channel } } }] : [],
+      { label: String(row.title ?? "#" + id) }
+    ], { from: "root" });
+    if (details) await details.show(row);
+    else (details = new app.components.RecordDetails({ view: list, fields: data, record: row, showId: false, signal })).mount(page2.cell("data"));
+    player?.destroy();
+    player = void 0;
+    const media = row._media?.file_id;
+    if (media && image?.media) {
+      player = new app.components.MediaPlayer({
+        source: { resource: image.media, action: "content_stream", id: media.id, version: media.revision },
+        mime: media.mime_type,
+        name: media.name,
+        toolbar: false,
+        signal
+      });
+      player.mount(page2.cell("image"));
+    } else page2.placeholder("image", { text: t("Ehhez a m\xE9dialaphoz nincs k\xE9p."), busy: false });
+    brief.textContent = String(row.brief ?? "") || "\u2014";
+    if (!brief.isConnected) page2.attach("brief", brief);
+    page2.placeholder("brief", { busy: false });
+  };
+  empty();
+  const sheets = new app.components.ListView({ view: list, panel: false, signal });
+  sheets.on("select", ({ row }) => {
+    void show(row ? String(row.id) : void 0);
+  });
+  sheets.mount(page2.cell("sheets"));
+  signal.addEventListener("abort", () => {
+    details?.destroy();
+    player?.destroy();
+    page2.destroy();
+  }, { once: true });
+  return { destroy: () => controller.abort() };
 }
 var mediaBrowser = (app) => {
   app.kinds.register(KIND8, { create: (host, view) => browser2(app, host, view) });

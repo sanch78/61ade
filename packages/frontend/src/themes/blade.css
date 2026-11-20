@@ -62,6 +62,8 @@
   --blade-tab: linear-gradient(180deg, #ffffff 0%, #eef5fc 40%, var(--blade-canvas-top) 100%);
   --blade-tab-rule: #8fb5d6;
   --blade-tab-glow: rgb(47 143 220 / 45%);
+  --blade-panel-header: var(--blade-chrome);
+  --blade-tab-row: var(--blade-chrome);
   --blade-pill: linear-gradient(180deg, #fffaf0 0%, #fff0cf 100%);
   --blade-pill-ring: rgb(214 174 98 / 45%);
   --blade-pill-glow: rgb(214 174 98 / 25%);
@@ -110,6 +112,8 @@
   --blade-tab: linear-gradient(180deg, #2a3d57 0%, #1d2d42 40%, var(--blade-canvas-top) 100%);
   --blade-tab-rule: #3a5b80;
   --blade-tab-glow: rgb(43 226 255 / 35%);
+  --blade-panel-header: var(--blade-chrome);
+  --blade-tab-row: var(--blade-chrome);
   --blade-pill: linear-gradient(180deg, rgb(43 226 255 / 18%) 0%, rgb(15 123 255 / 22%) 100%);
   --blade-pill-ring: rgb(43 226 255 / 45%);
   --blade-pill-glow: rgb(43 226 255 / 20%);

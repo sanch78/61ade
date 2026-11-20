@@ -129,3 +129,35 @@ test('CommandBar collapsed at 390 px: toggles are checked entries, choices subme
  await teardown(page);
  expect(failures).toEqual([]);
 });
+
+// The role="toolbar" element carries the bar's label (else its title) through redraws; a bar mounted into a plain
+// element takes the standard --blade-command-bar-height, a sized Layout cell keeps its own height.
+async function names(page){
+ await page.evaluate(()=>{
+  const app=window.__bladeApp,C=app.components.CommandBar,box=document.createElement('div');
+  box.id='nm';box.style.cssText='position:fixed;inset:0;z-index:9999;background:var(--dhx-background-primary)';document.body.append(box);
+  const plain=document.createElement('div');box.append(plain);
+  const labelled=new C({label:'Beszélgetés',items:[{id:'a',label:'Küldés',icon:'bi bi-send'},{id:'b',label:'Csatolás',icon:'bi bi-paperclip'}]});labelled.mount(plain);
+  const host=document.createElement('div');host.style.height='300px';box.append(host);
+  const layout=new app.dhx.Layout(host,{type:'none',rows:[{id:'head',height:40},{id:'rest'}]});
+  const titled=new C({narrow:'icons',items:[{type:'title',id:'t',label:'Fejléc'},{type:'spacer'},{id:'c',label:'Frissítés',icon:'bi bi-arrow-clockwise'}]});titled.mount(layout.getCell('head'));
+  window.__nm={box,labelled,titled,layout};
+ });
+}
+async function checkNames(page,title){
+ for(const name of ['Beszélgetés',title])await expect(page.locator('#nm').getByRole('toolbar',{name,exact:true})).toHaveCount(1);
+ expect(await page.evaluate(()=>[...document.querySelectorAll('#nm .blade-command-bar,#nm .dhx_layout,#nm .dhx_layout-cell')].filter(e=>e.hasAttribute('aria-label')).length)).toBe(0);
+ expect(await page.evaluate(()=>[document.querySelector('#nm > div:first-child').getBoundingClientRect().height,document.querySelector('#nm [data-cell-id="head"]').getBoundingClientRect().height])).toEqual([48,40]);
+}
+for(const width of [1366,390])test(`CommandBar accessible name and standard height at ${width} px`,async({page})=>{
+ const failures=errors(page);
+ await start(page,{width,height:844});await names(page);
+ await checkNames(page,'Fejléc');
+ if(width<768)await expect(page.locator('#nm > div:first-child').getByRole('button',{name:'Műveletek'})).toBeVisible();
+ await page.evaluate(()=>window.__nm.titled.update('t',{label:'Új fejléc'}));
+ await checkNames(page,'Új fejléc');
+ await page.setViewportSize({width:width<768?1366:390,height:844});
+ await checkNames(page,'Új fejléc');
+ await page.evaluate(()=>{const n=window.__nm;n.labelled.destroy();n.titled.destroy();n.layout.destructor();n.box.remove();});
+ expect(failures).toEqual([]);
+});

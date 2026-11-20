@@ -103,8 +103,13 @@ function page(app: Application, host: ViewHost, view: ViewDefinition<PageOptions
   const phone = matchMedia(PHONE);
   let build: AbortController | undefined;
   const sketch = sketchPad(t("Vázlat"), host.signal);
-  let title = String(row.title ?? task);
+  let title = String(row.title ?? task), latest = row, refresh = (): void => {};
   host.setTitle(`${view.title}: ${title}`);
+  // The task is watched live (`app.live.watch`, its `get`): a change saved elsewhere reaches the title, the location
+  // bar and `Adatok` of the current build.
+  app.live.watch(host.record.resource, task, { update: record => {
+    latest = record; title = String(record.title ?? task); host.setTitle(`${view.title}: ${title}`); refresh();
+  } }, { signal: host.signal });
 
   const root = document.createElement("div");
   root.style.cssText = "width:100%;height:100%";
@@ -140,8 +145,9 @@ function page(app: Application, host: ViewHost, view: ViewDefinition<PageOptions
     const sections: Accordion = new app.components.Accordion({ id: `${view.id}.control`, sections: [
       { id: "details", label: t("Adatok") }, { id: "edit", label: t("Szerkesztés"), disabled: !editable }], open: ["details"] });
     layout.attach("control", sections);
-    const details = list ? new app.components.RecordDetails({ view: list, record: row, signal, showId: false }) : undefined;
+    const details = list ? new app.components.RecordDetails({ view: list, record: latest, signal, showId: false }) : undefined;
     details?.mount(sections.cell("details"));
+    refresh = () => { locate(); void details?.show(latest).catch(() => { /* the details keep the last row */ }); };
     // The form costs a request: created when `Szerkesztés` first opens (or opens remembered).
     let form: RecordForm | undefined;
     const edit = () => {

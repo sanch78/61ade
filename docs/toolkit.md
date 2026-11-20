@@ -200,7 +200,10 @@ const { fields, values } = await app.server.form("tasks", "update", id, { signal
 audio.src = app.server.url("signage_assets", "content_stream", id, revision);  // GET action, session cookie
 if (await app.ui.dialog({ message: app.i18n.t("Biztosan?"), mode: "confirm", severity: "warning" })) { /* … */ }
 const choice = await app.ui.choice({ message: "…", choices: [{ value: "a", label: "A" }] });
-app.ui.toast(app.i18n.t("Másolva."));
+app.ui.toast(app.i18n.t("Mentve."));                                 // plain text (escaped)
+await app.ui.copy(secret.value, { label: t("Titok") });               // clipboard + "Titok másolva." toast (#copy)
+app.ui.submitKeys(textarea, { submit: send, cancel: close, signal });   // Ctrl/Cmd+Enter, Escape (#submit-keys)
+const progress = app.ui.progress({ title: t("Közzététel"), message: t("Másolás…") });  // dialogs.md#progress
 const win = app.ui.window({ title: "Előnézet", width: 720, signal: host.signal }); win.attach(layout);
 app.ui.attach(layout.getCell("stage"), canvas, { signal });  // an element into any Layout cell (#cell-content)
 app.ui.menu(button, { label: "Rendezés", items: [{ id: "name", label: "Név" }], signal }).on("select", ({ id }) => sort(id));  // #popup-menu
@@ -221,6 +224,41 @@ the session ended: the shell then signs the page out ([ended session](shell.md#e
 and the caller still gets the failure. Event handlers
 that throw are logged and do not stop other handlers; emitting a framework
 event name (with `:`) throws.
+
+<a id="viewport"></a>
+
+`app.viewport.narrow` is the framework's one width breakpoint
+(`(max-width: 767px)`), the one its own phone layout follows: full-screen
+windows, list cards, collapsed command bars, the desktop-only notice
+([FB-0250](feedback.md#fb-0250)). `viewport:change {narrow}` reports every
+crossing on `app.events`. A project reads these instead of a
+`matchMedia` of its own; a [`PageLayout` `narrow` tree](#pagelayout-narrow)
+needs neither.
+
+```ts
+app.events.on("viewport:change", ({ narrow }) => rebuild(narrow), { signal: host.signal });
+```
+
+<a id="copy"></a>
+
+`app.ui.copy(text, {label?})` writes plain text to the clipboard (the
+Clipboard API, else a hidden text field and the browser's copy command) and
+says so with a toast: `Másolva.`, `‹label› másolva.`, or the danger toast
+`A másolás nem sikerült.`; it resolves whether it copied. A project's copy
+button (a secret, an address, an id) uses it instead of its own
+`navigator.clipboard` call and toast ([FB-0250](feedback.md#fb-0250)). A
+non-string rejects with `TypeError`. `app.ui.toast` escapes its text.
+
+<a id="submit-keys"></a>
+
+`app.ui.submitKeys(element, {submit, cancel?, signal})` gives a project's own
+text field (a composer, a quick note) the framework's submit keys
+([FB-0250](feedback.md#fb-0250)): Ctrl+Enter or Cmd+Enter runs `submit`, and Escape
+runs `cancel` when given. Keys typed during IME composition and keys another
+handler already took are left alone, and so are a held key's repeats. The element gets `aria-keyshortcuts`,
+removed when `signal` aborts. Framework forms do the same by themselves: Ctrl/Cmd+Enter in a textarea runs the form's primary
+button ([workspaces](workspaces.md#form-submit-keys)). A missing signal, a
+non-element or a non-function throws `TypeError`.
 
 <a id="app-window"></a>
 
@@ -286,7 +324,13 @@ confirmation) stack above it, Escape closes the topmost modal one (Suite
 alone left it open while a non-modal window existed), and a modal window or
 dialog returns the focus to where it was ([modal windows](#modal-windows)).
 A `modal: true` long-lived window makes the page behind it inert until it
-closes. A project that needs to know the page's view
+closes. From 768 px a non-modal window that is not maximized stays inside
+the workspace with a 12 px margin, below the menu row and above the lower bar
+([FB-0250](feedback.md#fb-0250)). This holds when it opens (a remembered
+position included), after a drag, when it is restored, and when the
+workspace or the viewport changes size; a larger window is made smaller to
+fit. A project no longer watches the menu row to move its window. Modal windows
+keep the viewport with a 12 px margin. Content that grows a fitted window past the workspace is corrected at the next resize. A project that needs to know the page's view
 listens to `view:opened` / `view:closed`; a [menu command](shell.md#menu-commands)
 is the usual way to open such a window from every view
 ([FB-0199](feedback.md#fb-0199)). While a non-modal window is open, a view
@@ -335,6 +379,15 @@ left, which is not a supported right-to-left layout. Another
 const win = app.ui.window({ titlePrefix: t("Elem szerkesztése:"), title: path.join(" / "), titleOverflow: "start", signal: host.signal });
 win.setTitle(nextPath.join(" / "));  // still "Elem szerkesztése: … / <end of the new path>"
 ```
+
+<a id="window-closable"></a>
+
+**A window that cannot be closed by the user** (`closable: false`,
+[FB-0250](feedback.md#fb-0250)) has no close button, and neither Escape nor
+the backdrop closes it, modal or not; only `close()` and its `signal` do.
+Use it for content that must stay while an operation runs: the
+[progress dialog](dialogs.md#progress) is one. Default `true`; a non-boolean
+throws `TypeError`.
 
 <a id="popup-menu"></a>
 
@@ -418,6 +471,17 @@ unsubscribes (or aborts the request); an already aborted signal subscribes
 nothing. A bare `AbortSignal` in place of the object, any other non-object or a
 `signal` that is not an `AbortSignal` throws `TypeError`.
 
+<a id="request-version"></a>
+
+**Cacheable reads** ([FB-0250](feedback.md#fb-0250)). `app.server.request(resource,
+action, {id, version, signal})` with a `version` is a GET of the same URL as
+[`app.server.url`](#services) for a field-free `get: true` action (asset
+bundles, JSON files a page reads), so the browser cache keeps it per version,
+with the failures, 401 sign-out and `AbortError` of every call. Use it
+instead of `fetch(app.server.url(…))`. It needs an `id`; `values` or
+`parts`, an empty or non-string `version`, and `version` on `call` or `form` throw
+`TypeError`. An action without `get: true` answers 405.
+
 `ServerFailure` is an interface, not a class: there is no `instanceof`. Tell
 the two rejections apart by shape, aborts first:
 
@@ -430,6 +494,44 @@ catch (error) {
   else throw error;
 }
 ```
+
+<a id="record-watch"></a>
+
+#### Record watch
+
+`app.live.watch(resource, id, handlers, {signal})` keeps one record current
+on the tab's live channel ([FB-0250](feedback.md#fb-0250)). It replaces a page
+that calls a read action on a timer. Data the page shows as one object (a
+tenant's publishing state, a job's status) becomes a record resource with a
+`get` action, `"self"` for a singleton's resolver, and the page watches it:
+
+```ts
+// examples/demo-app/frontend/src/task-page.ts: the task page follows outside edits of its task
+app.live.watch("demo_page_tasks", String(task.id), { update: record => show(record) }, { signal: host.signal });
+```
+
+- **Reads.** Every tick reads the record again through the resource's `get`
+  action, with the same tenant, `ui` channel, resolver, delegation, object ACL
+  and field ACL as an ordinary `get`; no list view is needed. The WebSocket
+  transport reads every `BLADE_LIVE_INTERVAL` (default 2 s), polling every
+  `interval` after the previous `__watch`. A value derived from the clock (a
+  worker seen within the last minute) therefore changes at the next read.
+  Hidden tabs are not read.
+- **Updates.** `update(record)` receives the first answer and then every
+  answer that differs (the server compares a hash and sends nothing while it is
+  unchanged). After a reconnect the same answer is not repeated. `state(text)`
+  reports the connection as for lists. `denied()` follows a 400, 403, 404 or
+  429 refusal; the channel stays open.
+- **Wire.** A subscription whose query is exactly `{record: "<id>"}`; protocol 2
+  is unchanged. It counts toward the 64 subscriptions of a connection and as
+  one row of its 2000-row budget. A resource without `get` and a missing record
+  answer 404, a denied one 403. The first answer writes one `subscribe` audit
+  row with the resolved record id. A refusal (4xx) writes one `subscribe`
+  `rejected` row with the requested id; a refused watch is not asked again,
+  and a server error (5xx) is retried and logged, not journaled. The answer is
+  the ordinary `get` answer (`audit_action` removed).
+- **Errors.** An empty resource or id, a missing `update` or a malformed
+  `signal` throws `TypeError`.
 
 <a id="uploads"></a>
 
@@ -468,6 +570,72 @@ app.uploads.reopen();                                                           
   `upload:file-failed`, `upload:complete` and `upload:cancelled` for every
   upload of the page (each `file` names `resource`, `action` and `target`, so
   filter by them). `reopen()` does nothing before the first `open`.
+
+<a id="attachments"></a>
+
+#### Attachments
+
+`app.components.Attachments` holds the files attached to something being
+written, such as a message or a request, until the send
+([FB-0250](feedback.md#fb-0250)). It uploads through the page's one uploader
+in the background (no upload window) and shows each file as a chip. A
+project no longer builds chips over `upload:*` events or lists attachments
+in a submenu.
+
+```ts
+// examples/demo-app/frontend/src/workbench.ts: the Munkaasztal composer
+const files = new app.components.Attachments({ label: t("Csatolmányok"), signal,
+  upload: { resource: "messages", action: "attachment_upload", target: null, targetLabel: t("Üzenet"), policy },
+  remove: item => app.server.call("messages", "attachment_discard", { id: item.id }) });
+files.mount(layout.getCell("attachments"));          // a `height: "content"` cell above the composer
+composer.on("click", ({ id }) => { if (id === "attach") files.choose(); });
+surface.addEventListener("drop", event => { event.preventDefault(); files.add(event.dataTransfer!); });
+await send({ text, attachments: files.ids() }); files.clear();   // wait while files.pending
+```
+
+- **Upload.** `upload` is the target of [`app.uploads.open`](#uploads) without
+  files; the policy is the target action's (`ActionMetadata.upload`, or a
+  stored-file field's `file.policy`). Every file is its own upload call, so the
+  policy's `maxFiles` limits one call, not the list. `add()` takes `File[]`, a
+  `FileList` or a drop's `DataTransfer` (its files, no folders; call it in
+  the drop handler). `choose()` opens the browser's file chooser with
+  `accept` from the policy's extensions. The uploader checks the policy,
+  asks about name conflicts and reports `upload:*` as for every upload.
+- **Items.** `{id, name, size, status, percent?, error?}`. While a file
+  uploads, `id` is a local key. Once done, it is the upload action's id
+  (`UploadResult.succeeded[].id`), which `ids()` returns in order for the
+  send. `items` passed at creation start as done. `pending` is true while a
+  file uploads. `change {items}` reports every addition, progress step,
+  outcome and removal.
+- **Removing.** The chip's × button, Delete or Backspace on a chip, or
+  `remove(id)`. A done file first goes through `options.remove(item)` (the
+  server-side discard). If it rejects, the chip stays and the message shows
+  as a danger toast; `remove(id)` then resolves `false`. A second removal
+  while `options.remove` runs is ignored. An uploading file is cancelled (at
+  its first report if the uploader has not reported it yet); a file in its
+  final step can no longer be cancelled, so it leaves the list and, if it
+  still finishes, is discarded through `remove`. A failed file leaves at once.
+  `remove {item}` reports every departure. `clear()` empties the list without
+  `remove`, after a send.
+- **Chips.** A thumbnail from `thumbnail(item)` (done files) or a Bootstrap
+  file icon by extension, the name cut with `…` (the full name as tooltip
+  and accessible name), then the size, the percent or `Feltöltés…`. A failed
+  chip (also a skipped, cancelled or interrupted file) has a danger frame, an
+  `bi-exclamation-triangle-fill` icon and the uploader's status text
+  (`Sikertelen: ‹reason›`, `Megszakítva`). Progress updates a chip in place,
+  so the focus and the roving tab stop stay. The row wraps, its height follows the chips, and an empty list
+  takes no space.
+- **Keys and accessibility.** A list (`role="list"`, named by `label`) of
+  items with roving focus: Tab enters the list once; Left/Up and
+  Right/Down move; Home/End jump; Delete/Backspace removes, then the focus
+  goes to the next chip, else the previous, else the list. The × button
+  (`‹name› eltávolítása`) is for the pointer and stays out of the Tab order. A
+  polite status says `Csatolva: ‹name›` and `Sikertelen feltöltés: ‹name›.
+  ‹reason›`, not every percent.
+- **Limits.** The component has no drop surface of its own; the page passes
+  its drop to `add()`. Each file is its own upload call and only that call's
+  reports reach its chip, so another `Attachments` or a file picker on the same
+  action never takes its file. Malformed options throw `TypeError`.
 
 <a id="registries"></a>
 
@@ -703,9 +871,11 @@ bar.on("click", ({ id }) => id === "play" && player.play());
 | [`TextDiff`](#textdiff) | new (`components/diff/*`) over `CommandBar` | none; `summary`, `show`, `next`, `previous`, `focus` |
 | [`SandboxFrame`](#sandbox-protocol) | new | `ready`, `error`, `message`; `load`, `post` |
 | [`CommandBar`](#commandbar) | `ResponsiveToolbar` (`Műveletek` collapse), Suite toggle items | `click`, `toggle`, `change`; `update(id, changes)`, `value(id)` |
-| [`PageLayout`](#pagelayout) | the list layout's region tree and `UiPreferences` (sizes, collapsed panels, the active tab of a `tabs` branch, the open sections of an `accordion` branch) | `collapse`; `cell(id)`, `attach(id, content)`, `tabsOf(id)`, `accordionOf(id)`, `collapse(id)`, `expand(id)`, `isCollapsed(id)` |
+| [`PageLayout`](#pagelayout) | the list layout's region tree and `UiPreferences` (sizes, collapsed panels, the active tab of a `tabs` branch, the open sections of an `accordion` branch) | `collapse`, `variant`; `cell(id)`, `attach(id, content)`, `tabsOf(id)`, `accordionOf(id)`, `collapse(id)`, `expand(id)`, `isCollapsed(id)`, `narrow` |
 | [`Tabs`](#tabs) | Suite `Tabbar` (header only) over one Layout cell per tab, `UiPreferences` (the active tab) | `change`; `cell(id)`, `attach(id, content)`, `active`, `select`, `update` |
 | [`Accordion`](#accordion) | one Suite Layout cell per section under its cell header, `UiPreferences` (the open sections) | `toggle`; `cell(id)`, `attach(id, content)`, `openSections`, `isOpen`, `open`, `close`, `toggle`, `update` |
+| [`Attachments`](#attachments) | new (`components/upload/*`) over the page's one uploader | `change`, `remove`; `add`, `choose`, `items`, `ids`, `pending`, `remove`, `clear` |
+| [`Steps`](#steps) | new (`components/progress/*`) | none; `current`, `state`, `states` |
 
 Every event with its payload is in the [event catalog](#event-catalog); how
 to compose components in one page is the [Layout recipe](#layout-recipe).
@@ -1601,6 +1771,18 @@ head.update("title", { label: renamed, badge: "" });                         // 
 - Header rules: title first, then a `spacer`, then the commands on the right,
   with the *more actions* `menu` last; Bootstrap Icons only
   ([icons](icons.md)). The labels are the project's own words.
+- **Accessible name** ([FB-0251](feedback.md#fb-0251)): the `role="toolbar"`
+  element itself is named by `label`, else by the `title` item's label, else
+  it keeps Suite's `Eszköztár`. The name survives every redraw (a resize, the
+  collapse into `Műveletek`, `narrow: "icons"`, `update` of the title); the
+  outer element carries no name of its own. Give each bar of a page a
+  `label` or a title so they can be told apart.
+- **Height** ([FB-0251](feedback.md#fb-0251)): a bar mounted into a plain
+  element is at least `--blade-command-bar-height` (48 px, the framework's
+  command rows) high, with the same rule and padding as a bar in a cell, so
+  a project sets no height of its own. In a Layout cell, an `AppWindow` or a
+  `ViewHost` the container decides; a shorter bar belongs in a cell of that
+  height.
 
 <a id="pagelayout"></a>
 
@@ -1809,10 +1991,66 @@ signal.addEventListener("abort", () => page.destroy(), { once: true });   // las
 - Destroy it after the components in its cells (the [Layout recipe](#layout-recipe)).
   A list placed in a region is created with `panel: false`, so the region is
   its panel.
-- The page is one tree for every width; a page that needs another tree on a
-  phone builds a new `PageLayout` and mounts it into one element the host
-  holds for the view's life (a host cell that once showed markup renders a
-  later widget empty, [pitfalls](#pitfalls)).
+- A page that needs another arrangement on a phone declares it as the
+  [`narrow` tree](#pagelayout-narrow) instead of building a second
+  `PageLayout`.
+
+<a id="pagelayout-narrow"></a>
+
+**Another arrangement below 768 px** ([FB-0250](feedback.md#fb-0250)).
+`narrow` is a second tree with exactly the same leaf regions, typically
+columns turned into `tabs` or `rows`:
+
+```ts
+const page = new app.components.PageLayout({ id: view.id, signal,
+  tree: { cols: [{ id: "thread", width: 420, resizable: true }, { id: "preview" }] },
+  narrow: { tabs: [{ id: "thread", header: t("Beszélgetés") }, { id: "preview", header: t("Előnézet") }] } });
+page.on("variant", () => page.tabsOf("thread")?.on("change", follow));   // follow: the page's own
+```
+
+The feature demo's [media browser](../examples/demo-app/frontend/src/media-browser.ts)
+stacks its columns and their inner regions as `rows`, and the
+[registry browser](../examples/demo-app/frontend/src/registry-browser.ts)
+does the same with its tree and list.
+
+- **Switch.** The page starts in the arrangement of the current width and
+  switches when the viewport crosses 768 px. The panels are rebuilt in place,
+  and the page keeps its mount. Every region's content moves to the same region of the new
+  arrangement as it is: mounted components, attached widgets and elements
+  keep their DOM nodes, listeners, selection, typed values, focus and scroll.
+  `cell(id)` returns the same object before and after, so placeholders, busy
+  marks and the loading indicator stay. An inner region keeps one header and
+  count, whichever tree names it. Where the browser has
+  `Element.moveBefore` (Chrome), an iframe keeps its document and media keep
+  playing. Elsewhere media keep playing and the switch restores focus and
+  scroll, but an iframe reloads; a page with a `SandboxFrame` keeps its own
+  rebuild (the demo's asset viewer does). A region that lands in a collapsed
+  panel waits in a hidden holder until the panel is drawn, so it loses
+  nothing there either.
+- **Focus.** Focus inside a region stays on the same element: the new
+  arrangement opens the tab or section that holds it (a tab opened this way
+  skips the guard and is not remembered). When the focused element does not
+  exist afterwards (a tab button of the old `Tabs`, a header, a line), the
+  focus goes to the header of a collapsed panel holding the region, else to
+  the region's new tab or section header, else to the region itself. It never
+  falls to the page.
+- **Afterwards** `variant {narrow}` is reported and `narrow` tells the
+  arrangement. `tabsOf` and `accordionOf` return the new `Tabs` and
+  `Accordion`; listeners on the old ones and their `update` changes are
+  gone, so bind them again on `variant`. `viewport:change` fires before the
+  switch: work that needs the new arrangement belongs on `variant`.
+- **Kept per arrangement.** Sizes, collapsed panels, the active tab and the
+  open sections are kept under `id` for `tree` and `id:narrow` for `narrow` (a
+  `:` no view id contains), so each width keeps its own. A collapse made by code (`collapse`, `expand`) is not
+  carried over and the switch reports no `collapse`; `isCollapsed`,
+  `collapse` and `expand` apply to the arrangement shown, and throw `Error`
+  for a leaf collapsable only in the other one. Inner branches,
+  collapsable leaves and headers may differ between the trees.
+- **Errors and limits.** `narrow` is validated like `tree`; another leaf set
+  throws `TypeError`. Without `moveBefore`, the scroll position inside a hidden tab, a closed
+  section or a collapsed panel is not restored. Without `narrow` nothing changes
+  and the page adds no listener. With `narrow`, `layout` is the page's outer
+  frame, not the panel tree.
 
 <a id="tabs"></a>
 
@@ -2411,6 +2649,42 @@ diff.focus();
   rows, the texts included, even when they are neither a column nor in the
   details.
 
+<a id="steps"></a>
+
+#### Steps
+
+`app.components.Steps` is an ordered phase list for an operation the user
+follows: a job's stages in a window or region, or the phases of a
+[progress dialog](dialogs.md#progress), which uses it
+([FB-0250](feedback.md#fb-0250)). It replaces a project `dhx.List` that
+draws its own step states.
+
+```ts
+const steps = new app.components.Steps({ label: t("Kérés állapota"), signal,
+  steps: [{ id: "queued", label: t("Sorban") }, { id: "running", label: t("Feldolgozás") }, { id: "done", label: t("Kész") }] });
+steps.mount(win);
+steps.current("running");            // queued done, running current, done pending
+steps.state("running", "failed");    // a refused request
+```
+
+- **States.** `pending`, `current` (at most one), `done` and `failed`, each
+  with its own Bootstrap icon (`bi-circle`, `bi-arrow-right-circle`,
+  `bi-check-circle-fill`, `bi-x-circle-fill`) and a visually hidden state text
+  (`várakozik`, `folyamatban`, `kész`, `sikertelen`); colour is never the only
+  signal. Colours are the Suite theme's primary, success and danger.
+- **Methods.** `current(id)` makes a step current, the earlier ones done and the
+  later ones pending; `current(null)` marks every step done. `state(id,
+  state)` sets one step (another current step becomes pending). `states()`
+  returns `{id, state}` in order. There are no events.
+- **Accessibility.** An `<ol>` named by `label`; the current step has
+  `aria-current="step"`. A polite live region announces a new current step
+  (`‹label›: folyamatban`) and a failed one.
+- **Size.** Its height follows its content, so it fits a row of a window or a
+  region; mounted into a taller cell it stays at the top.
+- **Errors.** 1–20 steps, ids `[a-z][a-z0-9_-]*` and unique, labels of 1–80
+  characters, a non-blank `label` and a declared `current`, else `TypeError`;
+  an undeclared id in `current` or `state` throws `Error`.
+
 <a id="views"></a>
 
 ## Views
@@ -2953,6 +3227,7 @@ names contain `:` and only 61ade emits them; `emit` of such a name throws.
 | `view:closed` | `{id, record?}` | a mounted instance was destroyed (navigation, window close, sign-out) |
 | `module:error` | `{module, reason, error}`; `reason` `load` (import failed, no default export function), `init` (threw or rejected), `timeout` (import or initialization over 5 s) | while the shell loads modules; also a danger toast and `console.error` ([module loading](#module-loading)) |
 | `sandbox:error` | `{message, code}`; `code` `error`, `timeout`, `size`, `protocol` | every `error` of every `SandboxFrame` on the page; no frame id ([pitfalls](#pitfalls)); also `console.warn` |
+| `viewport:change` | `{narrow}` | the viewport crossed 768 px ([viewport](#viewport)), before any `PageLayout` switches |
 
 **Project events:** a dotted name (`demo.scene`, `[a-z][a-z0-9_.-]*` with a
 dot; anything else throws `TypeError`) declared by module augmentation, as in
@@ -2993,6 +3268,9 @@ while mounted, never after `destroy()`):
 | `SettingsForm` | `submit` | `{values}` | the submit button (with `submit`) and the values passed validation |
 | `Tabs` | `change` | `{id, previous}` | another tab opened (a click, the keys, `select`), after the guard allowed it |
 | `PageLayout` | `collapse` | `{id, collapsed}` | a `collapsable` leaf collapsed or expanded (its header, its keys, `collapse`, `expand`); a call that changes nothing reports nothing |
+| | `variant` | `{narrow}` | a page with a [`narrow` tree](#pagelayout-narrow) switched arrangement; its `Tabs`/`Accordion` are new |
+| `Attachments` | `change` | `{items}` | a file was added, progressed, finished, failed or left; also `clear()` |
+| | `remove` | `{item}` | a file left the list (its × button, Delete/Backspace, `remove`) |
 | `Accordion` | `toggle` | `{id, open}` | a section opened or closed (a header click, the keys, `open`, `close`, `toggle`); a closing is reported before the opening it caused |
 | `FileManager` | `opened` | `{id, mimeType}` | the viewer or text editor showed a file, also on previous/next |
 | `DiagramEditor` | `saved` | `{}` | the open diagram's content was saved (`Mentés`, Ctrl+S) |
@@ -3016,9 +3294,12 @@ promise instead.
 A page of declared panels uses [`PageLayout`](#pagelayout) (the playlist
 editor and the day programme do); the rules below apply to it as well.
 A view kind builds one Suite Layout from `app.dhx`, gives it to
-`host.attach()` and mounts components into its cells. A responsive page
-rebuilds the whole Layout when it crosses 768 px and attaches the new one
-before it releases the old. Each build owns an `AbortController` that the
+`host.attach()` and mounts components into its cells. A `PageLayout` with a
+[`narrow` tree](#pagelayout-narrow) switches its own arrangement at 768 px
+and keeps the content. A page that builds its own Layout listens to
+[`viewport:change`](#viewport) and rebuilds the whole Layout, attaching the
+new one before it releases the old (a `SandboxFrame` keeps its document only
+this way, see below). Each build owns an `AbortController` that the
 host's signal aborts; components get its `signal`, and the Layout's
 `destructor()` is registered on it **after** them, so they detach from their
 cells first ([record view example](#example-record-view)):
@@ -3602,6 +3883,15 @@ Results per phase are recorded in [FB-0081](feedback.md#fb-0081); the plan's
 | M98 | [Conditional sections](workspaces.md#form-section-conditional): a field's `sectionVisibleWhen` (PHP `Field`, JSON `section_visible_when`, `FieldMetadata.sectionVisibleWhen`; the shape of `visibleWhen`, the same on every field of the section) shows a whole form section (header, frame, fields) only while the condition holds; meanwhile its fields are not validated and the server keeps their stored values (never stored empty). In accordion forms a hidden section is never the open one. The server now counts a boolean condition value (JSON `true`/`false`) as `"1"`/`"0"` for `visibleWhen` too, as the browser did | [FB-0240](feedback.md#fb-0240) | none (additive); info: an API call that sent `false` for a checkbox controlling a `visibleWhen` field with `in: ["0"]` now finds the field active (before, the server treated it as inactive and stored it empty while the form showed it); if used: a section whose fields all repeat one `visibleWhen` can declare `sectionVisibleWhen` instead, which also hides the header and keeps the stored values |
 | M99 | [View guides](workspaces.md#view-guide) open automatically once per application path, user and view in the browser profile. The mark survives sign-out and is shared across tabs. | [FB-0243](feedback.md#fb-0243) | info: a spec that expects the guide to reopen after another sign-in needs a fresh browser context or a different account |
 | M100 | [CommandBar header items](#commandbar-title): `title` (first, `badge`), `popup` (an `app.ui.menu` bound by the bar, `select {id, item}`, `menuLabel`) and `narrow: "icons"`; a popup menu on a bar's button no longer needs a project's own `app.dhx.Toolbar` | [FB-0248](feedback.md#fb-0248) | info: a header or composer built from `app.dhx.Toolbar` with `app.ui.menu` moves to `CommandBar` (`title`, `popup`, `menu`, Bootstrap icons) |
+| M101 | [`app.viewport`](#viewport) and `viewport:change`; a [`PageLayout` `narrow` tree](#pagelayout-narrow) switches the arrangement at 768 px and moves the content, `variant {narrow}`, `PageLayout.narrow` | [FB-0250](feedback.md#fb-0250) | if used: a page that runs its own `matchMedia('(max-width: 767px)')` and rebuilds its `PageLayout` declares `narrow` instead (rebind `tabsOf` on `variant`); a page with a `SandboxFrame` or its own Layout listens to `viewport:change`. A page moving from `${id}.wide`/`.narrow` ids to one `id` starts with default sizes once |
+| M102 | [`Attachments`](#attachments): chips over the page's uploader, `ids()`, `pending`, `remove` hook | [FB-0250](feedback.md#fb-0250) | if used: hand-built attachment chips or an attachment submenu move to it |
+| M103 | [`app.ui.progress`](dialogs.md#progress), [`Steps`](#steps) and [`closable: false`](#window-closable) | [FB-0250](feedback.md#fb-0250) | if used: an un-closable window with `progressShow()`, a `dhx.List` stepper or an own `beforeunload` guard moves to them |
+| M104 | [`app.live.watch`](#record-watch) (one record's `get`, query `{record}`); a singleton list's watch is authorized like `get` (tenant, channel, delegation, a resolver's `acl_id`) | [FB-0250](feedback.md#fb-0250) | if used: a timer that re-reads a read action becomes a record resource and a watch. info: a singleton watch whose resolver names another ACL object now needs that object's `get` right, as its `get` always did |
+| M105 | [`app.server.request(…, {id, version})`](#request-version): a cacheable GET with the framework's failures and 401 handling | [FB-0250](feedback.md#fb-0250) | if used: `fetch(app.server.url(…))` moves to it |
+| M106 | [`app.ui.copy`](#copy), [`app.ui.submitKeys`](#submit-keys); Ctrl/Cmd+Enter in a textarea of a framework form presses its primary button ([form keys](workspaces.md#form-submit-keys)); `app.ui.toast` escapes its text | [FB-0250](feedback.md#fb-0250) | if used: own clipboard calls and Ctrl/Cmd+Enter bindings move to them. info: a toast text with markup now shows the markup as text |
+| M107 | From 768 px a non-modal, non-maximized window stays inside the workspace ([long-lived windows](#long-lived-windows)) | [FB-0250](feedback.md#fb-0250) | info: code that observes `.blade-navigation-row` to move its window can go; a spec that drags a window over the menu row finds it below |
+| M108 | Public `--blade-panel-header` and `--blade-tab-row` in both families ([tokens](shell.md#panel-header-tokens)); the Blade chrome paints cell headers and the tab row through them | [FB-0250](feedback.md#fb-0250) | if used: skin CSS that paints `.dhx_layout-cell-header`, `.blade-tabs__row` or `.dhx_tabbar-tab-button` backgrounds sets the tokens instead |
+| M109 | [`CommandBar`](#commandbar-title): the `role="toolbar"` element carries the bar's label (else its title), and a bar in a plain element is at least `--blade-command-bar-height` (48 px) | [FB-0251](feedback.md#fb-0251) | info: a spec that found a bar as `Eszköztár` or through its own wrapper finds it by its label; a project height around a bar can go |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the
@@ -3621,6 +3911,11 @@ markup may change without notice.
 
 | Date | Change | Feedback |
 | --- | --- | --- | --- |
+| 2026-11-20 | `Application.viewport` (`Viewport`), `AppEvents["viewport:change"]`; `PageLayoutOptions.narrow`, `PageLayoutEvents.variant`, `PageLayout.narrow` (M101). Additive. | [FB-0250](feedback.md#fb-0250) |
+| 2026-11-20 | New components `Attachments` and `Steps` (types `AttachmentItem`, `AttachmentsOptions`, `AttachmentsEvents`, `Attachments`, `StepDefinition`, `StepState`, `StepsOptions`, `Steps`); `Ui.progress` (`ProgressOptions`, `ProgressDialog`), `WindowOptions.closable` (M102, M103). Additive. | [FB-0250](feedback.md#fb-0250) |
+| 2026-11-20 | `Live.watch` (`RecordLiveHandlers`; wire query `{record}`, protocol 2); `CallOptions.version` for `Server.request`; `Ui.copy`, `Ui.submitKeys` (`SubmitKeysOptions`) (M104–M106). `LiveHandlers.denied` is documented without 429, as it always behaved. A singleton watch is authorized like `get`. `Ui.toast` escapes its text. | [FB-0250](feedback.md#fb-0250) |
+| 2026-11-20 | Non-modal windows stay inside the workspace; `--blade-panel-header`, `--blade-tab-row` (M107, M108). | [FB-0250](feedback.md#fb-0250) |
+| 2026-11-20 | `CommandBar` names its `role="toolbar"` element; `--blade-command-bar-height` (M109). No API change. | [FB-0251](feedback.md#fb-0251) |
 | 2026-11-19 | `TreeOptions.icon`, `TreeOptions.iconField`, `TreeMetadata.icon`, `TreeMetadata.iconField`; PHP `Registry::tree` `icon` and `iconField`, JSON `view.tree.icon` and `icon_field`: tree nodes show a catalog icon, the same for every node or each record's value of an icon column (M97). Additive. | [FB-0239](feedback.md#fb-0239) |
 | 2026-11-19 | A component destroyed after the Layout that holds it no longer detaches the dead cell (`TypeError` from Suite); it is released silently. No API change. | [FB-0228](feedback.md#fb-0228) |
 | 2026-11-15 | New component `TextDiff` (types `TextDiffOptions`, `TextDiffMode`, `TextDiffSummary`, `TextDiff`; `Components.TextDiff`): unified or side-by-side line difference with word highlights, folds, `+N −M` summary and change navigation (M81). Additive. | [FB-0207](feedback.md#fb-0207) |
