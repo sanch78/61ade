@@ -13,6 +13,7 @@ import { configureWindowSizing } from "./WindowSizing";
 import { attachContent, nonModalOpen, openWindow, themeApplied } from "./api/services";
 import type { AppWindow, LocationSegment, NavigationTarget, Row, ViewDefinition, ViewHost, ViewInstance, ViewOpenMode } from "./api/types";
 import { createApplication, loadModules, type Kernel } from "./app/Application";
+import { TreeCache } from "./components/list/TreeCache";
 import { parseRoute, routeHash } from "./app/routes";
 import { loadSignInModules, signInApplication, signInThemeApplied } from "./SignIn";
 import { brandLogo } from "./BrandLogo";
@@ -72,6 +73,8 @@ export type ShellDefinition = {
   /** Application pages, including public access: the project's ES modules, page-relative paths. */
   modules?: string[];
   csrf?: string;
+  /** Opaque session and list-access context for a one-use Tree snapshot handoff on reload. */
+  treeSnapshotContext?: string;
   live?: import("./Realtime").LiveConfig;
   /** Only with tenancy: the server-resolved active tenant (null: no membership) and the actor's memberships. */
   tenant?: { current: string | null; choices: { id: string; name: string }[] };
@@ -142,10 +145,11 @@ export class AdminShell {
   private applicationTitle=document.title;
   /** The page's toolkit `Application`, its event bus and kind registry (signed in only). */
   private kernel?: Kernel;
+  private readonly treeCache:TreeCache;
   /** The tab's one live channel (signed in with a list view), shared by every list and sub-view. */
   private channel?: LiveChannel;
   private get live():LiveChannel{return this.channel??=new LiveChannel(this.definition.live || {transport:"poll",endpoint:"live",interval:2000},
-    {notice:text=>this.liveNotice(text),editing:()=>this.editing(),ended:()=>this.sessionEnded(),denied:resource=>this.kernel?.treeCache.invalidate(resource)});}
+    {notice:text=>this.liveNotice(text),editing:()=>this.editing(),ended:()=>this.sessionEnded(),denied:resource=>this.treeCache.invalidate(resource)});}
   /** An open view may hold unsaved input (record or bulk form, cell editor, changed singleton form, diagram). */
   private editing():boolean{return [this.page,...this.windows].some(mounted=>mounted?.instance?.editing?.()??false);}
   private signedOut=false;
@@ -455,8 +459,9 @@ export class AdminShell {
       themeApplied(base,skins.length?id:null);
       if(!this.applicationPage||definition.signingIn)signInThemeApplied(base);
     };
+    this.treeCache=new TreeCache(definition.authenticated?definition.treeSnapshotContext:undefined);
     configureServer(definition.csrf || "", this.applicationPage ? () => this.sessionEnded() : undefined,
-      (resource,reload) => this.kernel?.treeCache.invalidate(resource,reload?"changed":"denied"));
+      (resource,reload) => this.treeCache.invalidate(resource,reload?"changed":"denied"));
     let theme=choices[0].id;
     try { const saved=localStorage.getItem(storage); if(choices.some(choice=>choice.id===saved))theme=saved!; } catch {}
     apply(theme);
@@ -607,7 +612,7 @@ export class AdminShell {
           .subscribe({limit:1,numbered:false,filters:{...view.attention!.filters}});
       }
       this.kernel=createApplication({channel:()=>this.live,userId:definition.userId??"",displayName:definition.displayName??"",tenant:definition.tenant?.current??null,authenticated:definition.authenticated,
-        views:definition.views??[],navigate:target=>this.navigate(target)});
+        views:definition.views??[],navigate:target=>this.navigate(target)},this.treeCache);
       // Menu-row commands show once their module registered them.
       const start=()=>{if(this.listeners.signal.aborted)return;if(this.commands().length)this.renderMenu();window.addEventListener("hashchange", this.route, {signal:this.listeners.signal});this.route();};
       // Project modules register their kinds before the first route; a declarative application routes at once.
@@ -982,7 +987,7 @@ export class AdminShell {
   private sessionEnded():void{
     if(this.signedOut||this.listeners.signal.aborted)return;
     this.signedOut=true;
-    this.kernel?.treeCache.invalidate(undefined,"ended");
+    this.treeCache.invalidate(undefined,"ended");
     let recent=true;
     try{recent=Date.now()-Number(sessionStorage.getItem(SIGNED_OUT)||0)<60000;}catch{}
     if(!recent&&!this.editing()){this.signOut();return;}
@@ -1370,7 +1375,7 @@ export class AdminShell {
     if (this.submitting) return;
     this.submitting = true;
     if (action === "logout" || action === "tenant") {
-      this.kernel?.treeCache.invalidate(undefined,"ended");
+      this.treeCache.invalidate(undefined,"ended");
       this.channel?.close();
     }
     for (const [name, value] of Object.entries({ action, ...fields })) {
@@ -1387,15 +1392,17 @@ export class AdminShell {
     this.command.submit();
   }
 
+  /** Tears down the document and hands the signed-in Tree state over to a possible reload. */
   destroy(): void {
     this.releaseIcons();
     this.releaseUploads?.();
     this.listeners.abort();
-    this.kernel?.treeCache.invalidate(undefined,"ended");
     this.authListeners.abort();
     window.removeEventListener("resize", this.resize);
     closeDialogs();
     this.unmountAll();
+    this.treeCache.saveForReload();
+    this.treeCache.invalidate(undefined,"ended");
     this.channel?.close();
     this.loginWindow?.destructor();
     this.controlSize?.disconnect();

@@ -996,6 +996,10 @@
 
 ## FB-0243 — A view guide opens automatically once per user
 
+<a id="fb-0244"></a>
+
+## FB-0244 — Restore the Tree in the first frame after a browser reload
+
 <a id="fb-0245"></a>
 
 ## FB-0245 — A Back destination for each page

@@ -720,7 +720,8 @@ only by the [Tree](toolkit.md#tree)'s `select`:
 - **Tree:** `app.components.Tree` over `demo_registry_nodes`, a `menu: false`
   view of `demo_registry_keys` with the hierarchy on itself (the registry
   editor's own node view is embedded by its tree navigation), with `id` so
-  the expanded keys and the selection come back on the next visit, and
+  the open branches, selection and scroll position come back on return or
+  an authenticated reload in the same tab, and
   `expandControl` for the `Mindet kinyit` / `Mindet bezár` icon buttons above it
   ([expansion](toolkit.md#tree-expansion)), and `iconField: "kind"`, the
   computed icon column `Kulcstípus` ([tree icons](toolkit.md#tree-icons)).

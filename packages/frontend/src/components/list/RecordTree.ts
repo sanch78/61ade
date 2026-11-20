@@ -1,4 +1,4 @@
-import { Layout, message } from "@dhtmlx/suite";
+import { Layout, awaitRedraw, message } from "@dhtmlx/suite";
 import { t } from "../../I18n";
 import { TreeAdapter, type TreeLook, type TreeNode } from "../../TreeAdapter";
 import { UiPreferences } from "../../UiPreferences";
@@ -56,7 +56,12 @@ export class NodeTree {
   private annotating=false;
   private abort=new AbortController();
   private reads=new AbortController();
-  private observer=new MutationObserver(()=>this.annotate());
+  private observer=new MutationObserver(()=>{
+    this.annotate();
+    this.restoreScroll();
+  });
+  private scrollTop=0;
+  private pendingScroll?:number;
   private prefix="blade-tree-"+(++trees)+"-";
   private ids=new Map<string,string>();
   /** The latest load per level: an older answer (a reload overtook it) is dropped. */
@@ -101,6 +106,11 @@ export class NodeTree {
     this.element.setAttribute("aria-label",name);
     this.adapter=new TreeAdapter(id=>this.choose(id),id=>this.activate(id),id=>void this.expanded(id),{element:this.element,collapse:id=>this.collapsed(id),...look});
     this.element.addEventListener("keydown",event=>this.key(event),{signal});
+    // The layout can detach the widget before its state is collected on navigation.
+    this.element.addEventListener("scroll",event=>{
+      const target=event.target;
+      if(target instanceof HTMLElement&&target.matches(".blade-tree"))this.scrollTop=target.scrollTop;
+    },{capture:true,signal});
     // Entering the tree puts the focus on the selection (or the first node).
     this.element.addEventListener("focus",()=>{if(this.focused===undefined||!this.exists(this.focused))this.focusOn(this.current??this.visible()[0]);},{signal});
     this.observer.observe(this.element,{childList:true,subtree:true});
@@ -157,7 +167,7 @@ export class NodeTree {
         if(opened.has(id)&&this.isOpen(id)&&this.adapter.widget.data.haveItems(id))queue.push(id);
       }
     }
-    return {branches,opened:[...opened],preferences:JSON.stringify(preferences)};
+    return {branches,opened:[...opened],preferences:JSON.stringify(preferences),scrollTop:this.pendingScroll??this.scrollTop};
   }
   private branch(parent:string):Branch{
     return {rows:this.children(parent).map(id=>this.rows.get(id)!),cut:this.cut.has(parent)};
@@ -166,6 +176,7 @@ export class NodeTree {
   restore(snapshot:TreeSnapshot,initial:Initial,remembered:Remembered):void{
     this.changed=remembered.expanded!==undefined;
     this.opened=new Set(snapshot.opened);
+    this.pendingScroll=snapshot.scrollTop;
     const branches=new Map(snapshot.branches);
     this.replace(branches);
     this.current=this.initialSelection(initial,remembered);
@@ -208,6 +219,7 @@ export class NodeTree {
       this.loaded.has(parent)&&JSON.stringify(this.branch(parent))===JSON.stringify(branch));
     if(unchanged){this.save();return;}
     const selected=this.current,before=selected===undefined?undefined:JSON.stringify(this.row(selected));
+    this.pendingScroll??=this.scrollTop;
     this.replace(fresh);
     if(selected!==undefined&&!this.exists(selected))this.choose(undefined);
     else{
@@ -217,6 +229,16 @@ export class NodeTree {
     if(this.focused!==undefined&&!this.exists(this.focused))this.focused=this.current;
     if(this.focused!==undefined)this.focusOn(this.focused);
     this.annotate();this.save();
+    // A metadata-only change can redraw without replacing any DOM children.
+    void awaitRedraw().then(()=>this.restoreScroll());
+  }
+  private restoreScroll():void{
+    if(this.pendingScroll===undefined||!this.element.isConnected)return;
+    const scroller=this.element.querySelector<HTMLElement>(".blade-tree");
+    if(!scroller?.clientHeight)return;
+    scroller.scrollTop=this.pendingScroll;
+    this.scrollTop=scroller.scrollTop;
+    this.pendingScroll=undefined;
   }
   /** Rebuilds the reachable rows without expand events or motion. */
   private replace(branches:Map<string,Branch>):void{
@@ -244,6 +266,7 @@ export class NodeTree {
   /** Discards rows and any in-flight reads when this Tree's access is no longer current. */
   invalidate(revoked=true,notify=true):void{
     this.cacheable=false;
+    this.scrollTop=0;this.pendingScroll=undefined;
     this.reads.abort();this.reads=new AbortController();this.loads.clear();
     this.replace(new Map());
     if(revoked)this.element.dataset.bladeEmpty=t("A hozzáférés megszűnt");

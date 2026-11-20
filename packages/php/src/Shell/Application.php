@@ -6,6 +6,7 @@ namespace Blade\Shell;
 
 use Blade\Authentication\PasswordAttempts;
 use Blade\Feature\Failure;
+use Blade\Feature\Workspace;
 use Blade\I18n\Translator;
 
 /** Framework-owned session, password, email confirmation and remembered-device flow. */
@@ -174,6 +175,9 @@ final class Application
                 }
                 if ($groupIcons) $bootstrap['menuGroupIcons'] = $groupIcons;
                 $bootstrap['csrf'] = $csrf;
+                if ($identity && ($context = $this->treeSnapshotContext($workspace, $bootstrap['views'], $identity, $tenant, $csrf)) !== null) {
+                    $bootstrap['treeSnapshotContext'] = $context;
+                }
                 $bootstrap['live'] = $definition->live->metadata();
             }
             // Menu-row commands offered to the actor; `attention` only names a view the actor is offered.
@@ -183,6 +187,33 @@ final class Application
         }
         session_write_close();
         require dirname(__DIR__, 2).'/templates/shell.php';
+    }
+
+    /** A reload may reuse Tree rows only in the same signed-in session and list policy. */
+    private function treeSnapshotContext(Workspace $workspace, array $views, Identity $actor, ?string $tenant, string $csrf): ?string
+    {
+        $resources = [];
+        foreach ($views as $view) {
+            if ($view['kind'] !== 'list' || !($view['options']['subview']['shared'] ?? false)) continue;
+            $resource = $view['resource'];
+            $resources[] = $resource;
+            array_push($resources, ...array_column($workspace->registry->countFields($resource), 'resource'));
+        }
+        if (!$resources) return null;
+        $ctx = $workspace->context($actor, tenant: $tenant);
+        $sources = [];
+        foreach (array_unique($resources) as $resource) {
+            $rules = $workspace->acl->rules($actor->id, $resource, 'list', 'ui');
+            usort($rules, static fn(array $left, array $right): int => $left['id'] <=> $right['id']);
+            try {
+                $realm = $workspace->registry->realm($ctx, $resource);
+            } catch (Failure) {
+                $realm = false;
+            }
+            $sources[$resource] = [$realm, $rules];
+        }
+        ksort($sources);
+        return hash_hmac('sha256', json_encode(['tree-snapshot-v1', $actor->id, $tenant, Translator::locale(), $sources], JSON_THROW_ON_ERROR), $csrf);
     }
 
     /** @return list<Skin> the application skins of the signed-in identity, unique by id. */
