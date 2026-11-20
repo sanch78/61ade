@@ -11711,3 +11711,125 @@ object. Typecheck, build and demo asset preparation passed.
   instance setup added the account. Computed styles only; no visual review
   across components and states.
 - **Status.** Implemented and verified on the managed demo.
+
+<a id="fb-0250"></a>
+
+## FB-0250 — Framework capabilities for two consumers' own replacements
+
+- **Date.** 2026-11-20.
+- **Report.** A read-only audit of two consumers' admin frontends found
+  framework gaps they had filled themselves:
+  - seven pages ran their own `matchMedia('(max-width: 767px)')`, six of them
+    only once, so they stayed in the wrong layout after a rotation;
+  - attachment chips built over `upload:*` events, and an attachments submenu;
+  - un-closable windows with `progressShow()`, a `dhx.List` stepper and their
+    own `beforeunload`;
+  - a read action polled every 20 s;
+  - `fetch(app.server.url(…))`;
+  - own clipboard code and composer keys;
+  - a window kept below the menu row by observing an internal class;
+  - skin CSS painting Suite cell headers and tab rows.
+- **Owner decision.** Approved point by point:
+  - the viewport signal and a responsive `PageLayout`;
+  - an attachment list;
+  - a progress dialog with a standalone `Steps` component and `closable`;
+  - option A for live data: a record watch, with the consumer exposing its
+    data as a record resource instead of a polled action;
+  - composer keys and a framework-form Ctrl/Cmd+Enter;
+  - `app.ui.copy`;
+  - workspace clamping of non-modal windows;
+  - two skin tokens;
+  - `server.request` with a cache key.
+
+  Declined: a whole-page passive mode (the progress dialog and per-region
+  `busy` cover it) and a public card-media hook (a project presentation is
+  the route). Consumers migrate in their own sessions.
+- **Implementation.**
+  - **Viewport and `PageLayout`:** `app.viewport` and `viewport:change` (one
+    `Viewport.ts`, which the framework's own breakpoint checks also use). The
+    `PageLayout` `narrow` tree moves each region's content in a wrapper,
+    `moveBefore` where available: DOM nodes, focus, scroll and media are
+    kept. Each arrangement keeps its own preferences (`id`, `id:narrow`);
+    `variant` is reported after a switch. A collapsed target waits in a hidden
+    holder.
+  - **Attachments:** `Attachments`, one uploader call per file with per-call
+    reports; chips updated in place, with roving focus.
+  - **Progress and windows:** `Steps`; `app.ui.progress` (modal,
+    `closable: false`, a per-dialog leave guard); `WindowOptions.closable`.
+  - **Record watch:** `live.watch` with the wire query `{record}`. Every read
+    is authorized by `Executor::authorize`, and a refusal is journaled as
+    `subscribe`/`rejected`. The singleton watch moved to the same
+    authorization.
+  - **`server.request`:** `version` gives a GET.
+  - **Smaller additions:**
+    - `ui.copy` and `ui.submitKeys`;
+    - Ctrl/Cmd+Enter in framework form textareas;
+    - non-modal windows stay inside the workspace with a 12 px margin, and a
+      drag no longer scrolls the menu row away;
+    - `--blade-panel-header` and `--blade-tab-row`;
+    - `ui.toast` escapes its text, as its contract already said.
+  - **Demo:**
+    - `Médiaböngésző` and `Kulcsböngésző` use `narrow`;
+    - `Mérések` and the asset viewer use `viewport:change`;
+    - `Munkaasztal` has `Csatolás` with `Attachments`;
+    - `Feladatok` has `Ellenőrzés (demó)` with the progress dialog;
+    - `Feladatlap` watches its task.
+- **Contract.** M101–M108 of the toolkit. Topic guides:
+  - toolkit: [viewport](toolkit.md#viewport),
+    [narrow tree](toolkit.md#pagelayout-narrow),
+    [Attachments](toolkit.md#attachments), [Steps](toolkit.md#steps),
+    [record watch](toolkit.md#record-watch),
+    [cacheable reads](toolkit.md#request-version), [copy](toolkit.md#copy),
+    [submit keys](toolkit.md#submit-keys),
+    [closable](toolkit.md#window-closable),
+    [long-lived windows](toolkit.md#long-lived-windows);
+  - [progress dialog](dialogs.md#progress);
+  - [form submit keys](workspaces.md#form-submit-keys);
+  - [panel header tokens](shell.md#panel-header-tokens);
+  - [security model](security-model.md);
+  - [usage](usage.md), [demos](demos.md), and the 61ade-ui and
+    61ade-skinning skills.
+- **Verification.** On the managed demo, against the final candidate (typecheck, build and demo asset preparation passed): the combined affected run of 33 browser specs passed 167 cases. Its three failures were then resolved and their groups rerun green (43 passed): a 0 px margin of the new workspace clamp (fixed to the 12 px margin), and two pre-existing spec races, the media browser's image measured before it loaded (`page-layout-inner`) and an uploader row below the virtual grid's drawn part after a reload (`uploader`). Both specs now wait or scroll. PHP checks `lists` (record and singleton watch authorization, refusal journaling, `audit_action`), `tenancy`, `delegation`, `access`, `contracts`, `toolkit`, `configuration`, `i18n`, `permissions`, `stored-file`, `record-forms` and `live-protocol.mjs` (26 checks) passed. Temporary specs per capability passed at 1366 and 390 px and were removed. They covered:
+  - switching 1280 ↔ 390 px with the same nodes, typed input, scroll and the iframe document;
+  - `variant` and the focus fallback, with and without `moveBefore`;
+  - chips with Delete, focus kept during progress, and two instances on one target;
+  - the progress dialog's Escape, steps, bar and leave guard;
+  - record watches on both transports;
+  - `request({version})`, submit keys, copy, the window clamp and the token defaults.
+  `toolkit-components.mjs` and `toolkit-sandbox.mjs` fail at their known Layout-cell mount check, as before (FB-0248). An independent review found no read beyond an ordinary `get`; its findings were fixed. Not checked: real screen readers, Safari/Firefox without `moveBefore` beyond the simulated case, and the composer's `Csatolás` button in a spec.
+- **Status.** Implemented and verified on the managed demo; consumer
+  migration pending in the consumers' own sessions (handoff prompts given to
+  the owner).
+
+<a id="fb-0251"></a>
+
+## FB-0251 — CommandBar names its toolbar and has a standard height
+
+- **Date.** 2026-11-20.
+- **Report.** Two problems were reported from a consumer and confirmed in the
+  source at `640174b`:
+  - `CommandBar` put its `aria-label` on its outer root, while the
+    `role="toolbar"` element is Suite's inner toolbar, which redraws its own
+    `config.ariaLabel`. Every bar was therefore named `Eszköztár`, and two bars
+    of a page could not be told apart.
+  - A bar mounted outside a layout cell had no height of its own
+    (`.dhx_toolbar { height: 100% }`), so consumers hand-picked heights and
+    two region headers of one page differed.
+- **Owner decision.** Taken into the FB-0250 proposal: the framework owns the
+  bar's accessible name and one standard height.
+- **Implementation.** The bar's `label`, else its title, is the toolbar's
+  `config.ariaLabel`, so it survives every redraw (resize, collapse into
+  `Műveletek`, `narrow: "icons"`, `update`); the outer element has no name. A
+  bar mounted into a plain element is at least `--blade-command-bar-height`
+  (48 px, the framework's command rows); in a Layout cell, a window or a view
+  host the container decides.
+- **Contract.** [Panel header](toolkit.md#commandbar-title), M109, the
+  [61ade-ui skill](../.agents/skills/61ade-ui/SKILL.md#command-bars-in-pages-and-tabs).
+- **Verification.** A permanent case in `command-bar.spec.cjs` (1366 and
+  390 px): a labelled bar in a plain element (48 px) and in a 40 px cell, a
+  title-only `narrow: "icons"` header, the labelled bar collapsed into
+  `Műveletek`, a title `update` and a resize both ways, each found with
+  `getByRole('toolbar', {name})` and no `aria-label` on the outer nodes.
+  Part of the combined run above (`command-bar`, `command-menu`, `toolkit-menu`, `mobile-grid`, `location-bar`, `suite-labels`).
+- **Status.** Implemented and verified on the managed demo; consumers drop
+  their wrapper selectors and bar heights in their own sessions.

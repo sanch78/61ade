@@ -49,7 +49,12 @@ const workbench: ApplicationModule = app => {
       const ago = (at: number) => { const days = daysAgo(at); return days <= 0 ? clock.format(at) : days < 7 ? relative.format(-days, "day") : date.format(at); };
       let draft = list[0].id, model: Model | undefined, effort = "";
 
-      const layout = new app.dhx.Layout(document.createElement("div"), { type: "none", rows: [{ id: "head", height: 48 }, { id: "body" }, { id: "composer", height: 48 }] });
+      const layout = new app.dhx.Layout(document.createElement("div"), { type: "none", rows: [{ id: "head", height: 48 }, { id: "body" }, { id: "attachments", height: "content" }, { id: "composer", height: 48 }] } as any);
+      // Attachments go to the stored-file upload action of the attachments demo (pending uploads, expired by the project).
+      const stored = app.viewDefinition("demo_attachments")?.actions.flatMap(a => a.fields ?? []).find(f => f.file && "upload" in f.file)?.file;
+      const policy = stored && "upload" in stored && stored.canUpload ? stored.policy : null;
+      const files = policy ? new app.components.Attachments({ label: t("Csatolmányok"), signal,
+        upload: { resource: "demo_attachments", action: "file_upload", target: null, targetLabel: t("Munkaasztal"), policy } }) : undefined;
       const modelText = () => model ? `${t(model.label)}${model.efforts.length > 1 ?  " · " + t(EFFORTS[effort]) : ""}` : t("Automatikus");
       const head = new app.components.CommandBar({ label: t("Munkaasztal"), narrow: "icons", signal, items: [
         { type: "title", id: "title", label: list[0].name },
@@ -61,6 +66,7 @@ const workbench: ApplicationModule = app => {
       ] });
       head.on("select", ({ item }) => { draft = item; head.update("title", { label: list.find(x => x.id === item)!.name }); });
       const composer = new app.components.CommandBar({ label: t("Modell"), placement: "bottom", signal, items: [
+        ...(files ? [{ id: "attach", label: t("Csatolás"), icon: "bi bi-paperclip" }] : []),
         { type: "popup", id: "model", label: t("Modell: {choice}", { choice: modelText() }), menuLabel: t("Modell"), icon: "bi bi-sliders", items: () => {
           const groups: PopupMenuItem[] = [{ type: "group", label: t("Modell"), items: [
             { id: "model:auto", label: t("Automatikus"), detail: t("a feladat alapján"), checked: !model },
@@ -71,6 +77,7 @@ const workbench: ApplicationModule = app => {
           return groups;
         } },
       ] });
+      composer.on("click", ({ id }) => { if (id === "attach") files?.choose(); });
       composer.on("select", ({ item }) => {
         if (item.startsWith("model:")) {
           model = MODELS.find(m => "model:" + m.id === item);
@@ -90,6 +97,7 @@ const workbench: ApplicationModule = app => {
       });
       head.mount(layout.getCell("head"));
       layout.getCell("body").attach(form);
+      files?.mount(layout.getCell("attachments"));
       composer.mount(layout.getCell("composer"));
       win.attach(layout);
       signal.addEventListener("abort", () => layout.destructor(), { once: true });

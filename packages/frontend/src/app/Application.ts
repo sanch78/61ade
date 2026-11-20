@@ -17,9 +17,12 @@ import { filePicker } from "../components/files/FilePicker";
 import { sandboxFrameClass } from "../components/sandbox/SandboxFrame";
 import { MediaPlayer } from "../components/media/MediaPlayer";
 import { TextDiff } from "../components/diff/TextDiff";
+import { Attachments } from "../components/upload/Attachments";
+import { Steps } from "../components/progress/Steps";
 import { PageLayout } from "../components/layout/PageLayout";
 import { Tabs } from "../components/layout/Tabs";
 import { Accordion } from "../components/layout/Accordion";
+import { narrow, onViewport } from "../Viewport";
 import { SettingsForm } from "../components/form/SettingsForm";
 
 /** What the shell hands the application object: its live channel, effective identity, views and router. */
@@ -41,6 +44,8 @@ const UPLOAD_EVENTS: (keyof UploadEvents)[] = ["upload:queued", "upload:started"
 export function createApplication(bridge: ShellBridge, treeCache: TreeCache): Kernel {
   const events = createEventBus();
   for (const name of UPLOAD_EVENTS) uploader.on(name, payload => events.dispatch(name, payload as never));
+  // The one breakpoint's crossings, for the page's whole life (the shell creates one application per page).
+  onViewport(narrow => events.dispatch("viewport:change", { narrow }));
   const kinds = new NamedRegistry<ViewKind<any>>("view kind");
   const presentations = new NamedRegistry<ColumnPresentation>("presentation");
   const fieldTypes = new NamedRegistry<FieldType>("field type");
@@ -60,6 +65,7 @@ export function createApplication(bridge: ShellBridge, treeCache: TreeCache): Ke
     theme,
     preferences: preferences(bridge.userId),
     live: live(bridge.channel),
+    viewport: Object.freeze({ get narrow() { return narrow(); } }),
     events,
     identity: identity(bridge.userId, bridge.displayName, bridge.tenant, bridge.authenticated),
     kinds,
@@ -77,6 +83,8 @@ export function createApplication(bridge: ShellBridge, treeCache: TreeCache): Ke
       SandboxFrame: sandboxFrameClass(payload => events.dispatch("sandbox:error", payload)),
       MediaPlayer,
       TextDiff,
+      Attachments,
+      Steps,
       PageLayout: class extends PageLayout { constructor(options: PageLayoutOptions) { super({ user: bridge.userId }, options); } },
       Tabs: class extends Tabs { constructor(options: TabsOptions) { super({ user: bridge.userId }, options); } },
       Accordion: class extends Accordion { constructor(options: AccordionOptions) { super({ user: bridge.userId }, options); } },

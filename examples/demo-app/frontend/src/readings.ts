@@ -27,8 +27,6 @@ const KIND = "demo.readings-dashboard";
 const BAR = "demo.reading-bar";
 /** The bar presentation draws a value of the 0–100 reading scale. */
 const SCALE = 100;
-/** The framework's narrow breakpoint (forced cards, collapsed command bar). */
-const NARROW = "(max-width: 767px)";
 
 const escape = (value: unknown): string => String(value ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 /** A finite number from a stored reading (`"12.3"`, also a decimal comma); null for anything else. */
@@ -129,14 +127,14 @@ function dashboard(app: Application, host: ViewHost, view: ViewDefinition<Dashbo
   const signed = formatter(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1, signDisplay: "exceptZero" });
   const step = options.max / options.buckets;
   const ranges = Array.from({ length: options.buckets }, (_, index) => `${whole.format(index * step)}–${whole.format((index + 1) * step)}`);
-  const narrow = matchMedia(NARROW);
   let session: AbortController | undefined, list: ListView | undefined, closed = false;
   let presets: Record<string, string> = { ...host.filters };
 
   const build = () => {
     session?.abort();
     const controller = session = new AbortController(), signal = controller.signal;
-    const compact = narrow.matches;
+    // The framework's one breakpoint (forced cards, collapsed command bar): `app.viewport`.
+    const compact = app.viewport.narrow;
     const summaryHeader = compact ? {} : { header: t("Összesítés") };
     const overview = compact
       ? { type: "space", height: 324, rows: [{ id: "summary", height: 104 }, { id: "chart", header: t("Értékeloszlás") }] }
@@ -204,7 +202,7 @@ function dashboard(app: Application, host: ViewHost, view: ViewDefinition<Dashbo
   };
 
   const close = () => { if (closed) return; closed = true; session?.abort(); };
-  narrow.addEventListener("change", () => { if (!closed) build(); }, { signal: host.signal });
+  app.events.on("viewport:change", () => { if (!closed) build(); }, { signal: host.signal });
   host.signal.addEventListener("abort", close, { once: true });
   // A failing first build (for example the list view is not offered) releases what it created; the shell shows the error.
   try { build(); } catch (error) { close(); throw error; }

@@ -1,6 +1,7 @@
 import { t } from "./I18n";
 import {Toolbar,awaitRedraw} from "@dhtmlx/suite";
 import type {Id} from "@dhtmlx/suite/codebase/types/ts-common/types";
+import { narrow as narrowViewport } from "./Viewport";
 
 /** The item $id among $items or their nested `items`. */
 const findItem=(items:any[],id:string):any=>{
@@ -139,7 +140,7 @@ export class ResponsiveToolbar extends Toolbar {
       :item.type==="separator"?12:String(item.css??"").includes("blade-command--range")?180:String(item.css??"").includes("blade-command--title")?96:String(item.css??"").includes("blade-command--icon")?44:60+String(item.value??"").length*8;
     const required=entries.filter(item=>!item.hidden&&item.type!=="spacer").reduce((sum,item)=>sum+itemWidth(item),16);
     // `narrow: false`: a narrow viewport alone does not collapse the bar (its items turned to icons instead).
-    const compact=(this.collapse?.narrow!==false&&innerWidth<768)||width<required;
+    const compact=(this.collapse?.narrow!==false&&narrowViewport())||width<required;
     if(compact===this.compact&&this.prepared)return;
     this.prepared=true;
     this.compact=compact;

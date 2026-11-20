@@ -124,7 +124,8 @@ export class LiveChannel {
   }
   private refuse(handle:Realtime,status:number):void{
     this.wires.delete(handle.wire!);handle.wire=undefined;handle.refuse(status);
-    if(status===403||status===404)this.hooks.denied?.(handle.resource);
+    // A refused record watch (`{record}`, live.watch) concerns that record, not the resource's lists and trees.
+    if((status===403||status===404)&&handle.query?.record===undefined)this.hooks.denied?.(handle.resource);
   }
   /** Session ended: every list shows the revoked state once; nothing reconnects. */
   private block():void{
@@ -202,10 +203,13 @@ export class Realtime {
     this.version=message.version;
     this.update({items:message.order.map((id:string)=>this.rows.get(id)).filter(Boolean),previous:message.previous,next:message.next,version:message.version,total:message.total,matched:message.matched});
   }
-  /** `denied` of this subscription: 403/404 revoke the list; 429 (too many lists) only stops its live updates. */
+  /**
+   * `denied` of this subscription: 403/404 revoke the list; 429 (too many lists) only stops its live updates. A record
+   * watch (`{record}`, live.watch) has no rows to keep: it is told `denied` at 429 too.
+   */
   refuse(status:number):void{
     this.blocked=true;
-    if(status===429)return;
+    if(status===429){if(this.query?.record!==undefined)this.denied();return;}
     this.state(t("A hozzáférés megszűnt"));this.denied();
   }
   destroy():void{this.channel.detach(this);this.query=undefined;}

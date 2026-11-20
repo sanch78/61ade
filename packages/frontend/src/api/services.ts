@@ -1,3 +1,4 @@
+import { openProgress } from "../components/progress/ProgressDialog";
 import { Layout, Window, awaitRedraw, message } from "@dhtmlx/suite";
 import { languages, locale, t } from "../I18n";
 import { requestChoice, showDialog } from "../MessageDialog";
@@ -10,6 +11,7 @@ import { prepareCell } from "../components/Lifecycle";
 import { popupMenu } from "../PopupMenu";
 import { UiPreferences, type WindowGeometry } from "../UiPreferences";
 import type { AppWindow, I18n, Identity, Live, Mountable, Preferences, PreferenceStore, Theme, Ui, Uploads, WindowOptions } from "./types";
+import { narrow } from "../Viewport";
 
 /**
  * Thin toolkit services over the existing shell modules (toolkit K-F2). They add no behaviour of their own: the
@@ -73,6 +75,23 @@ export function live(channel: () => LiveChannel): Live {
       handle.subscribe({ ...query });
       return subscription;
     },
+    // One record as a subscription of query `{record: id}` (Workspace::observe). The server hashes the answer, so a
+    // repeated version (the first answer after a reconnect or a shown tab) is not reported again.
+    watch(resource, id, handlers, options) {
+      const signal = signalOf(options, "live.watch");
+      if (typeof resource !== "string" || !resource || typeof id !== "string" || !id || typeof handlers?.update !== "function")
+        throw new TypeError("61ade: live.watch takes a resource, a record id and handlers with `update`.");
+      let version: string | undefined;
+      const handle = new Realtime(channel(), resource, snapshot => {
+        const record = snapshot.items[0];
+        if (record && snapshot.version !== version) { version = snapshot.version; handlers.update(record); }
+      }, text => handlers.state?.(text), () => handlers.denied?.());
+      const watch = { destroy: () => handle.destroy() };
+      if (signal?.aborted) { handle.destroy(); return watch; }
+      signal?.addEventListener("abort", () => handle.destroy(), { once: true });
+      handle.subscribe({ record: id });
+      return watch;
+    },
   };
 }
 
@@ -107,36 +126,52 @@ export const uploads: Uploads = {
 
 let slots = 0;
 /**
- * Attaches a Suite widget, a component (its root `layout`) or a plain element to a Layout cell. An element
- * lives in a slot of the target's HTML content and is put back whenever a repaint replaces that slot.
+ * Puts $node into $parent. From one place in the page to another it is a state-preserving move where the browser has
+ * `moveBefore` (a frame keeps its document, focus and scroll positions stay, playback goes on); otherwise `append`.
  */
-export function attachContent(target: { attach(content: any): unknown; attachHTML(html: string): void }, content: Mountable, signal: AbortSignal): void {
+export function moveInto(parent: HTMLElement, node: HTMLElement): void {
+  const keep = parent as HTMLElement & { moveBefore?(node: Node, child: Node | null): void };
+  if (node.isConnected && parent.isConnected && typeof keep.moveBefore === "function") try { keep.moveBefore(node, null); return; } catch { /* another document */ }
+  parent.append(node);
+}
+/**
+ * Attaches a Suite widget, a component (its root `layout`) or a plain element to a Layout cell. An element
+ * lives in a slot of the target's HTML content and is put back whenever a repaint replaces that slot. Returns the
+ * element's placement (a no-op for a widget or component), for a caller that draws the slot synchronously.
+ */
+export function attachContent(target: { attach(content: any): unknown; attachHTML(html: string): void }, content: Mountable, signal: AbortSignal): () => void {
   if (!(content instanceof HTMLElement)) {
     prepareCell(target);
     // A public component is mounted there, so it is placed once and its events are delivered (FB-0153); a Suite widget
     // is attached as it is.
-    if ("destroy" in content && "layout" in content && typeof (content as { mount?: unknown }).mount === "function") { (content as { mount(target: unknown): void }).mount(target); return; }
-    target.attach("destroy" in content && "layout" in content ? content.layout : content); return;
+    if ("destroy" in content && "layout" in content && typeof (content as { mount?: unknown }).mount === "function") (content as { mount(target: unknown): void }).mount(target);
+    else target.attach("destroy" in content && "layout" in content ? content.layout : content);
+    return () => {};
   }
   const id = "blade-slot-" + ++slots;
   target.attachHTML(`<div class="blade-view-slot" id="${id}"></div>`);
-  const place = () => { const slot = document.getElementById(id); if (slot && content.parentElement !== slot) slot.append(content); };
+  const place = () => { const slot = document.getElementById(id); if (slot && content.parentElement !== slot) moveInto(slot, content); };
   const observer = new MutationObserver(place);
   observer.observe(document.body, { childList: true, subtree: true });
-  signal.addEventListener("abort", () => { observer.disconnect(); content.remove(); }, { once: true });
+  // An element a later slot took over (a `PageLayout` arrangement switch) stays there.
+  signal.addEventListener("abort", () => { observer.disconnect(); if (content.parentElement?.id === id) content.remove(); }, { once: true });
   place();
+  return place;
 }
 
 /** The workspace between the menu row and the lower bar: a maximized window's box (the viewport without a shell). */
-function workspaceBox(): { left: number; top: number; width: number; height: number } {
+export function workspaceBox(): { left: number; top: number; width: number; height: number } {
   const box = document.querySelector<HTMLElement>(".blade-workspace")?.getBoundingClientRect();
   return box && box.width > 0 && box.height > 0 ? { left: box.left, top: box.top, width: box.width, height: box.height } : { left: 0, top: 0, width: innerWidth, height: innerHeight };
 }
 
-/** $box inside the viewport with a 12 px margin, its size at most the viewport minus 24 px. */
-function clampBox(box: { left: number; top: number; width: number; height: number }) {
-  const width = Math.min(box.width, innerWidth - 24), height = Math.min(box.height, innerHeight - 24);
-  return { width, height, left: Math.max(12, Math.min(box.left, innerWidth - width - 12)), top: Math.max(12, Math.min(box.top, innerHeight - height - 12)) };
+/** The area a non-modal window stays in: the workspace with the same 12 px margin as the viewport's. */
+const floatArea = () => { const area = workspaceBox(); return { left: area.left + 12, top: area.top + 12, width: Math.max(120, area.width - 24), height: Math.max(120, area.height - 24) }; };
+
+/** $box inside $area (default: the viewport with a 12 px margin), its size at most the area's. */
+function clampBox(box: { left: number; top: number; width: number; height: number }, area = { left: 12, top: 12, width: innerWidth - 24, height: innerHeight - 24 }) {
+  const width = Math.min(box.width, area.width), height = Math.min(box.height, area.height);
+  return { width, height, left: Math.max(area.left, Math.min(box.left, area.left + area.width - width)), top: Math.max(area.top, Math.min(box.top, area.top + area.height - height)) };
 }
 
 /** The open non-modal windows (FB-0199): a view guide does not open by itself over them (FB-0200). */
@@ -156,17 +191,20 @@ export function openWindow(options: WindowOptions & { css?: string }, user = "")
   if (titleOverflow !== "end" && titleOverflow !== "start") throw new TypeError('61ade: window `titleOverflow` is "end" or "start".');
   if (titlePrefix !== undefined && typeof titlePrefix !== "string") throw new TypeError("61ade: window `titlePrefix` is a plain text.");
   const shaped = titleOverflow === "start" || titlePrefix !== undefined, full = (text: string) => titlePrefix ? titlePrefix + " " + text : text;
-  const { id, maximizable = false } = options;
+  const { id, maximizable = false, closable = true } = options;
   if (id !== undefined && (typeof id !== "string" || !NAME.test(id))) throw new TypeError("61ade: window `id` is the preference key ([a-z][a-z0-9_.-]*).");
   if (typeof maximizable !== "boolean") throw new TypeError("61ade: window `maximizable` is a boolean.");
-  const mobile = innerWidth < 768, controller = new AbortController();
+  if (typeof closable !== "boolean") throw new TypeError("61ade: window `closable` is a boolean.");
+  const mobile = narrow(), controller = new AbortController();
   // A remembered window (FB-0199) opens where it was left, clamped to the viewport; a phone's full-screen window has
   // no geometry of its own. The `window:` prefix cannot be a view id, so it never meets a list's preferences.
   const remembered = id !== undefined && !mobile ? new UiPreferences(user, "window:" + id) : undefined;
-  const saved = remembered?.window(), start = saved && clampBox(saved);
+  // A desktop non-modal window stays inside the workspace (below the menu row, above the lower bar).
+  const floating = !mobile && !(options.modal ?? true), area = () => floating ? floatArea() : undefined;
+  const saved = remembered?.window(), start = saved && clampBox(saved, area());
   const win = new Window({ css: options.css ?? "blade-content-window", title: escape(options.title), ariaLabel: full(options.title),
     width: mobile ? innerWidth : start?.width ?? Math.min(options.width ?? 720, innerWidth - 24), height: mobile ? innerHeight : start?.height ?? Math.min(options.height ?? 560, innerHeight - 24),
-    modal: options.modal ?? true, closable: true, resizable: !mobile && (options.resizable ?? true), movable: !mobile });
+    modal: options.modal ?? true, closable, resizable: !mobile && (options.resizable ?? true), movable: !mobile });
   let closed = false;
   const finish = () => { if (closed) return; closed = true; controller.abort(); void awaitRedraw().then(() => win.destructor()); };
   win.events.on("afterHide", finish);
@@ -219,7 +257,7 @@ export function openWindow(options: WindowOptions & { css?: string }, user = "")
     if (!zoomable || closed || next === maximized) return;
     if (next) restored = { ...box(), maximized: false };
     maximized = next;
-    if (next) fill(); else { const back = clampBox(restored!); win.setSize(back.width, back.height); win.setPosition(back.left, back.top); }
+    if (next) fill(); else { const back = clampBox(restored!, area()); win.setSize(back.width, back.height); win.setPosition(back.left, back.top); }
     win.config.movable = !next;
     dialog()?.classList.toggle("blade-window--maximized", next);
     win.header?.data.update("blade-maximize", { icon: next ? "bi bi-arrows-angle-contract" : "bi bi-arrows-angle-expand", tooltip: label() });
@@ -240,19 +278,37 @@ export function openWindow(options: WindowOptions & { css?: string }, user = "")
       if (!maximized && sides && !(sides.left && sides.right && sides.top && sides.bottom)) remember();
     });
   }
+  // On open, after a drag and when the workspace changes, a non-modal window is moved (and if needed shrunk) into it.
+  const keep = () => {
+    if (closed || maximized || !win.isVisible()) return;
+    const now = box(), next = clampBox(now, floatArea());
+    if (next.width !== now.width || next.height !== now.height) win.setSize(next.width, next.height);
+    if (next.left !== now.left || next.top !== now.top) win.setPosition(next.left, next.top);
+    return next.left !== now.left || next.top !== now.top || next.width !== now.width;
+  };
+  if (floating) {
+    const signal = controller.signal, space = document.querySelector(".blade-workspace");
+    addEventListener("resize", keep, { signal });
+    // A drag past the top edge scrolls the (overflow-hidden) body and with it the menu row away: put it back first.
+    document.addEventListener("mouseup", () => requestAnimationFrame(() => { document.body.scrollTop = document.body.scrollLeft = 0; if (keep()) remember(); }), { signal, capture: true });
+    if (space) { const observer = new ResizeObserver(() => keep()); observer.observe(space); signal.addEventListener("abort", () => observer.disconnect(), { once: true }); }
+  }
   if (!(options.modal ?? true)) {
     nonModal.add(api);
     controller.signal.addEventListener("abort", () => nonModal.delete(api), { once: true });
   }
   // Suite closes only a modal window on Escape; a non-modal one closes while the focus is inside it (FB-0155). An
   // Escape already taken (a menu or popup inside the window closed first) is left alone.
-  if (!(options.modal ?? true)) document.addEventListener("keydown", event => {
+  // An un-closable window (`closable: false`) has no close button and no Escape (Suite binds neither, ModalWindows
+  // finds no button to click); only `close()` and `signal` close it.
+  if (closable && !(options.modal ?? true)) document.addEventListener("keydown", event => {
     if (event.key !== "Escape" || event.defaultPrevented) return;
     const dialog = win.getContainer()?.closest<HTMLElement>('[role="dialog"]');
     if (dialog && document.activeElement && dialog.contains(document.activeElement)) { event.preventDefault(); api.close(); }
   }, { signal: controller.signal });
   if (start) win.show(start.left, start.top); else win.show();
   if (saved?.maximized) toggle(true);
+  if (floating) keep();
   if (shaped) {
     showTitle(title);
     const observer = new ResizeObserver(tooltip), box = dialog();
@@ -268,7 +324,7 @@ export const ui: Ui = {
   dialog: options => showDialog(options),
   choice: options => requestChoice(options),
   toast(text, severity = "neutral") {
-    message({ text, css: "blade-toast" + (severity === "neutral" ? "" : " blade-toast--" + severity), expire: severity === "neutral" ? 4000 : 8000 });
+    message({ text: escape(String(text)), css: "blade-toast" + (severity === "neutral" ? "" : " blade-toast--" + severity), expire: severity === "neutral" ? 4000 : 8000 });
   },
   window: options => openWindow(options),
   attach(target, content, options) {
@@ -280,4 +336,36 @@ export const ui: Ui = {
     if (!signal.aborted) attachContent(target, content, signal);
   },
   menu: (anchor, options) => popupMenu(anchor, options),
+  progress: options => openProgress(options),
+  async copy(text, options) {
+    if (typeof text !== "string") throw new TypeError("61ade: ui.copy takes a plain text.");
+    const label = options?.label, done = await copyText(text);
+    if (done) ui.toast(label ? t("{label} másolva.", { label }) : t("Másolva."));
+    else ui.toast(t("A másolás nem sikerült."), "danger");
+    return done;
+  },
+  submitKeys(element, options) {
+    const signal = signalOf(options, "ui.submitKeys");
+    if (!signal) throw new TypeError("61ade: ui.submitKeys needs the owner's signal ({ signal }).");
+    if (!(element instanceof HTMLElement)) throw new TypeError("61ade: ui.submitKeys takes an element.");
+    if (typeof options.submit !== "function") throw new TypeError("61ade: ui.submitKeys `submit` is a function.");
+    if (options.cancel !== undefined && typeof options.cancel !== "function") throw new TypeError("61ade: ui.submitKeys `cancel` is a function.");
+    if (signal.aborted) return;
+    element.setAttribute("aria-keyshortcuts", "Control+Enter Meta+Enter" + (options.cancel ? " Escape" : ""));
+    element.addEventListener("keydown", event => {
+      if (event.isComposing || event.defaultPrevented || event.repeat) return;
+      if (event.key === "Enter" && (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey) { event.preventDefault(); options.submit(); }
+      else if (event.key === "Escape" && options.cancel) { event.preventDefault(); options.cancel(); }
+    }, { signal });
+    signal.addEventListener("abort", () => element.removeAttribute("aria-keyshortcuts"), { once: true });
+  },
 };
+
+/** Writes $text to the clipboard: the async Clipboard API, else a hidden textarea and `execCommand("copy")`. */
+export async function copyText(text: string): Promise<boolean> {
+  try { await navigator.clipboard.writeText(text); return true; } catch { /* fall back */ }
+  const area = document.createElement("textarea"), focus = document.activeElement as HTMLElement | null;
+  area.value = text; area.setAttribute("readonly", ""); area.style.cssText = "position:fixed;left:-9999px;top:0;opacity:0";
+  document.body.append(area); area.select();
+  try { return document.execCommand("copy"); } catch { return false; } finally { area.remove(); focus?.focus?.(); }
+}

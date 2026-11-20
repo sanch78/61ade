@@ -81,7 +81,10 @@ test('1366 px: the inner lines move both neighbours, the sizes come back after a
  const seen=watch(page);
  await page.setViewportSize({width:1366,height:800});await signIn(page);
  await browser(page);await select(page);
- const picture=region(page,'image').getByRole('img').first(),before=await box(picture);
+ // The image loads after the selection; take its starting size once it is fitted.
+ const picture=region(page,'image').getByRole('img').first();
+ await expect.poll(async()=>(await box(picture)).height).toBeGreaterThan(0);
+ const before=await box(picture);
  await drag(page,'x',80);
  await drag(page,'y',-100);
  let now=await sizes(page);

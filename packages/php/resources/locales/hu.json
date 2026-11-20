@@ -769,5 +769,16 @@
   "Törölve:": "Törölve:",
   "Hozzáadva:": "Hozzáadva:",
   "Hely": "Hely",
-  "További szintek": "További szintek"
+  "További szintek": "További szintek",
+  "Másolva.": "Másolva.",
+  "{label} másolva.": "{label} másolva.",
+  "A másolás nem sikerült.": "A másolás nem sikerült.",
+  "várakozik": "várakozik",
+  "folyamatban": "folyamatban",
+  "kész": "kész",
+  "sikertelen": "sikertelen",
+  "Sikertelen feltöltés.": "Sikertelen feltöltés.",
+  "Csatolva: {name}": "Csatolva: {name}",
+  "A fájl már a feltöltési sorban van.": "A fájl már a feltöltési sorban van.",
+  "{name} eltávolítása": "{name} eltávolítása"
 }

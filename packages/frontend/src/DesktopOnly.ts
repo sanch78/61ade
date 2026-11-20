@@ -1,9 +1,7 @@
 import { Layout } from "@dhtmlx/suite";
 import { t } from "./I18n";
 import { noticeMarkup } from "./MessageDialog";
-
-/** Same narrow-screen breakpoint as the toolbars, grids and workspaces. */
-const NARROW=768;
+import { narrow as narrowViewport, onViewport } from "./Viewport";
 
 /**
  * View option `desktopOnly`: below the breakpoint the view is not shown and a centred notice
@@ -18,12 +16,13 @@ export class DesktopOnly {
   constructor(title:string){
     this.layout=new Layout(document.createElement("div"),{type:"none",rows:[{id:"notice",css:"blade-desktop-only"},{id:"view"}]});
     this.layout.getCell("notice").attachHTML(noticeMarkup({title,message:t("Csak desktop környezetben elérhető funkció.")}));
-    window.addEventListener("resize",()=>this.apply(),{signal:this.listeners.signal});
+    // The breakpoint shared with the toolbars, grids and workspaces.
+    onViewport(()=>this.apply(),this.listeners.signal);
     this.apply();
   }
   get cell(){return this.layout.getCell("view");}
   private apply():void{
-    const narrow=innerWidth<NARROW;
+    const narrow=narrowViewport();
     if(narrow===this.narrow)return;
     this.narrow=narrow;
     // Cell configuration rather than DOM classes, so Layout keeps it on every repaint.

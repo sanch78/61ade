@@ -49,9 +49,14 @@ export function failure(status: number, result: { error?: unknown; fieldErrors?:
     { status, fieldErrors, ...(result.details !== undefined ? { details: result.details } : {}) });
 }
 
-/** `post` with the network error mapped to a status 0 failure; the platform `AbortError` passes through. */
+/** `request` with `version`: a GET of the `Server.url` address (a field-free `get: true` action, cacheable). */
+const get = (resource: string, action: string, options: CallOptions): Promise<Response> =>
+  fetch(actionUrl(resource, action, options.id!, options.version), { credentials: "same-origin", signal: options.signal })
+    .then(response => { if (response.status === 401) ended?.(); return response; });
+
+/** `post` (or `get`) with the network error mapped to a status 0 failure; the platform `AbortError` passes through. */
 async function send(resource: string, action: string, options: CallOptions): Promise<Response> {
-  try { return await post(resource, action, options); }
+  try { return await (options.version === undefined ? post(resource, action, options) : get(resource, action, options)); }
   catch (error) { if (options.signal?.aborted || (error as Error)?.name === "AbortError") throw error; throw failure(0); }
 }
 
@@ -74,10 +79,21 @@ async function request(resource: string, action: string, options: CallOptions = 
   throw failure(response.status, await response.json().catch(() => ({})));
 }
 
+/** `CallOptions.version` belongs to `request` alone. */
+const unversioned = (options: object | undefined, member: string): void => {
+  if ((options as { version?: unknown } | undefined)?.version !== undefined) throw new TypeError(`61ade: ${member} takes no \`version\` (server.request only).`);
+};
+
 /** `Application.server`. */
 export const server: Server = {
-  call,
-  request,
-  form: (resource, operation, id = null, options) => call<FormDescription>(resource, "__form", { id, values: { operation }, signal: signalOf(options, "server.form") }),
+  call: <T = unknown>(resource: string, action: string, options?: CallOptions) => { unversioned(options, "server.call"); return call<T>(resource, action, options); },
+  request(resource, action, options) {
+    // A GET carries the id and the cache key in its URL, nothing else.
+    const version = options?.version;
+    if (version !== undefined && (typeof version !== "string" || !version || typeof options!.id !== "string" || !options!.id || options!.values !== undefined || options!.parts !== undefined))
+      throw new TypeError("61ade: server.request `version` is a non-empty string and needs an `id`, without `values` or `parts`.");
+    return request(resource, action, options);
+  },
+  form: (resource, operation, id = null, options) => { unversioned(options, "server.form"); return call<FormDescription>(resource, "__form", { id, values: { operation }, signal: signalOf(options, "server.form") }); },
   url: actionUrl,
 };

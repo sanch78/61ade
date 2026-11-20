@@ -46,14 +46,18 @@ async function list(page,directory){return (await api(page,'files','list',direct
 /** A fresh folder at the Drive A root, opened in the left panel. */
 async function folder(page,name){
  const created=await api(page,'files','create_directory',await rootOf(page,'a'),{name});expect(created.status).toBe(200);
- const left=panel(page,0);
  await panel(page,0).locator('[data-dhx-id="mount"]').click();await page.getByRole('menuitem',{name:'Drive B',exact:true}).click();
  await panel(page,0).locator('[data-dhx-id="mount"]').click();await page.getByRole('menuitem',{name:'Drive A',exact:true}).click();
- // The root fills up with this run's folders (removed after all tests): scroll the virtual grid to the new row.
+ await openFolder(page,name);
+ return String(created.body.data.id);
+}
+/** Opens folder $name of the Drive A root shown in the left panel. */
+async function openFolder(page,name){
+ const left=panel(page,0);
+ // The root fills up with this run's folders (removed after all tests): scroll the virtual grid to the row.
  await expect(left.locator('.dhx_grid-row').first()).toBeVisible();await left.locator('.dhx_grid').first().hover();
  for(let i=0;i<20&&!await row(left,name).count();i++)await page.mouse.wheel(0,200);
  await row(left,name).dblclick();await expect(heading(left)).toHaveText('Drive A:/'+name);
- return String(created.body.data.id);
 }
 async function openUploader(page){
  await command(page,'Feltöltés');
@@ -293,7 +297,7 @@ test('an interrupted upload resumes after reload from the server offset',async({
  await page.reload();
  await page.unrouteAll({behavior:'ignoreErrors'});
  await expect(panel(page,0).locator('.dhx_grid-row, .blade-grid-card').first()).toBeVisible();
- await row(panel(page,0),prefix+'-resume').dblclick();await expect(heading(panel(page,0))).toHaveText('Drive A:/'+prefix+'-resume');
+ await openFolder(page,prefix+'-resume');
  const ops=await record(page);
  await openUploader(page);
  await expect(state(page,name)).toContainText('Megszakadt');
@@ -326,7 +330,7 @@ test('an interrupted file added for another target is queued afresh',async({page
  await page.reload();
  await page.unrouteAll({behavior:'ignoreErrors'});
  await expect(panel(page,0).locator('.dhx_grid-row, .blade-grid-card').first()).toBeVisible();
- await row(panel(page,0),prefix+'-elsewhere').dblclick();await expect(heading(panel(page,0))).toHaveText('Drive A:/'+prefix+'-elsewhere');
+ await openFolder(page,prefix+'-elsewhere');
  const ops=await record(page);
  await openUploader(page);
  await expect(state(page,name)).toContainText('Megszakadt');

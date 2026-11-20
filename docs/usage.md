@@ -388,7 +388,7 @@ Frontend acknowledge/requestConfirmation/showDialog come from
 MessageDialog.ts; actions use confirm, while successful action results and reveal
 secrets use a non-blocking toast. Destructive dialogs
 focus Cancel; Enter activates only focused button; Escape always cancels confirmation.
-Consumers cannot create their own modal. Demo: Tasks → Párbeszéd actions.
+Consumers cannot create their own modal; a blocking operation uses the [progress dialog](dialogs.md#progress). Demo: Tasks → Párbeszéd actions, `Ellenőrzés (demó)`.
 General rule: every framework `Window` is `modal: true`; while one is open the main layout behind the DHTMLX overlay is not operable. The one exception is the [view guide](workspaces.md#view-guide) (M34); a project's own `app.ui.window` may pass `modal: false`. Escape closes either kind while the focus is inside it ([FB-0155](feedback.md#fb-0155)), and the topmost modal window also while a non-modal one is open ([FB-0199](feedback.md#fb-0199)). A modal window makes the page behind it inert, keeps Tab inside it and returns the focus to its opener when it closes; an open popup inside it (a native popover, a `role="menu"`, an expanded `aria-haspopup` trigger, or one that stops or cancels the key) takes the first Escape ([modal windows](toolkit.md#modal-windows), [FB-0201](feedback.md#fb-0201)).
 Actions without input fields run directly and acknowledge success with a
 non-blocking gritter/toast; a dialog is reserved for a justified confirmation
@@ -554,6 +554,28 @@ items (a history, a model picker) is a `popup` item, an `app.ui.menu` that the
 bar binds to its button and reports as `select {id, item}`. With
 `narrow: "icons"` the header keeps its commands as icons on a phone instead of
 moving them into `Műveletek` ([panel header](toolkit.md#commandbar-title)).
+Give every bar a `label` or a title: it names the bar's toolbar, so two bars of
+a page can be told apart. A bar in a plain element has the framework's
+command-row height; a project sets no bar height of its own.
+
+A page that needs another arrangement on a phone declares a
+[`narrow` tree](toolkit.md#pagelayout-narrow) on its `PageLayout`. Below
+768 px the regions are rearranged (columns into tabs or rows), and their
+content moves with them; `app.viewport.narrow` and `viewport:change` are the
+breakpoint for everything else. A project never runs a 767 px media query of
+its own ([FB-0250](feedback.md#fb-0250)).
+
+Further framework pieces a page uses instead of building its own
+([FB-0250](feedback.md#fb-0250)):
+- files attached to a message or request: [`Attachments`](toolkit.md#attachments);
+- one blocking operation: [`app.ui.progress`](dialogs.md#progress);
+- a job's phases: [`Steps`](toolkit.md#steps);
+- a window that must stay open: `closable: false`;
+- one object kept current: [`app.live.watch`](toolkit.md#record-watch) on a record resource, never a timer;
+- a cacheable GET action read in code: [`app.server.request(…, {id, version})`](toolkit.md#request-version);
+- a copy button: [`app.ui.copy`](toolkit.md#copy);
+- composer keys: [`app.ui.submitKeys`](toolkit.md#submit-keys) (framework forms already submit a textarea with Ctrl/Cmd+Enter);
+- recolouring panel headers and tab rows in a skin: [`--blade-panel-header` and `--blade-tab-row`](shell.md#panel-header-tokens).
 
 A page's own [`app.ui.window`](toolkit.md#app-window) closes on Escape while
 the focus is inside it, also with `modal: false`. Opened without a view's

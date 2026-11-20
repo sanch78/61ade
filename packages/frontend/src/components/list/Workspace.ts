@@ -27,6 +27,7 @@ import { DetailsWindow } from "./details";
 import { CellStatus } from "../CellStatus";
 import { ListActions, type ActionHost } from "./actions";
 import type { FieldDefinition, Region, ViewDefinition, WorkspaceHooks, WorkspaceScope } from "./types";
+import { narrow } from "../../Viewport";
 
 /** The history-state key of a list page left through a `page` navigation (Workspace.openPage). */
 const RETURN="blade.list.return";
@@ -402,7 +403,7 @@ export class Workspace implements ActionHost {
   }
   /** The full child view of one record (every action) in a modal window; full screen on a phone. */
   private openFull(child:ViewDefinition,field:string,id:string,caption:string,closed:()=>void):void{
-    const mobile=innerWidth<768;
+    const mobile=narrow();
     const dialog=new Window({css:"blade-feature-window",title:escape(child.title+" — "+caption),ariaLabel:child.title+" — "+caption,
       width:mobile?innerWidth:Math.min(1100,innerWidth-24),height:mobile?innerHeight:Math.min(720,innerHeight-24),modal:true,closable:true,resizable:!mobile,movable:!mobile});
     const full=new Workspace(document.createElement("div"),child,this.channel,this.user,{field,id,...(this.view.subview?.select===false?{select:false}:{})},{},{app:this.hooks.app,view:this.childView(),target:()=>this.reportTarget()});

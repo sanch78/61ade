@@ -96,7 +96,7 @@ const SETTLED: State[] = ["done", "skipped", "failed", "cancelled"];
 const PERMANENT = new Set(["too_large", "type", "content_mismatch", "conflict", "depth", "name", "quota"]);
 const IMAGE = /^image\/(png|jpeg|gif|webp)$/;
 
-const sizeLabel = (size: number) => size < 1024 ? t("{size} B", { size }) :
+export const sizeLabel = (size: number) => size < 1024 ? t("{size} B", { size }) :
   new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(size / (size < 1048576 ? 1024 : 1048576)) + (size < 1048576 ? " KB" : " MB");
 const percentLabel = (ratio: number) => new Intl.NumberFormat(locale(), { style: "percent", maximumFractionDigits: 0 }).format(ratio);
 /** Same icons and accessible names as the file manager listing. */

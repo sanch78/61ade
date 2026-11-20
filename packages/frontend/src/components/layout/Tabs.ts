@@ -11,6 +11,19 @@ let instances=0;
 /** The tab row is a panel header: the height of a Suite Layout cell header in every skin. */
 const ROW=37;
 
+/**
+ * A region a `PageLayout` with a `narrow` tree keeps across its arrangements: its content cell, placeholder and the
+ * owner of attached elements are the page's, so the tab or section only frames it (framework-internal).
+ */
+export type HeldRegion={cell:LayoutCell;status:CellStatus;signal:AbortSignal};
+/** What a `PageLayout` hands the `Tabs` and `Accordion` of its branches (framework-internal). */
+export type Framed={
+  /** The preference key, the page's own (`id.tabs-1`, below 768 px `id:narrow.tabs-1`): not a public id. */
+  key:string;
+  /** With `narrow`: the regions the page keeps across its arrangements. */
+  held?:(id:string)=>HeldRegion|undefined;
+};
+
 /** Checks the declared tabs (1–12, unique ids `[a-z][a-z0-9_-]*`, plain-text labels of 1–80 characters); throws `TypeError`. */
 export function checkTabs(tabs:unknown,owner="Tabs"):TabDefinition[]{
   const fail=(reason:string):never=>{throw new TypeError(`61ade: ${owner}: ${reason}.`);};
@@ -51,7 +64,8 @@ export class Tabs extends Component<TabsEvents> implements TabsApi{
   private observer?:MutationObserver;
   /** Each tab's placeholder while it holds nothing. */
   private statuses=new Map<string,CellStatus>();
-  constructor(context:{user:string},private options:TabsOptions){
+  private held?:(id:string)=>HeldRegion|undefined;
+  constructor(context:{user:string},private options:TabsOptions,framed?:Framed){
     super(options);
     this.tabs=checkTabs(options?.tabs);
     if(options.id!==undefined&&(typeof options.id!=="string"||!/^[a-z][a-z0-9_.-]*$/.test(options.id)))throw new TypeError("61ade: Tabs: id is the preference key ([a-z][a-z0-9_.-]*).");
@@ -60,7 +74,9 @@ export class Tabs extends Component<TabsEvents> implements TabsApi{
     if(options.active!==undefined&&!enabled.includes(options.active))throw new TypeError(`61ade: Tabs: active tab "${String(options.active)}" is not an enabled tab.`);
     // Suite writes the tab id into global DOM ids (`tab-content-<id>`): each instance gets its own prefix.
     this.prefix=`blade-tab${++instances}-`;
-    if(options.id)this.preferences=new UiPreferences(context.user,options.id);
+    this.held=framed?.held;
+    const key=framed?.key??options.id;
+    if(key)this.preferences=new UiPreferences(context.user,key);
     const remembered=this.preferences?.tab();
     const active=options.active??(remembered&&enabled.includes(remembered)?remembered:enabled[0]);
     this.layout=new Layout(this.host,{type:"none",css:"blade-tabs",rows:[{id:this.prefix+"row",height:ROW,css:"blade-tabs__row"},
@@ -69,7 +85,7 @@ export class Tabs extends Component<TabsEvents> implements TabsApi{
       disabled:this.tabs.filter(tab=>tab.disabled).map(tab=>this.cellId(tab.id)),
       views:this.tabs.map(tab=>({id:this.cellId(tab.id),tab:tab.label}))} as any);
     this.layout.getCell(this.prefix+"row").attach(this.tabbar);
-    for(const tab of this.tabs)this.statuses.set(tab.id,regionStatus(this.layout.getCell(this.cellId(tab.id))));
+    for(const tab of this.tabs)if(!this.held?.(tab.id))this.statuses.set(tab.id,regionStatus(this.layout.getCell(this.cellId(tab.id))));
     this.tabbar.events.on("beforeChange",(to:string,from:string)=>this.beforeChange(this.tabId(to),this.tabId(from)));
     this.tabbar.events.on("change",(to:string,from:string)=>{
       const id=this.tabId(to),previous=this.tabId(from);
@@ -145,13 +161,17 @@ export class Tabs extends Component<TabsEvents> implements TabsApi{
     }
   }
   /** The cell of a tab, a mount target of every component; an undeclared id throws `Error`. */
-  cell(id:string):LayoutCell{this.known(id);return this.layout.getCell(this.cellId(id));}
+  cell(id:string):LayoutCell{this.known(id);return this.held?.(id)?.cell??this.panel(id);}
+  /** The tab's own Layout cell (a held region's frame). */
+  panel(id:string):LayoutCell{return this.layout.getCell(this.cellId(id));}
+  /** The button of tab $id (where a `PageLayout` puts the focus after a switch). */
+  control(id:string):HTMLElement|null{return document.getElementById("tab-content-"+this.cellId(id));}
   /** Puts a Suite widget, a public component or a plain element into a tab (released with the tabs). */
-  attach(id:string,content:Mountable):void{if(!this.destroyed)attachContent(this.cell(id),content,this.released.signal);}
+  attach(id:string,content:Mountable):void{if(!this.destroyed)attachContent(this.cell(id),content,this.held?.(id)?.signal??this.released.signal);}
   /** What a tab without content shows: the default text, its own text or the loading indicator. */
-  placeholder(id:string,options:RegionPlaceholder):void{this.known(id);if(!this.destroyed)applyPlaceholder("Tabs",this.statuses.get(id)!,options);}
+  placeholder(id:string,options:RegionPlaceholder):void{this.known(id);if(!this.destroyed)applyPlaceholder("Tabs",this.held?.(id)?.status??this.statuses.get(id)!,options);}
   /** Marks a tab whose content is about to change or ends the mark (as `PageLayout.busy`). */
-  busy(id:string,on:boolean):void{this.known(id);if(!this.destroyed)hold("Tabs",this.statuses.get(id)!,on);}
+  busy(id:string,on:boolean):void{this.known(id);if(!this.destroyed)hold("Tabs",this.held?.(id)?.status??this.statuses.get(id)!,on);}
   /** The active tab's id. */
   active():string{return this.tabId(this.tabbar.getActive());}
   /**

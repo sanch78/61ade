@@ -54,8 +54,9 @@ function pump(){
  }
 }
 const check=request=>new Promise((resolve,reject)=>{checks.push({request,resolve,reject});pump();});
-// A list window's row count as the bridge reads it (ListSource: default 100, at most 600 in watch mode).
-const rows=query=>Number.isSafeInteger(query.limit)?Math.min(600,Math.max(1,query.limit)):100;
+// A subscription's row count as the bridge reads it: a list window (ListSource: default 100, at most 600 in watch
+// mode) or one record (`{record: id}`, live.watch).
+const rows=query=>typeof query.record==='string'?1:Number.isSafeInteger(query.limit)?Math.min(600,Math.max(1,query.limit)):100;
 wss.on('connection',(ws,req)=>{
  // The bridge picks the application from the path (LiveConfig applications).
  const path=new URL(req.url,'http://localhost').pathname;

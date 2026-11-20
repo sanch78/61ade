@@ -1,0 +1,12 @@
+/* Steps (docs/toolkit.md#steps) and the progress dialog (docs/dialogs.md#progress). */
+.blade-steps { margin: 0; padding: 4px 0; list-style: none; }
+.blade-steps__item { display: flex; align-items: flex-start; gap: 8px; padding: 4px 0; color: var(--dhx-font-color-secondary); line-height: 20px; }
+.blade-steps__item > .bi { flex: none; font-size: 16px; line-height: 20px; }
+.blade-steps__item--current { color: var(--dhx-font-color-primary); font-weight: 600; }
+.blade-steps__item--current > .bi { color: var(--dhx-color-primary); }
+.blade-steps__item--done > .bi { color: var(--dhx-color-success); }
+.blade-steps__item--failed { color: var(--dhx-color-danger); }
+.blade-steps__label { min-width: 0; overflow-wrap: anywhere; }
+.blade-progress { display: flex; flex-direction: column; gap: 12px; padding: 16px; outline: none; }
+.blade-progress__message { margin: 0; overflow-wrap: anywhere; }
+.blade-progress__bar { width: 100%; height: 8px; accent-color: var(--dhx-color-primary); }

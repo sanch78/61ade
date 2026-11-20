@@ -4,6 +4,7 @@ import { Form, Window, awaitRedraw, type Layout } from "@dhtmlx/suite";
 import type { ResponsiveToolbar } from "../../ResponsiveToolbar";
 import { input } from "./fields";
 import type { FieldDefinition, ViewDefinition } from "./types";
+import { narrow } from "../../Viewport";
 
 /** Select and checkbox filters carry `eq:<value>` in the form: the empty choice is "any", `eq:` a declared empty option. */
 const choice=(filter:FieldDefinition)=>["select","checkbox"].includes(filter.type);
@@ -42,7 +43,7 @@ export class ListFilters{
   /** Narrow screens move the panel into the dialog (the panel's visibility is restored on a wide screen). */
   fit():void{
     if(!this.layout)return;
-    const mobile=innerWidth<768;
+    const mobile=narrow();
     if(mobile)this.commands.show("blade-filter");else this.commands.hide("blade-filter");
     if(mobile===this.mobile)return;
     this.mobile=mobile;

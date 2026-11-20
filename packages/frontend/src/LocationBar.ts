@@ -2,12 +2,12 @@ import { t } from "./I18n";
 import { popupMenu } from "./PopupMenu";
 import type { PopupMenu } from "./api/types";
 import "./location-bar.css";
+import { BREAKPOINT } from "./Viewport";
 
 /** One drawn level: a link (`href`), a button for a place inside the page (`select`) or plain text; the last is current. */
 export type Place = { label: string; icon?: string; href?: string; select?: () => void };
 
 /** Below this bar width only the parent and the current level show (docs/shell.md#location-bar). */
-const PHONE = 768;
 
 /**
  * The shell's location bar below the menu row (docs/shell.md#location-bar): `<nav>` named `Hely` with an ordered list
@@ -78,7 +78,7 @@ export class LocationBar {
     const width = this.element.clientWidth, last = this.places.length - 1;
     if (last < 0) { if (this.state !== "empty") { this.state = "empty"; this.draw([], false); } return; }
     if (!width) return;
-    const phone = width < PHONE, hidden: number[] = [];
+    const phone = width < BREAKPOINT, hidden: number[] = [];
     if (phone) for (let index = 0; index < last - 1; index++) hidden.push(index);
     else {
       if (!this.widths.length) this.measure();

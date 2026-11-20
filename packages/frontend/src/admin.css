@@ -84,6 +84,8 @@ body,
 :is(.blade-page-layout.dhx_layout-line, .blade-page-layout .dhx_layout-line) > .dhx_layout-resizer > .dhx_layout-resizer__icon:hover {
   color: var(--dhx-color-primary);
 }
+/* Panel headers: the public --blade-panel-header (Blade: the chrome; Generic: Suite's surface). */
+.dhx_layout-cell-header { background: var(--blade-panel-header, var(--dhx-background-primary)); }
 /* A headed inner region (`PageRegion.header` in `inner`, FB-0227): a frameless one-line title with a pill count badge
    over a line; the body below is the region's content and scrolls on its own. */
 .blade-inner-region__header .blade-view-slot { height: auto; overflow: visible; }
@@ -268,6 +270,11 @@ body,
 
 /* Cells, not the scrolling content, own toolbar dimensions and stacking. */
 .blade-command-row { overflow: hidden; position: relative; z-index: 1; }
+/* The standard command-row height (the framework's 48px command cells); a CommandBar mounted into an element without
+   its own height takes it, a Layout cell, window or view keeps deciding. */
+:root { --blade-command-bar-height: 48px; }
+.blade-command-bar { display: flex; flex-direction: column; min-height: var(--blade-command-bar-height); }
+.blade-command-bar > .dhx_layout { flex: 1 1 auto; min-height: 0; }
 .blade-navigation-row .dhx_menu-nav { height: 100%; box-sizing: border-box; padding-top: 0; padding-bottom: 0; align-items: center; }
 /* An icon-only CommandBar button: the label stays as hidden text (accessible name; shown again in the collapsed menu). */
 .dhx_toolbar-button.blade-command--icon > .dhx_toolbar-button__text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
@@ -371,7 +378,7 @@ body,
 .blade-tabs__row { overflow: hidden; }
 .blade-tabs__row .dhx_tabbar {
   height: 100%;
-  background-color: transparent;
+  background: var(--blade-tab-row, transparent);
 }
 .blade-tabs__row .dhx_tabbar-header-active { display: none; }
 .blade-tabs__row :is(.dhx_tabbar-header__wrapper, .dhx_tabbar-header) { height: 100%; }

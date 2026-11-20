@@ -10,7 +10,7 @@ import { ResponsiveToolbar } from "./ResponsiveToolbar";
 import { uploads, type UploadIndicator } from "./Uploader";
 import { configureServer, server } from "./api/Server";
 import { configureWindowSizing } from "./WindowSizing";
-import { attachContent, nonModalOpen, openWindow, themeApplied } from "./api/services";
+import { attachContent, nonModalOpen, openWindow, themeApplied, workspaceBox } from "./api/services";
 import type { AppWindow, LocationSegment, NavigationTarget, Row, ViewDefinition, ViewHost, ViewInstance, ViewOpenMode } from "./api/types";
 import { createApplication, loadModules, type Kernel } from "./app/Application";
 import { TreeCache } from "./components/list/TreeCache";
@@ -19,6 +19,7 @@ import { loadSignInModules, signInApplication, signInThemeApplied } from "./Sign
 import { brandLogo } from "./BrandLogo";
 import { LocationBar, type Place } from "./LocationBar";
 import type { SignInPage } from "./api/sign-in";
+import { BREAKPOINT, narrow } from "./Viewport";
 
 /** One open view: the workspace page or a document window, with the signal its host aborts on close. */
 type Mounted = { view: ViewDefinition; record?: string; open: ViewOpenMode; controller: AbortController; instance?: ViewInstance; wrapper?: DesktopOnly; window?: AppWindow;
@@ -238,7 +239,7 @@ export class AdminShell {
     const commands=(iconOnly=false)=>(this.definition.menuCommands??[]).map(command=>({command,width:commandWidth(command,iconOnly),value:command.label}));
     // The full menu wins over the command's label: it keeps its entries with icon-only commands before it collapses.
     const full=(iconOnly:boolean)=>required([...this.menuItems,...commands(iconOnly)]);
-    const compact = width < Math.max(768,full(true));
+    const compact = width < Math.max(BREAKPOINT,full(true));
     if(this.menuFull===compact){this.menuFull=!compact;if(this.page&&this.alone(this.page))this.locate();}
     const route=parseRoute(location.hash),view=this.navigable(route.view??""),page=this.page;
     // A record page stands in the menu for its topmost parent record actually resolved (none yet: for itself).
@@ -251,7 +252,7 @@ export class AdminShell {
         if(found)return found;
       }
     };
-    let context=compact&&width>=768?siblings(this.menuItems)??[]:[];
+    let context=compact&&width>=BREAKPOINT?siblings(this.menuItems)??[]:[];
     const row=(iconOnly:boolean)=>[this.mainMenu(),...commands(iconOnly),...context];
     const fits=(iconOnly:boolean)=>required(row(iconOnly),false)+(context.length?17:0)<=width;
     // Collapsed, the navigation keeps priority too: the commands' labels yield before the siblings.
@@ -943,9 +944,9 @@ export class AdminShell {
     const view=mounted.view,signal=mounted.controller.signal;
     if(!view.guide||signal.aborted)return;
     this.guideWindow?.close();
-    const width=Math.min(420,innerWidth-24),height=Math.min(340,innerHeight-24);
+    const area=workspaceBox(),width=Math.min(420,area.width),height=Math.min(340,area.height);
     const win=this.guideWindow=openWindow({title:t("Útmutató")+": "+view.title,css:"blade-content-window blade-guide-window",width,height,modal:false,fit:false,signal});
-    if(innerWidth>=768)win.window.setPosition(Math.max(12,innerWidth-width-16),Math.max(12,innerHeight-height-48));
+    if(!narrow())win.window.setPosition(Math.max(area.left,area.left+area.width-width-16),Math.max(area.top,area.top+area.height-height-16));
     const body=document.createElement("div");body.className="blade-view-guide";
     for(const paragraph of view.guide.split(/\n\s*\n/)){
       if(!paragraph.trim())continue;

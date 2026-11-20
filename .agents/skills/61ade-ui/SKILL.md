@@ -148,8 +148,10 @@ tree as decoration for a flat list.
   cell (`Tabs.attach` or `PageLayout.attach` for a tab). The command row fills
   the width and meets the tab header without an outer inset or gap; the
   native toolbar keeps its own button inset, divider and shadow.
-- Give the command row its own height (the current recipe uses 48 px) and
-  put the content in the remaining row. Any content padding, framed panel
+- Give the command row its own Layout row of the standard height
+  (`--blade-command-bar-height`, 48 px; a bar mounted into a plain element
+  gets it by itself) and put the content in the remaining row. Never set a
+  bar height of a project's own. Any content padding, framed panel
   layout or scrolling belongs below the bar. Do not wrap the whole pair in
   a padded element or another `space`/one-region `PageLayout` just to host
   the commands, and do not move the bar into place with CSS.
@@ -177,6 +179,20 @@ tree as decoration for a flat list.
   The labels are the project's own words
   ([panel header](../../../docs/toolkit.md#commandbar-title),
   [FB-0248](../../../docs/feedback.md#fb-0248)).
+- Every bar carries a `label` or a title: it is the toolbar's accessible
+  name, so a page's bars can be told apart (`getByRole("toolbar", {name})`
+  in specs; [FB-0251](../../../docs/feedback.md#fb-0251)).
+
+### Phone arrangement
+
+- A page whose regions sit side by side declares the phone arrangement as
+  the `PageLayout` `narrow` tree (the same leaf regions as tabs or rows).
+  Never run a 767 px `matchMedia` and rebuild the page; the framework moves
+  the content and keeps its state, and each arrangement keeps its sizes.
+  Rebind `tabsOf` on `variant`. Other width-dependent code reads
+  `app.viewport.narrow` and `viewport:change`
+  ([narrow tree](../../../docs/toolkit.md#pagelayout-narrow),
+  [FB-0250](../../../docs/feedback.md#fb-0250)).
 
 ## Grid rules
 
@@ -432,6 +448,20 @@ tree as decoration for a flat list.
 - Localize all visible text and accessible descriptions; theme colors and focus
   indicators through the existing token system. Never use a glyph, color, or
   hover affordance as the only meaning.
+
+### Framework pieces before own widgets
+
+- These framework pieces replace a project's own widget
+  ([FB-0250](../../../docs/feedback.md#fb-0250)):
+  - files attached to something being written: `Attachments`, not chips over `upload:*` events or a submenu;
+  - one blocking operation: `app.ui.progress`, not a window without its close button, `progressShow()` or an own `beforeunload`;
+  - phases: `Steps`, not a `dhx.List`;
+  - a value that must stay current: `app.live.watch` on a record resource, not a timer;
+  - a copy button: `app.ui.copy`;
+  - a composer: `app.ui.submitKeys`;
+  - a non-modal window: stays below the menu row by itself.
+- Skins recolour panel headers and tab rows with `--blade-panel-header` and
+  `--blade-tab-row`, never by painting Suite classes.
 
 ## Implementation and verification loop
 

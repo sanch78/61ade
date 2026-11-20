@@ -5,6 +5,7 @@ import { attachContent } from "../../api/services";
 import { UiPreferences } from "../../UiPreferences";
 import { resizeMotion } from "../../Motion";
 import { Component } from "../list/component";
+import type { Framed, HeldRegion } from "./Tabs";
 
 const SECTION=/^[a-z][a-z0-9_-]{0,63}$/;
 const KEYS=new Set(["id","label","disabled"]);
@@ -48,7 +49,8 @@ export class Accordion extends Component<AccordionEvents> implements AccordionAp
   private observer?:MutationObserver;
   /** Each section's placeholder while it holds nothing. */
   private statuses=new Map<string,CellStatus>();
-  constructor(context:{user:string},options:AccordionOptions){
+  private held?:(id:string)=>HeldRegion|undefined;
+  constructor(context:{user:string},options:AccordionOptions,framed?:Framed){
     super(options);
     this.sections=checkSections(options?.sections);
     if(options.id!==undefined&&(typeof options.id!=="string"||!/^[a-z][a-z0-9_.-]*$/.test(options.id)))throw new TypeError("61ade: Accordion: id is the preference key ([a-z][a-z0-9_.-]*).");
@@ -61,14 +63,16 @@ export class Accordion extends Component<AccordionEvents> implements AccordionAp
       if(!this.multiple&&open.length!==1)throw new TypeError("61ade: Accordion: without multiple, open names exactly one section.");
     }
     this.prefix=`blade-accordion${++instances}-`;
-    if(options.id)this.preferences=new UiPreferences(context.user,options.id);
+    this.held=framed?.held;
+    const key=framed?.key??options.id;
+    if(key)this.preferences=new UiPreferences(context.user,key);
     const remembered=this.preferences?.sections()?.filter(id=>enabled.includes(id));
     let open=options.open??remembered??[enabled[0]];
     if(!this.multiple)open=[open[0]??enabled[0]];
     this.opened=new Set(open);
     this.layout=new Layout(this.host,{type:"none",css:"blade-accordion",
       rows:this.sections.map(section=>({id:this.cellId(section.id),header:section.label,css:this.sectionCss(section.id)}))} as any);
-    for(const section of this.sections)this.statuses.set(section.id,regionStatus(this.layout.getCell(this.cellId(section.id))));
+    for(const section of this.sections)if(!this.held?.(section.id))this.statuses.set(section.id,regionStatus(this.layout.getCell(this.cellId(section.id))));
     this.bind(options.signal);
   }
   private sectionCss(id:string):string{return "blade-accordion__section"+(this.opened.has(id)?" blade-accordion__section--open":" blade-accordion__section--closed");}
@@ -156,13 +160,17 @@ export class Accordion extends Component<AccordionEvents> implements AccordionAp
     void awaitRedraw().then(()=>{if(!this.destroyed)this.roles();});
   }
   /** The cell of a section, a mount target of every component; an undeclared id throws `Error`. */
-  cell(id:string):LayoutCell{this.known(id);return this.layout.getCell(this.cellId(id));}
+  cell(id:string):LayoutCell{this.known(id);return this.held?.(id)?.cell??this.panel(id);}
+  /** The section's own Layout cell (a held region's frame). */
+  panel(id:string):LayoutCell{return this.layout.getCell(this.cellId(id));}
+  /** The header of section $id (where a `PageLayout` puts the focus after a switch). */
+  control(id:string):HTMLElement|null{return (this.layout.getRootNode() as HTMLElement|null|undefined)?.querySelector<HTMLElement>(`[data-cell-id="${this.cellId(id)}"] > .dhx_layout-cell-header`)??null;}
   /** Puts a Suite widget, a public component or a plain element into a section (released with the accordion). */
-  attach(id:string,content:Mountable):void{if(!this.destroyed)attachContent(this.cell(id),content,this.released.signal);}
+  attach(id:string,content:Mountable):void{if(!this.destroyed)attachContent(this.cell(id),content,this.held?.(id)?.signal??this.released.signal);}
   /** What a section without content shows: the default text, its own text or the loading indicator. */
-  placeholder(id:string,options:RegionPlaceholder):void{this.known(id);if(!this.destroyed)applyPlaceholder("Accordion",this.statuses.get(id)!,options);}
+  placeholder(id:string,options:RegionPlaceholder):void{this.known(id);if(!this.destroyed)applyPlaceholder("Accordion",this.held?.(id)?.status??this.statuses.get(id)!,options);}
   /** Marks a section whose content is about to change or ends the mark (as `PageLayout.busy`). */
-  busy(id:string,on:boolean):void{this.known(id);if(!this.destroyed)hold("Accordion",this.statuses.get(id)!,on);}
+  busy(id:string,on:boolean):void{this.known(id);if(!this.destroyed)hold("Accordion",this.held?.(id)?.status??this.statuses.get(id)!,on);}
   /** The open sections' ids in display order. */
   openSections():string[]{return this.sections.filter(section=>this.opened.has(section.id)).map(section=>section.id);}
   /** Whether section $id is open; an undeclared id throws `Error`. */

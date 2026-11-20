@@ -736,6 +736,23 @@ chrome only: typography, geometry, motion and the shared cyan/blue accents
 (`--blade-gradient`, the selection frame) are not part of it; see
 [customization limits](skinning.md#customization-limits).
 
+<a id="panel-header-tokens"></a>
+
+**Panel header and tab row** ([FB-0250](feedback.md#fb-0250)). Two
+properties are public in both families, for a skin on any base:
+
+| Property | Default | What it paints |
+| --- | --- | --- |
+| `--blade-panel-header` | Blade, Blade Night: `var(--blade-chrome)`; light, dark: `var(--dhx-background-primary)` | The header band of a framed Layout cell (`.dhx_layout-cell-header`), a `PageLayout` region's header included |
+| `--blade-tab-row` | the same as `--blade-panel-header` | The row behind the tabs of `Tabs` and of a `tabs` region |
+
+Override them under the skin's selector instead of painting Suite classes.
+The highlight line of the Blade chrome stays. Limits: a frameless
+`inner` region header does not use `--blade-panel-header`; in the Generic
+family closed tabs keep `--dhx-background-secondary`, so `--blade-tab-row`
+recolours only the space behind them, while in Blade it recolours the
+whole row.
+
 ```css
 /* skins/ember.css: a Blade Night child (base: 'blade-night'). */
 [data-blade-skin="ember"] {

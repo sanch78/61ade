@@ -9,6 +9,7 @@ import { extensions, fieldTypeOf } from "../../app/registries";
 import type { FieldMetadata, FormSections } from "../../api/types";
 import { calendarDate, conditionHolds, dateValue, fieldActive, fileDisplay, sectionReveal } from "../../FormValidation";
 import type { ActionDefinition, FieldDefinition } from "./types";
+import { narrow } from "../../Viewport";
 
 /** Form item factories and action helpers shared by the list, its forms and the public `RecordForm`. */
 export const escape=(s:unknown)=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]!));
@@ -160,7 +161,7 @@ export function formWindowWidth(fields:FieldDefinition[],min=560,host?:HTMLEleme
  */
 export function widenFormWindow(win:Window,fields:FieldDefinition[]):void{
   const host=win.getContainer(),dialog=host?.closest<HTMLElement>('[role="dialog"]');
-  if(!host||!dialog||innerWidth<768||!fields.some(rowKey))return;
+  if(!host||!dialog||narrow()||!fields.some(rowKey))return;
   const box=dialog.getBoundingClientRect(),width=formWindowWidth(fields,560,host);
   if(width<=Math.round(box.width))return;
   win.setSize(width,box.height);win.setPosition(Math.max(12,(innerWidth-width)/2),box.top);
@@ -497,6 +498,17 @@ export const formActions=(submit:{name:string;text:string;icon?:string;color?:st
     ...(cancel?[{type:"button",name:"cancel",text:t("Mégse"),icon:"bi bi-x-lg",view:"flat",color:"secondary",width:"content"}]:[]),
     {type:"button",...submit,width:"content"},
   ],
+});
+// Ctrl+Enter (Cmd+Enter on macOS) in a framework form's textarea presses that form's primary (last) action button,
+// so it validates and submits exactly as a click; nothing happens when the button is absent or disabled.
+if(typeof document!=="undefined")document.addEventListener("keydown",event=>{
+  const area=event.target;
+  if(event.key!=="Enter"||!(event.ctrlKey||event.metaKey)||event.altKey||event.shiftKey||event.isComposing||event.defaultPrevented||!(area instanceof HTMLTextAreaElement))return;
+  const buttons=area.closest(".dhx_form")?.querySelectorAll<HTMLButtonElement>(":scope > .blade-form-actions button"),button=buttons?.[buttons.length-1];
+  if(!button)return;
+  event.preventDefault();
+  // Suite takes a typed value on `change`; commit it first, as a click's blur would.
+  if(!button.disabled&&!button.closest("[inert]")){area.dispatchEvent(new Event("change",{bubbles:true}));button.click();}
 });
 /** Text of the shared error dialog: the field errors by label (from $fields), otherwise the message. */
 export const errorText=(e:unknown,fields:FieldDefinition[]):string=>e && typeof e==="object" && "fieldErrors" in e && Object.values((e as any).fieldErrors??{}).length

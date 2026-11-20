@@ -136,5 +136,29 @@ const tasks: ApplicationModule = app => {
       app.ui.toast(app.i18n.t("Vágólapra másolva: {count} feladat.", { count: targets.length }));
     },
   });
+
+  // `app.ui.progress` with steps: the read is a real server call, the two later phases are a simulated demo delay.
+  app.commands.register("demo.progress", {
+    label: "Ellenőrzés (demó)",
+    icon: "bi bi-list-check",
+    placement: "record",
+    enabled: ({ row }) => !!row,
+    run: async ({ app, view, row, signal }) => {
+      if (!row || !view.resource) return;
+      const t = app.i18n.t;
+      const progress = app.ui.progress({ title: t("Feladat ellenőrzése"), message: t("A feladat beolvasása…"), signal, steps: [
+        { id: "read", label: t("Beolvasás") }, { id: "check", label: t("Ellenőrzés (szimulált)") }, { id: "finish", label: t("Lezárás (szimulált)") },
+      ] });
+      const wait = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
+      try {
+        await app.server.call<Row>(view.resource, "get", { id: String(row.id), signal: progress.signal });
+        progress.step("check"); progress.message(t("Szimulált ellenőrzés…"));
+        for (let percent = 0; percent <= 100; percent += 25) { progress.percent(percent); await wait(300); }
+        progress.step("finish"); progress.percent(null); progress.message(t("Szimulált lezárás…"));
+        await wait(800);
+      } finally { progress.close(); }
+      if (!signal.aborted) app.ui.toast(t("Az ellenőrzés kész."));
+    },
+  });
 };
 export default tasks;

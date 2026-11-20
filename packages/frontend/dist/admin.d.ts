@@ -52,6 +52,8 @@ export interface Application {
     readonly preferences: Preferences;
     /** List subscriptions on the tab's one live channel. */
     readonly live: Live;
+    /** The page's one width breakpoint (768 px), the one the framework's own phone layout follows. */
+    readonly viewport: Viewport;
     /** Typed page-wide event bus. */
     readonly events: EventBus;
     /** The effective identity, signed in or public (presentation data only; never a permission source). */
@@ -126,6 +128,12 @@ export interface CallOptions {
         blob: Blob;
         name?: string;
     }[];
+    /**
+     * `Server.request` only: a cacheable GET of a field-free `get: true` action (the URL of `Server.url` with this cache
+     * key), with the same failures, 401 sign-out and abort as every call. Needs `id`; with `values` or `parts`, or on
+     * `call`, it throws `TypeError`.
+     */
+    version?: string;
 }
 /**
  * Rejection of `Server.call`/`Server.request`/`Server.form`: the server's `{ok: false, error, fieldErrors, details}`
@@ -265,6 +273,11 @@ export interface WindowOptions {
      * neither read nor write it. Without it the window opens at `width`/`height`, centred. An invalid id throws `TypeError`.
      */
     id?: string;
+    /**
+     * Default true. `false`: no close button, and neither Escape nor a header gesture closes the window; only `close()`
+     * and `signal` do (a window that must stay while an operation runs). A non-boolean throws `TypeError`.
+     */
+    closable?: boolean;
 }
 /**
  * A framework document window (`blade-content-window`: 40 px themed header, a close button named `Ablak bezárása`, Escape
@@ -326,6 +339,67 @@ export interface Ui {
      * `TypeError` (for an `items` function: at `open`). `destroy()` (or `signal`) closes it and restores the anchor.
      */
     menu(anchor: HTMLElement, options: PopupMenuOptions): PopupMenu;
+    /**
+     * A blocking progress dialog for one running operation (docs/dialogs.md#progress): modal, without a close button,
+     * Escape or backdrop close, and while it is open a tab close asks the browser's leave confirmation. It closes with
+     * `close()` or `signal`, never by the user. A malformed option throws `TypeError`.
+     */
+    progress(options: ProgressOptions): ProgressDialog;
+    /**
+     * Writes plain text to the clipboard and reports it with a toast (`Másolva.`, or a danger toast when the browser
+     * refuses); resolves whether it was copied. `label` names what was copied (`{label} másolva.`).
+     */
+    copy(text: string, options?: {
+        label?: string;
+    }): Promise<boolean>;
+    /**
+     * Binds the composer keys to a project's own text field: Ctrl+Enter (Cmd+Enter on macOS) runs `submit`, Escape runs
+     * `cancel` when given, and the element gets `aria-keyshortcuts`. Framework forms already submit a textarea this way.
+     * Released with `signal`; a missing signal or a non-element throws `TypeError`.
+     */
+    submitKeys(element: HTMLElement, options: SubmitKeysOptions): void;
+}
+/** Options of `Ui.submitKeys`. */
+export interface SubmitKeysOptions extends SignalOptions {
+    signal: AbortSignal;
+    submit(): void;
+    cancel?(): void;
+}
+/** One step of `Steps` and of a progress dialog: an id (`[a-z][a-z0-9_-]*`, unique) and a plain-text label. */
+export interface StepDefinition {
+    id: string;
+    /** 1–80 characters. */
+    label: string;
+}
+/** A step's state: before (`pending`), running (`current`, at most one), finished (`done`) or stopped (`failed`). */
+export type StepState = "pending" | "current" | "done" | "failed";
+/** Options of `Ui.progress`. */
+export interface ProgressOptions {
+    /** Plain text. */
+    title: string;
+    /** Plain text: what is running. */
+    message: string;
+    /** The phases (`Steps`), the first one current; without them the dialog shows its message only. */
+    steps?: StepDefinition[];
+    /** A determinate start value 0–100; default indeterminate. */
+    percent?: number;
+    /** Aborting it closes the dialog. */
+    signal?: AbortSignal;
+}
+/** Handle of `Ui.progress`, owned by the caller (usually closed in a `finally`). */
+export interface ProgressDialog {
+    /** Aborted when the dialog closes. */
+    readonly signal: AbortSignal;
+    /** Replaces the message (announced politely). */
+    message(text: string): void;
+    /** 0–100 shows a determinate bar; `null` an indeterminate one. */
+    percent(value: number | null): void;
+    /** Makes a step current (earlier ones done, later ones pending), as `Steps.current`. */
+    step(id: string): void;
+    /** Sets one step's state, as `Steps.state` (a `failed` step, for example). */
+    state(id: string, state: StepState): void;
+    /** Closes the dialog and releases the leave confirmation; idempotent. */
+    close(): void;
 }
 /** An entry of `app.ui.menu`. Labels and details are plain text (escaped). */
 export interface PopupMenuEntry {
@@ -531,7 +605,10 @@ export interface LiveHandlers {
     update(snapshot: Snapshot): void;
     /** Connection state text for the user (empty when healthy). */
     state?(text: string): void;
-    /** This subscription was refused (403/404/400/429); the channel stays open, loaded rows stay. */
+    /**
+     * This subscription was refused (403/404/400); the channel stays open, loaded rows stay. A 429 (too many
+     * subscriptions) only stops its live updates and does not call it.
+     */
     denied?(): void;
 }
 /** Handle of one subscription; owned by the caller, ended by `destroy()` or by the given signal. */
@@ -547,6 +624,28 @@ export interface Live {
      * `options.signal` aborts (pass `{ signal: host.signal }` so a closed view never leaks a subscription).
      */
     subscribe(resource: string, query: ListQuery, handlers: LiveHandlers, options?: SignalOptions): LiveSubscription;
+    /**
+     * Watches one record: `resource`'s `get` action for `id` (`"self"` for a singleton's), read again on the channel's
+     * schedule and re-authorized on every read; `update` receives the record whenever its answer changes (the first
+     * answer included). Ends with `destroy()` or `options.signal` (docs/toolkit.md#record-watch).
+     */
+    watch(resource: string, id: string, handlers: RecordLiveHandlers, options?: SignalOptions): {
+        destroy(): void;
+    };
+}
+/** Handlers of `Live.watch`. */
+export interface RecordLiveHandlers {
+    /** The record's current answer. Never called while the page is hidden. */
+    update(record: Row): void;
+    /** Connection state text for the user (empty when healthy). */
+    state?(text: string): void;
+    /** The watch was refused (403/404/400/429); the channel stays open. */
+    denied?(): void;
+}
+/** The page's width breakpoint (`Application.viewport`, docs/toolkit.md#viewport). */
+export interface Viewport {
+    /** Below 768 px (`(max-width: 767px)`): phone layout. Changes are reported as `viewport:change`. */
+    readonly narrow: boolean;
 }
 /**
  * Framework events. Projects add their own names (with a project prefix and a dot, e.g. `demo.scene-loaded`) by
@@ -602,6 +701,10 @@ export interface AppEvents {
     "sandbox:error": {
         message: string;
         code: SandboxErrorCode;
+    };
+    /** The viewport crossed 768 px (`Application.viewport`). */
+    "viewport:change": {
+        narrow: boolean;
     };
 }
 /**
@@ -2380,6 +2483,13 @@ export interface PageLayoutOptions extends ComponentOptions {
     tree: PageRegion;
     /** The guard of every `tabs` branch (`TabsOptions.guard`, with the region ids as `from` and `to`). */
     guard?: TabsOptions["guard"];
+    /**
+     * The tree below 768 px (docs/toolkit.md#pagelayout-narrow): the same leaf regions (ids) as `tree` in another
+     * arrangement, typically `tabs` or `rows` for side-by-side columns. Crossing the width rebuilds the panels in place and
+     * moves every region's content (components, widgets, elements) with its placeholder, busy mark and header; sizes are
+     * kept per arrangement. Another leaf set throws `TypeError`.
+     */
+    narrow?: PageRegion;
 }
 /** Events of `PageLayout`. */
 export interface PageLayoutEvents {
@@ -2390,6 +2500,10 @@ export interface PageLayoutEvents {
     collapse: {
         id: string;
         collapsed: boolean;
+    };
+    /** The layout switched between `tree` and `narrow` (its `Tabs`/`Accordion` are new: ask `tabsOf` again). */
+    variant: {
+        narrow: boolean;
     };
 }
 /**
@@ -2426,29 +2540,41 @@ export interface PageLayout extends Component<PageLayoutEvents> {
      * `TypeError`.
      */
     busy(id: string, on: boolean): void;
-    /** The `Tabs` of the `tabs` branch that holds region $id (to `select` it or follow `change`), else `undefined`. */
+    /**
+     * The `Tabs` of the `tabs` branch that holds region $id in the arrangement shown now (to `select` it or follow
+     * `change`), else `undefined`; after `variant` a new instance.
+     */
     tabsOf(id: string): Tabs | undefined;
-    /** The `Accordion` of the `accordion` branch that holds region $id (to `open` a section or follow `toggle`), else `undefined`. */
+    /**
+     * The `Accordion` of the `accordion` branch that holds region $id in the arrangement shown now (to `open` a section
+     * or follow `toggle`), else `undefined`; after `variant` a new instance.
+     */
     accordionOf(id: string): Accordion | undefined;
     /**
      * Changes the title (plain text, 1–150 characters) or the count (a non-negative integer; `null` hides the badge) of
-     * an `inner` region declared with a `header` (FB-0227), without rebuilding the layout; keys left out keep their
-     * value. An id without a header, a region holding an inner layout and an undeclared id throw `Error`, other changes
-     * `TypeError`.
+     * an `inner` region declared with a `header` (FB-0227; with `narrow`, in either tree: one title and count shown
+     * wherever the arrangement has the header), without rebuilding the layout; keys left out keep their value. An id
+     * without a header, a region holding an inner layout and an undeclared id throw `Error`, other changes `TypeError`.
      */
     header(id: string, changes: {
         label?: string;
         count?: number | null;
     }): void;
-    /** Whether a `collapsable` leaf (in a `rows`/`cols` branch) is collapsed; any other id throws `Error`. */
+    /**
+     * Whether a `collapsable` leaf (in a `rows`/`cols` branch) of the arrangement shown now is collapsed; any other id
+     * throws `Error`, with `narrow` also a leaf that is `collapsable` only in the other tree.
+     */
     isCollapsed(id: string): boolean;
     /**
-     * Collapses a `collapsable` leaf to its header, as its header click does, and returns `true`. Not kept: the user's
-     * own choice stays in `UiPreferences` and applies when the page is built again. Reports `collapse` when it changed.
+     * Collapses a `collapsable` leaf of the arrangement shown now (as `isCollapsed`) to its header, as its header click
+     * does, and returns `true`. Not kept: the user's own choice stays in `UiPreferences` and applies when the page is
+     * built again; a switch to the other arrangement does not carry it. Reports `collapse` when it changed.
      */
     collapse(id: string): boolean;
-    /** Expands a `collapsable` leaf (not kept, like `collapse`) and returns `false`. */
+    /** Expands a `collapsable` leaf of the arrangement shown now (not kept, like `collapse`) and returns `false`. */
     expand(id: string): boolean;
+    /** Whether the `narrow` tree is shown (false without one). */
+    readonly narrow: boolean;
 }
 /** One section of `Accordion`: an id (`[a-z][a-z0-9_-]*`, unique) and a plain-text label (escaped). */
 export interface AccordionSection {
@@ -2591,6 +2717,90 @@ export interface CommandBarEvents {
 }
 /** A component class bound to the application. */
 export type ComponentClass<Options, Instance> = new (options: Options) => Instance;
+/** One file of `Attachments`. */
+export interface AttachmentItem {
+    /** The upload action's id of a done file (`UploadResult.succeeded[].id`, or the given one); a local key before. */
+    id: string;
+    name: string;
+    /** Bytes; 0 when unknown (a given file). */
+    size: number;
+    status: "uploading" | "done" | "failed";
+    /** 0–100 while uploading. */
+    percent?: number;
+    /** A failed file's message (plain text). */
+    error?: string;
+}
+export interface AttachmentsOptions extends ComponentOptions {
+    /** The upload target (`Uploads.open` without files): files go through the page's one uploader in the background. */
+    upload: Pick<UploadOpenOptions, "resource" | "action" | "target" | "targetLabel" | "policy">;
+    /** The list's accessible name (plain text), such as `Csatolmányok`. */
+    label: string;
+    /** Files already attached (done). */
+    items?: {
+        id: string;
+        name: string;
+        size?: number;
+    }[];
+    /**
+     * Called before a done file leaves the list (the server-side discard); a rejection keeps it and shows its message.
+     * Failed files leave without it.
+     */
+    remove?(item: AttachmentItem): void | Promise<void>;
+    /** A thumbnail URL for a done file (for example `app.server.url(...)`), or `null` for the file type's icon. */
+    thumbnail?(item: AttachmentItem): string | null;
+}
+export interface AttachmentsEvents {
+    /** Files were added, progressed, finished, failed or left. */
+    change: {
+        items: AttachmentItem[];
+    };
+    /** A file left the list (its × button, Delete/Backspace, `remove`). */
+    remove: {
+        item: AttachmentItem;
+    };
+}
+/**
+ * The files attached to something being written (a message, a request): chips with name, progress and a remove
+ * button, over the page's one uploader (docs/toolkit.md#attachments). Delete or Backspace on a chip removes it.
+ */
+export interface Attachments extends Component<AttachmentsEvents> {
+    /** Queues files (a drop's DataTransfer: synchronously in the drop handler). */
+    add(files: File[] | FileList | DataTransfer): void;
+    /** Opens the browser's file chooser for the target's policy. */
+    choose(): void;
+    items(): AttachmentItem[];
+    /** The ids of the done files, in order (what a send passes on). */
+    ids(): string[];
+    /** A file is still uploading (a send waits). */
+    readonly pending: boolean;
+    /** Removes a file as its × button does; resolves whether it left. */
+    remove(id: string): Promise<boolean>;
+    /** Empties the list without `remove` (after a send). */
+    clear(): void;
+}
+export interface StepsOptions extends ComponentOptions {
+    /** 1–20 steps in order. */
+    steps: StepDefinition[];
+    /** The list's accessible name (plain text). */
+    label: string;
+    /** The current step at first; default none (every step pending). */
+    current?: string;
+}
+/**
+ * A phase list (docs/toolkit.md#steps): an ordered list whose steps show pending, current (`aria-current="step"`), done
+ * or failed by icon and text, not colour alone. Changes are announced politely.
+ */
+export interface Steps extends Component<Record<string, never>> {
+    /** Makes a step current: the earlier ones done, the later ones pending; `null` marks every step done. */
+    current(id: string | null): void;
+    /** Sets one step's state; an undeclared id throws `Error`. */
+    state(id: string, state: StepState): void;
+    /** The steps' states in order. */
+    states(): {
+        id: string;
+        state: StepState;
+    }[];
+}
 /** `Application.components`. Each class needs no shell internals beyond the `Application` it is bound to. */
 export interface Components {
     readonly ListView: ComponentClass<ListViewOptions, ListView>;
@@ -2609,6 +2819,8 @@ export interface Components {
     readonly PageLayout: ComponentClass<PageLayoutOptions, PageLayout>;
     readonly Tabs: ComponentClass<TabsOptions, Tabs>;
     readonly Accordion: ComponentClass<AccordionOptions, Accordion>;
+    readonly Attachments: ComponentClass<AttachmentsOptions, Attachments>;
+    readonly Steps: ComponentClass<StepsOptions, Steps>;
 }
 /**
  * Sign-in extension point (docs/shell.md#sign-in-modules): the restricted API a project's sign-in module receives on
