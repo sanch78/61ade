@@ -16,9 +16,9 @@ const findItem=(items:any[],id:string):any=>{
  * Native Toolbar dropdowns share the same item IDs, state and click events. Escape closes an open menu wherever the
  * focus is (Suite closes it only while the focus is inside the popup) and returns the focus to its toggle.
  *
- * Two item flags shape the two presentations: `bladeInline` (an item with `items`) shows its children in the bar
+ * Three item flags shape the two presentations: `bladeInline` (an item with `items`) shows its children in the bar
  * itself and becomes their submenu in the collapsed menu (a segmented choice); `bladePinned` keeps an item in the bar
- * beside the collapsed menu (a range).
+ * beside the collapsed menu (a range); `bladeLead` keeps it in the bar before the collapsed menu (a title).
  */
 export class ResponsiveToolbar extends Toolbar {
   private order:any[];
@@ -28,7 +28,7 @@ export class ResponsiveToolbar extends Toolbar {
   private fallbackMenus=new Set<Id>();
   private observer:ResizeObserver;
   private listeners=new AbortController();
-  constructor(element:HTMLElement|undefined,config:any,private collapse?:{id:string;value:string;icon:string;css?:string;availableWidth?:()=>number}){
+  constructor(element:HTMLElement|undefined,config:any,private collapse?:{id:string;value:string;icon:string;css?:string;availableWidth?:()=>number;narrow?:boolean}){
     super(element??document.createElement("div"),config);
     this.order=this.data.serialize().map((item:any)=>this.restoreItem(item,()=>undefined));
     this.observer=new ResizeObserver(()=>this.reflow());
@@ -136,9 +136,10 @@ export class ResponsiveToolbar extends Toolbar {
     // An icon-only button (`blade-command--icon`) and a separator take a fixed width, a range its minimum; a labelled
     // button grows with its text; an inline item takes its children's widths.
     const itemWidth=(item:any):number=>item.bladeInline?item.items.filter((child:any)=>!child.hidden).reduce((sum:number,child:any)=>sum+itemWidth(child),0)
-      :item.type==="separator"?12:String(item.css??"").includes("blade-command--range")?180:String(item.css??"").includes("blade-command--icon")?44:60+String(item.value??"").length*8;
+      :item.type==="separator"?12:String(item.css??"").includes("blade-command--range")?180:String(item.css??"").includes("blade-command--title")?96:String(item.css??"").includes("blade-command--icon")?44:60+String(item.value??"").length*8;
     const required=entries.filter(item=>!item.hidden&&item.type!=="spacer").reduce((sum,item)=>sum+itemWidth(item),16);
-    const compact=innerWidth<768||width<required;
+    // `narrow: false`: a narrow viewport alone does not collapse the bar (its items turned to icons instead).
+    const compact=(this.collapse?.narrow!==false&&innerWidth<768)||width<required;
     if(compact===this.compact&&this.prepared)return;
     this.prepared=true;
     this.compact=compact;
@@ -153,12 +154,12 @@ export class ResponsiveToolbar extends Toolbar {
     });
     const menu=this.collapse?.id??"blade-command-menu";
     // Suite types a submenu's children as menu entries; an inline item's children are bar buttons in the wide bar.
-    const shown=compact?entries.filter(item=>item.type!=="spacer"&&!item.bladePinned):entries.flatMap(item=>!item.bladeInline?[item]:item.hidden?[]:item.items.map(({type,...child}:any)=>({...child,...(item.disabled?{disabled:true}:{})})));
+    const shown=compact?entries.filter(item=>item.type!=="spacer"&&!item.bladePinned&&!item.bladeLead):entries.flatMap(item=>!item.bladeInline?[item]:item.hidden?[]:item.items.map(({type,...child}:any)=>({...child,...(item.disabled?{disabled:true}:{})})));
     const menuEntries=withBack(shown,menu);
     this.data.removeAll();
     // With every item pinned the collapsed bar has no menu. A pinned item keeps its side: a spacer before a pinned item stays.
     const pinned=entries.filter((item,index)=>item.bladePinned||(item.type==="spacer"&&entries.slice(index+1).some(next=>next.bladePinned)));
-    this.data.parse(compact?[...(shown.length?[{id:menu,value:this.collapse?.value??t("Műveletek"),icon:this.collapse?.icon??"bi bi-grid",css:this.collapse?.css,tooltip:this.collapse?.value,items:menuEntries}]:[]),
+    this.data.parse(compact?[...entries.filter(item=>item.bladeLead),...(shown.length?[{id:menu,value:this.collapse?.value??t("Műveletek"),icon:this.collapse?.icon??"bi bi-grid",css:this.collapse?.css,tooltip:this.collapse?.value,items:menuEntries}]:[]),
       ...pinned]:menuEntries);
   }
   /**
@@ -172,5 +173,7 @@ export class ResponsiveToolbar extends Toolbar {
     this.prepared=false;
     this.reflow();
   }
+  /** Lays the bar out again after its items' widths changed (icons instead of labels). */
+  refit():void{this.prepared=false;this.reflow();}
   disposeResponsive():void{this.observer.disconnect();this.listeners.abort();}
 }

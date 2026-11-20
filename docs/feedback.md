@@ -11627,3 +11627,45 @@ object. Typecheck, build and demo asset preparation passed.
   branch data and the visible frame's priority at the size limit.
   Typecheck, build and demo asset preparation passed.
 - **Status.** Implemented and verified.
+
+<a id="fb-0248"></a>
+
+## FB-0248 — One standard panel header: CommandBar title, popup and icons
+
+- **Date.** 2026-11-20.
+- **Report.** Two consumers' conversation panels had different headers:
+  one a bare Suite Toolbar with two left-aligned buttons, the other a title,
+  right-aligned commands, a more-actions button and DHTMLX `dxi` icons.
+  Both used a project-built `app.dhx.Toolbar`, because the popup menu
+  contract sent a menu on a bar's button through a toolbar of the project's
+  own; the feature demo's `Munkaasztal` did the same.
+- **Owner decision.** The framework owns one panel header. `CommandBar`
+  gains a title, a popup-menu button and an icon-only narrow mode. The
+  project-toolbar route is no longer the documented way, and the demo moves
+  to it. Consumers migrate in their own sessions; their labels stay theirs.
+- **Implementation.** `title` (first item only, `badge`, kept first beside
+  the collapsed menu and shortened with `…`; the toolbar's accessible name
+  without `label`); `popup` (`app.ui.menu` items, `menuLabel`, `empty`; the
+  bar binds the menu to its drawn button and again after every redraw,
+  keeps it in the bar and reports `select {id, item}`); `narrow: "icons"`
+  (below 768 px items with an icon show it only, the label as tooltip and
+  hidden name; collapse only when it still does not fit). `ResponsiveToolbar`
+  keeps a `bladeLead` item before the collapsed menu, can leave the 768 px
+  collapse out and lays out again through `refit`. The demo's header and
+  composer rows are `CommandBar`s.
+- **Contract.** [Panel header](toolkit.md#commandbar-title),
+  [popup menu](toolkit.md#popup-menu), [usage](usage.md), M100, the
+  [61ade-ui skill](../.agents/skills/61ade-ui/SKILL.md#command-bars-in-pages-and-tabs).
+- **Verification.** On the managed demo: 64 cases of the CommandBar,
+  popup menu (`Munkaasztal`), command menu, settings form, text diff, Tree,
+  list toggle, mobile grid, menu command and location bar specs passed. Two
+  temporary cases checked the title, badge, accessible name, popup picks
+  before and after a width collapse and back (one binding), disabled and
+  hidden states, `TypeError` for malformed items, and at 390 px icon-only
+  commands inside the bar with an ellipsized title versus the default
+  collapse; the light, dark and Blade night themes were inspected.
+  Typecheck, build and demo asset preparation passed.
+  `tests/shell/toolkit-components.mjs` fails at its Layout-cell mount check
+  with and without this change.
+- **Status.** Implemented and verified on the managed demo; consumer
+  migration pending in the consumers' own sessions.

@@ -227,6 +227,9 @@ export function popupMenu(anchor: HTMLElement, options: PopupMenuOptions): Popup
   return api;
 }
 
+/** Validates popup menu items ($items an array; `TypeError` for a malformed one), as `popupMenu` does at its call. */
+export const checkPopupItems = (items: unknown): void => { build(items, "#check"); };
+
 type Built = { data: any[]; ids: Map<string, string>; focusable: string[]; checked?: string };
 
 /** Suite items of $items (validated; `TypeError` for a malformed one). $empty: the note of a menu without entries. */

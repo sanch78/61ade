@@ -285,6 +285,13 @@ body,
 .dhx_toolbar-button.blade-command--grouped.blade-command--last, .dhx_toolbar-button.blade-command--segment.blade-command--last { border-radius: 0 var(--dhx-border-radius) var(--dhx-border-radius) 0; }
 .dhx_toolbar-button.blade-command--grouped:focus-visible, .dhx_toolbar-button.blade-command--segment:focus-visible { position: relative; z-index: 1; }
 .dhx_menu-button.blade-command--grouped, .dhx_menu-button.blade-command--segment { border: 0; margin: 0; border-radius: 0; box-shadow: none; }
+/* A CommandBar title: first, shortening with an ellipsis before the commands move; its badge stays whole. */
+.dhx_toolbar__item.blade-command--title { flex: 0 1 auto; min-width: 48px; overflow: hidden; }
+.blade-command--title > .dhx_navbar-title { display: block; min-width: 0; }
+.blade-command-title { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.blade-command-title__text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.blade-command-title__badge { flex: none; display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 10px; box-sizing: border-box;
+  border: 1px solid var(--dhx-border-color); color: var(--dhx-font-color-primary); font-size: var(--dhx-font-size-small); font-weight: var(--dhx-font-weight-regular); }
 /* A range takes the remaining width of its bar (at least 120 px), also beside the collapsed menu. */
 .dhx_toolbar__item.blade-command--range { flex: 1 1 180px; min-width: 120px; }
 .blade-command-range { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 32px; padding: 0 4px; box-sizing: border-box; }

@@ -404,10 +404,12 @@ menu.on("select", ({ id }) => choose(id));   // choose, efforts: the page's own
   id outside `[A-Za-z0-9_.:-]+` or a duplicate one, an empty label, `checked`
   with `icon`, a separator in a group, more than 200 entries) throws
   `TypeError`, at the call for an array and at `open` for a function.
-- **Not a `CommandBar` menu:** a [`CommandBar` `menu`](#commandbar-menu)
+- **In a `CommandBar`:** a popup menu on a bar's button is the bar's
+  [`popup` item](#commandbar-title), which binds and rebinds it; the feature
+  demo's `Munkaasztal` header and composer use it. Do not build a Suite
+  toolbar of your own to carry one. A [`CommandBar` `menu`](#commandbar-menu)
   item stays the bar's own more-actions button (it folds into `Műveletek` on
-  a phone). Put a popup menu on a bar's button only through a Suite toolbar of
-  your own (`app.dhx.Toolbar`), as the feature demo's `Munkaasztal` does.
+  a phone). `app.ui.menu` itself is for a button outside a bar.
 
 Every subscription takes its owner's signal the same way, as the last
 argument `{signal}` (`SignalOptions`): `events.on`, `live.subscribe`,
@@ -1450,7 +1452,8 @@ player.on("pause", () => { playing = false; bar.update("play", { label: t("Lejá
 
 `CommandItem` is a button (`CommandButton`: `id`, `label`, `icon`,
 `iconOnly`, `pinned`, `disabled`, `hidden`; `type` omitted or `"button"`), one of the
-[view controls](#commandbar-view-controls), a separator
+[view controls](#commandbar-view-controls), a header's
+[`title` or `popup`](#commandbar-title), a separator
 (`CommandSeparator`, `{ type: "separator" }`, no id), a divider line between
 groups that stays in the collapsed menu, or a spacer (`CommandSpacer`,
 `{ type: "spacer" }`, no id), which pushes the following buttons to the right
@@ -1509,6 +1512,8 @@ top.mount(page.cell("above")); bottom.mount(page.cell("below"));
 | `segmented` (as `select`, an option may have an `icon`) | joined buttons, the chosen one pressed; tooltip `label: option` | submenu `label: option` | `change {id, value}` |
 | `group` (`items`: 2–12 buttons or toggles) | joined buttons | a block between separators | their own events |
 | `menu` (`CommandMenu`: `id`, `label`, `icon`, `iconOnly`, `disabled`, `hidden`, `items` 1–12 buttons and separators, at least one button) | one menu button, its entries a Suite menu | submenu | each entry `click {id}`, like a button ([below](#commandbar-menu)) |
+| `title` (`CommandTitle`: `id`, `label`, `badge`, `hidden`; first item only) | heading text, shortened with `…` | stays first, before the menu | nothing ([title](#commandbar-title)) |
+| `popup` (`CommandPopup`: a button's keys, `menuLabel`, `items` as `app.ui.menu`, `empty`) | button opening a popup menu | stays in the bar beside the menu | `select {id, item}` ([popup](#commandbar-title)) |
 | `range` (`id`, `label`, `min`, `max`, `step`, `value`, `valueLabel`) | native range input (`slider`, value text from `valueLabel`), the remaining width, at least 120 px | stays in the bar beside the menu | `change {id, value}`: at most every 100 ms while dragged, then on release |
 
 - A pick of the chosen option reports nothing; changes from code (`update`)
@@ -1563,6 +1568,51 @@ bar.on("click", ({ id }) => run(id));   // run: the page's own
   `menuitem` entries (a disabled one is `aria-disabled`), Enter and the
   arrows; Escape closes the open menu and returns the focus to its button
   (to `Műveletek` when collapsed).
+
+<a id="commandbar-title"></a>
+
+**Panel header: title, popup menu, icons when narrow**
+([FB-0248](feedback.md#fb-0248)). A panel, tab or window header (a
+conversation's name with its history, a new item and more actions) is a
+`CommandBar` too, never a project's own Suite Toolbar:
+
+```ts
+const head = new app.components.CommandBar({ label: t("Beszélgetés"), narrow: "icons", signal, items: [
+  { type: "title", id: "title", label: thread.title, badge: thread.closed ? t("lezárva") : undefined },
+  { type: "spacer" },
+  { type: "popup", id: "history", label: t("Előzmények"), icon: "bi bi-clock-history", items: () => historyGroups() },
+  { id: "new", label: t("Új beszélgetés"), icon: "bi bi-plus-lg" },
+  { type: "menu", id: "more", label: t("További műveletek"), icon: "bi bi-three-dots-vertical", iconOnly: true, items: actions }] });
+head.on("select", ({ id, item }) => id === "history" && openThread(item));   // historyGroups, actions, openThread: the page's own
+head.on("click", ({ id }) => run(id));
+head.mount(layout.getCell("head"));
+head.update("title", { label: renamed, badge: "" });                         // "" removes the badge
+```
+
+- **`title`** (`CommandTitle`: `id`, `label`, `badge`, `hidden`): the bar's
+  heading text, only as its first item and at most one. It stays first, also
+  before the collapsed `Műveletek` menu, and shortens with `…` before any
+  command moves; `badge` is a short state marker beside it. Both are plain
+  text (escaped) in the theme's tokens. Without the bar's `label` the title
+  is the toolbar's accessible name. `update(id, {label, badge, hidden})`.
+- **`popup`** (`CommandPopup`: `id`, `label`, `menuLabel`, `icon`,
+  `iconOnly`, `disabled`, `hidden`, `items`, `empty`): a button carrying an
+  [`app.ui.menu`](#popup-menu) popup menu, with its group headings, checked
+  entries, details, scrolling and APG menu-button keys. `items` is an array
+  (validated at construction) or a function read at every opening. The menu
+  is named `menuLabel` or else the label (`Modell: Automatikus` names its
+  menu `Modell`). The bar binds the menu to its drawn button and again after
+  every redraw (a resize, a collapse, `update`), so the project never looks
+  up the button. It always stays in the bar, also beside the collapsed menu.
+  A pick reports `select {id, item}`; a click reports nothing.
+  `update(id, {label, icon, disabled, hidden})` changes the button.
+- **`narrow: "icons"`**: below 768 px every item with an icon shows only its
+  icon; its label stays the tooltip and the hidden accessible name. The bar
+  collapses into `Műveletek` only when it still does not fit. The default
+  `narrow: "menu"` keeps the list's behaviour (collapse below 768 px).
+- Header rules: title first, then a `spacer`, then the commands on the right,
+  with the *more actions* `menu` last; Bootstrap Icons only
+  ([icons](icons.md)). The labels are the project's own words.
 
 <a id="pagelayout"></a>
 
@@ -2949,6 +2999,7 @@ while mounted, never after `destroy()`):
 | | `changed` | `{field, value}` | a field value was committed (on leaving the field) |
 | `CommandBar` | `click` | `{id}` | an item was clicked, also from the collapsed `Műveletek` menu |
 | `CommandBar` | `toggle` | `{id, pressed}` | the user flipped a toggle (the bar or the menu) |
+| `CommandBar` | `select` | `{id, item}` | the user picked entry `item` of popup `id` |
 | `CommandBar` | `change` | `{id, value}` | the user chose an option of a select or segmented choice, or moved a range (throttled while dragged) |
 | `SettingsForm` | `change` | `{field, value, values}` | a user change of one field (immediate, on leaving a text field, throttled while a range is dragged) |
 | `SettingsForm` | `submit` | `{values}` | the submit button (with `submit`) and the values passed validation |
@@ -3585,6 +3636,7 @@ WebSocket live service; both copy only `admin.js`/`admin.css` from `dist`.
 | M87 | [Location bar from the group](shell.md#location-bar): a record view's `location: 'group'` (PHP `View`, JSON `views.<id>.location`, `ViewDefinition.location`) starts its bar at the menu group without the source view's entry; marker and compact siblings unchanged **Removed again by M90** (2026-11-18): `location` is replaced by `parent` and `setLocation(…, {from: "root"})`. | [FB-0220](feedback.md#fb-0220) | none (additive; record views without the option are unchanged); if used: StoryBloX's episode page (D-087) declares it | none | none |
 | M98 | [Conditional sections](workspaces.md#form-section-conditional): a field's `sectionVisibleWhen` (PHP `Field`, JSON `section_visible_when`, `FieldMetadata.sectionVisibleWhen`; the shape of `visibleWhen`, the same on every field of the section) shows a whole form section (header, frame, fields) only while the condition holds; meanwhile its fields are not validated and the server keeps their stored values (never stored empty). In accordion forms a hidden section is never the open one. The server now counts a boolean condition value (JSON `true`/`false`) as `"1"`/`"0"` for `visibleWhen` too, as the browser did | [FB-0240](feedback.md#fb-0240) | none (additive); info: an API call that sent `false` for a checkbox controlling a `visibleWhen` field with `in: ["0"]` now finds the field active (before, the server treated it as inactive and stored it empty while the form showed it); if used: a section whose fields all repeat one `visibleWhen` can declare `sectionVisibleWhen` instead, which also hides the header and keeps the stored values | none | none |
 | M99 | [View guides](workspaces.md#view-guide) open automatically once per application path, user and view in the browser profile. The mark survives sign-out and is shared across tabs. | [FB-0243](feedback.md#fb-0243) | info: a spec that expects the guide to reopen after another sign-in needs a fresh browser context or a different account | none | specs only, as under Needs |
+| M100 | [CommandBar header items](#commandbar-title): `title` (first, `badge`), `popup` (an `app.ui.menu` bound by the bar, `select {id, item}`, `menuLabel`) and `narrow: "icons"`; a popup menu on a bar's button no longer needs a project's own `app.dhx.Toolbar` | [FB-0248](feedback.md#fb-0248) | info: a header or composer built from `app.dhx.Toolbar` with `app.ui.menu` moves to `CommandBar` (`title`, `popup`, `menu`, Bootstrap icons) | `workshop.js` toolbars (`toolbar`, `barItem`, `bindMenu`; `dxi` icons) | none |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the
@@ -3766,6 +3818,7 @@ feedback reference; once the transition closes, changes follow
 | 2026-11-19 | Location bar Back button and level icons, both off by default: `ApplicationDefinition` and `View` `locationBack` / `locationIcons`, JSON `location_back` / `location_icons`, `ViewDefinition.locationBack` / `locationIcons`; the levels are text only unless switched on (M96). | The owner asked for a switchable Back button with a divider before the path, and no icons in the path unless switched on. | [FB-0238](feedback.md#fb-0238) |
 | 2026-11-18 | `PageRegion.header` and `count` on a region of an `inner` layout and `PageLayout.header(id, {label?, count?})` (M92). | A titled, counted area of a split tab drawn in a project's own CSS; the framework now owns that look. | [FB-0227](feedback.md#fb-0227) |
 | 2026-11-20 | View guides open automatically once per application path, user and view in the same browser profile (M99). | Owner: remember the first opening for each user across sign-ins. | [FB-0243](feedback.md#fb-0243) |
+| 2026-11-20 | `CommandBar` `title` and `popup` items, `narrow: "icons"`, the `select` event and `CommandChanges.badge` (M100). Additive. | Two consumers built their panel headers from their own Suite toolbars with different titles, icon sets, order and narrow behaviour, because a popup menu needed a toolbar of their own. | [FB-0248](feedback.md#fb-0248) |
 
 <a id="resolved-decisions"></a>
 
