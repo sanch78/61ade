@@ -19,6 +19,12 @@ proposed contract, the open questions and the done criteria.
   grid whose first column is the tree, for hierarchies where users compare
   values across nodes (cost centres, product structures, a key tree with its
   value counts), instead of a tree beside a separate list.
+- **Scope (owner decision 2026-11-20):** self-hierarchies only: records of
+  one resource that point to a parent record of the same resource (`id` ←
+  `parent_id`), so every level shares the same columns. A
+  [sub-view](workspaces.md#sub-views-expandable-rows-and-card-buttons) onto a
+  different resource (a parent record with child records of their own columns)
+  is not a tree table and keeps the sub-view preview.
 - **Reference concept (SAP Fiori Tree Table):**
   - A table with exactly one hierarchical column (indentation and the
     expand/collapse toggle per container node); the other columns are
