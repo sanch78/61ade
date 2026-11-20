@@ -991,3 +991,7 @@
 <a id="fb-0242"></a>
 
 ## FB-0242 — Form windows: a scrolling body and a fixed footer
+
+<a id="fb-0243"></a>
+
+## FB-0243 — A view guide opens automatically once per user

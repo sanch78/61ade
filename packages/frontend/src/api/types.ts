@@ -784,8 +784,8 @@ export interface ViewDefinition<Options = unknown> {
     label?: string };
   /**
    * What the user sees and can do in the view (plain text, localized; blank lines separate paragraphs). Opened as a
-   * page, the shell shows it in a closable window until the user closes it once (per user and browser); the lower
-   * bar's `Útmutató` button shows it again.
+   * page, the shell shows it automatically once per user and browser profile. The top row's `Útmutató` control
+   * shows it again on request.
    */
   guide?: string;
 }

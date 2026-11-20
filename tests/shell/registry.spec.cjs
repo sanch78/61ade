@@ -26,13 +26,20 @@ const guide=page=>page.getByRole('dialog',{name:/^Útmutató: Regisztrációs ad
 const guideButton=page=>page.locator('.blade-navigation-row .blade-guide-control').getByRole('button');
 const signOut=async page=>{await openMenu(page,'Kijelentkezés');await expect(page.getByRole('dialog',{name:'Bejelentkezés',exact:true})).toBeVisible();};
 
-test('a guide opens once per sign-in session and the top-row button shows it again',async({page})=>{
+test('a guide opens once per user across tabs and sign-ins and can still be reopened',async({page,context})=>{
  // The wrapper closes guides in the way of an action; this test drives the guide itself.
  await page.removeLocatorHandler(guideWindow(page));
  await signIn(page);
  await openMenu(page,'Regisztrációs adatbázis','Feature demó');
  await expect(guide(page)).toBeVisible();
  await expect(guide(page)).toContainText('fa-navigáció');
+ // A second tab shares the mark even while the first tab's guide is still open.
+ const secondTab=await context.newPage();
+ try{
+  await secondTab.goto(page.url());
+  await expect(node(secondTab,'HKEY_CURRENT_USER')).toBeVisible();
+  await expect(guide(secondTab)).toHaveCount(0);
+ }finally{await secondTab.close();}
  // Non-modal: the tree stays usable while it is open.
  await expect(node(page,'HKEY_CURRENT_USER')).toBeVisible();
  // The button sits left of the language selector and is enabled for a view with a guide.
@@ -59,9 +66,15 @@ test('a guide opens once per sign-in session and the top-row button shows it aga
  // The empty workspace has no guide: the button is disabled.
  await page.goto('/#view=missing');
  await expect(guideButton(page)).toBeDisabled();
- // A new sign-in session shows every guide once again.
+ // The same account keeps its mark after signing out and back in.
  await signOut(page);
  await signIn(page);
+ await openMenu(page,'Regisztrációs adatbázis','Feature demó');
+ await expect(node(page,'HKEY_CURRENT_USER')).toBeVisible();
+ await expect(guide(page)).toHaveCount(0);
+ // A different account in the same browser gets its own first opening.
+ await signOut(page);
+ await signIn(page,'reader@example.test');
  await openMenu(page,'Regisztrációs adatbázis','Feature demó');
  await expect(guide(page)).toBeVisible();
 });
