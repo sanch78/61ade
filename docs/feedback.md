@@ -983,3 +983,7 @@
 <a id="fb-0240"></a>
 
 ## FB-0240 — Conditional form sections
+
+<a id="fb-0241"></a>
+
+## FB-0241 — A visible sub-view row toggle

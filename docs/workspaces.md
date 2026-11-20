@@ -2424,7 +2424,8 @@ JSON: `"view": {"title": "…", "subview": {"resource": "tasks", "field": "proje
 (`resource` names the child view id).
 
 - **Toggle:** the table gets a first toggle column (an accessible button with
-  `aria-expanded`). Enter on the toggle cell or a click expands or collapses it.
+  `aria-expanded`, drawn with the accordion's chevron: right when closed, down
+  when open). Enter on the toggle cell or a click expands or collapses it.
   Records start collapsed, and a record whose child count is 0 has no toggle.
   Cards show a button ("Feladatok (2)"; `Alelemek (n)` for a hierarchy, at least
   40 px tall) only when there are children. With a media cover, it overlays the
