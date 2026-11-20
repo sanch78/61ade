@@ -1220,21 +1220,40 @@ below the menu row, across the full width, before the workspace
   starts with an icon-only `bi bi-arrow-left` button named `Vissza` (en
   `Back`, de `Zurück`) with the links' hover tint and focus outline, a
   1 px divider (`--dhx-border-color`, 16 px high) and the levels after it.
-  The button is the browser's Back (`history.back()`) inside the application:
+  By default the button is the browser's Back (`history.back()`) inside the application:
   the shell keeps each history entry's in-app depth in `history.state`
   (`bladeDepth`; 0 for the tab's first 61ade entry, a landing from another
   site or a typed address; one more for a menu click, a bar link, a
   `#view=` link, an [`activate: 'page'`](workspaces.md#activation)
   navigation or `ViewHost.close()`), which survives a reload and
-  Back/Forward. At depth 0 the button is disabled, so it never leaves the
-  application. The phone's parent link (`bi bi-chevron-left`, below) stays:
-  the button goes back in time, the link up one level. With the button, a
+  Back/Forward. History Back is available above depth 0.
+  <a id="location-bar-back-target"></a>A page can define what Back does:
+
+  1. `host.setLocation(segments, {back: () => …})` runs the page's current
+     action, such as switching to its first tab. A call without `back`
+     removes that action. Calls from a window or a closed view leave the
+     active page's action as it is.
+  2. PHP `View(locationBackTarget: 'demo_tasks')` (also
+     `->with(locationBackTarget: …)`) or JSON `location_back_target` in
+     `views.<id>` or `resources.<name>.view` opens the named view as a page
+     through normal shell navigation. The target has its own address, is a
+     different registered view and needs no record ID. The bootstrap field
+     is `ViewDefinition.locationBackTarget`.
+  3. If neither action nor an offered target with a registered browser kind
+     is available, Back uses the in-app history. At depth 0 the history
+     fallback is disabled.
+
+  A configured action or available target works on a direct landing, too.
+  The button still follows the application and view switches above. The
+  phone's parent link (`bi bi-chevron-left`, below) still goes up one level.
+  With the button, a
   [top-level entry alone](#location-bar-top-level) keeps the line with the
   button and no level while the full menu row marks it, and an
   [empty own path](#location-bar-empty) shows the button alone and keeps the
   `<nav>` announced; the divider shows only before levels. `locationBar:
   false` removes the button with the bar. Example: the feature demo switches
-  it on for the application, and `Mérések` declares `location_back: false`.
+  it on for the application. `Mérések` declares `location_back: false`.
+  `Feladatlap` returns from another tab to its first tab, then to `Feladatok`.
 - <a id="location-bar-icons"></a>**Level icons** ([FB-0238](feedback.md#fb-0238)):
   off by default: the levels are text only, also the icons of `setLocation`
   segments and of the `…` menu entries. PHP
@@ -1359,7 +1378,7 @@ below the menu row, across the full width, before the workspace
   [empty own path](#location-bar-empty) show the application title.
 
 Limits: one bar per page (a window has none); the switches are per
-application and view, not per record or actor; the Back button follows the
+application and view, not per record or actor; history Back follows the
 browser history of this tab only (no Forward button, no list of earlier
 places), and an entry project code adds with `history.pushState` gets its
 depth only when the shell next routes to it; the menu path comes from the

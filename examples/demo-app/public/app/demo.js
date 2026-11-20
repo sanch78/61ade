@@ -1301,12 +1301,14 @@ function page(app, host, view) {
     });
     layout.mount(root);
     const pages = layout.tabsOf("notes"), labels = { work: t("Munka"), notes: t("Jegyzetek"), sketch: t("V\xE1zlat") };
+    const firstTab = notes ? "work" : "notes";
+    const selectFirstTab = () => void pages.select(firstTab);
     let focused;
     const locate = () => host.setLocation([
-      { label: title, onSelect: () => void pages.select(notes ? "work" : "notes") },
+      { label: title, onSelect: selectFirstTab },
       { label: labels[pages.active()] ?? pages.active() },
       ...pages.active() === "work" && focused ? [{ label: String(focused.body ?? "").trim().slice(0, 60) || "#" + String(focused.id) }] : []
-    ]);
+    ], { back: pages.active() === firstTab ? void 0 : selectFirstTab });
     pages.on("change", locate, { signal });
     locate();
     const sections = new app.components.Accordion({ id: `${view.id}.control`, sections: [

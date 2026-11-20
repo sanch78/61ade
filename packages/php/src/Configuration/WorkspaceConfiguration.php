@@ -214,7 +214,7 @@ final class WorkspaceConfiguration
         Shape::check($view, ['title' => 'string'], [
             'group' => 'string', 'singleton' => 'boolean', 'actions' => 'array',
             'columns' => 'array', 'layout' => 'array', 'row_numbers' => 'boolean', 'selection' => 'boolean', 'row_selection' => 'boolean', 'icon' => 'string', 'desktop_only' => 'boolean',
-            'row_height' => 'integer', 'tile_min_width' => 'integer', 'tiles' => 'boolean', 'modes' => 'array', 'card_columns' => 'integer', 'search' => 'array', 'subview' => 'array', 'activate' => 'any', 'id' => 'string', 'commands' => 'array', 'guide' => 'string', 'tree' => 'array', 'drop' => 'array', 'menu' => 'boolean', 'sort' => 'array', 'attention' => 'array', 'emphasis' => 'array', 'available' => 'string', 'location_bar' => 'boolean', 'location_back' => 'boolean', 'location_icons' => 'boolean',
+            'row_height' => 'integer', 'tile_min_width' => 'integer', 'tiles' => 'boolean', 'modes' => 'array', 'card_columns' => 'integer', 'search' => 'array', 'subview' => 'array', 'activate' => 'any', 'id' => 'string', 'commands' => 'array', 'guide' => 'string', 'tree' => 'array', 'drop' => 'array', 'menu' => 'boolean', 'sort' => 'array', 'attention' => 'array', 'emphasis' => 'array', 'available' => 'string', 'location_bar' => 'boolean', 'location_back' => 'boolean', 'location_icons' => 'boolean', 'location_back_target' => 'string',
         ], '$.resources.'.$name.'.view');
         // A string target or an `{field, map}` activation map; Registry::view() validates the targets.
         if (isset($view['activate']) && !is_string($view['activate']) && !is_array($view['activate'])) {
@@ -360,7 +360,7 @@ final class WorkspaceConfiguration
             modes: $view['modes'] ?? null,
             cardColumns: $view['card_columns'] ?? null,
             available: $this->bindings->get($view['available'] ?? null),
-        )->with(locationBar: $view['location_bar'] ?? true, locationBack: $view['location_back'] ?? null, locationIcons: $view['location_icons'] ?? null));
+        )->with(locationBar: $view['location_bar'] ?? true, locationBack: $view['location_back'] ?? null, locationIcons: $view['location_icons'] ?? null, locationBackTarget: $view['location_back_target'] ?? null));
     }
 
     private function claim(string $id): void
@@ -383,7 +383,7 @@ final class WorkspaceConfiguration
         Shape::check($definition, ['kind' => 'string', 'title' => 'string'], [
             'resource' => 'string', 'record' => 'string', 'actions' => 'array', 'options' => 'array', 'open' => 'string',
             'group' => 'string', 'icon' => 'string', 'desktop_only' => 'boolean', 'guide' => 'string', 'available' => 'string',
-            'record_title' => 'string', 'parent' => 'array', 'location_bar' => 'boolean', 'location_back' => 'boolean', 'location_icons' => 'boolean',
+            'record_title' => 'string', 'parent' => 'array', 'location_bar' => 'boolean', 'location_back' => 'boolean', 'location_icons' => 'boolean', 'location_back_target' => 'string',
         ], '$.views.'.$id);
         if (isset($definition['parent'])) Shape::check($definition['parent'], ['field' => 'string', 'view' => 'string'], [], '$.views.'.$id.'.parent');
         if (in_array($definition['kind'], View::BUILTIN_KINDS, true)) {
@@ -410,6 +410,7 @@ final class WorkspaceConfiguration
             locationBar: $definition['location_bar'] ?? true,
             locationBack: $definition['location_back'] ?? null,
             locationIcons: $definition['location_icons'] ?? null,
+            locationBackTarget: $definition['location_back_target'] ?? null,
         ));
     }
 }

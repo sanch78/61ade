@@ -47,7 +47,7 @@ namespace Blade\Feature;
  *   the menu marker (none resolved: this view's own). Null: no parent.
  * $locationBar: false: the view's page shows no location bar (docs/shell.md#location-bar-off), whatever its path or
  *   `setLocation` levels; any kind, also through `Registry::updateView($view->with(locationBar: false))`.
- * $locationBack: true or false shows or leaves out the location bar's history Back button on this view's page
+ * $locationBack: true or false shows or leaves out the location bar's Back button on this view's page
  *   (docs/shell.md#location-bar-back); null follows `ApplicationDefinition::$locationBack`.
  * $locationIcons: true or false shows or leaves out the icons of the location bar's levels on this view's page
  *   (docs/shell.md#location-bar-icons); null follows `ApplicationDefinition::$locationIcons`.
@@ -81,8 +81,11 @@ final readonly class View
         public bool $locationBar = true,
         public ?bool $locationBack = null,
         public ?bool $locationIcons = null,
+        /** A different view with its own address and no required record ID. Null uses browser history. */
+        public ?string $locationBackTarget = null,
     ) {
         if (!preg_match(self::ID, $id)) throw new \InvalidArgumentException('Invalid view id.');
+        if ($locationBackTarget !== null && ($locationBackTarget === $id || !preg_match(self::ID, $locationBackTarget))) throw new \InvalidArgumentException('Invalid Back target of '.$id.': '.$locationBackTarget);
         if (!preg_match(self::ID, $kind) || (!in_array($kind, self::BUILTIN_KINDS, true) && !str_contains($kind, '.'))) throw new \InvalidArgumentException('Invalid view kind: '.$id);
         if (trim($title) === '' || ($group !== null && trim($group) === '')) throw new \InvalidArgumentException('Invalid view title: '.$id);
         foreach ([$resource, $record] as $name) if ($name !== null && !preg_match(self::ID, $name)) throw new \InvalidArgumentException('Invalid view resource: '.$id);

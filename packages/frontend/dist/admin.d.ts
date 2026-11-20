@@ -691,10 +691,12 @@ export interface ViewHost {
      * unchanged. An empty `segments` array leaves the bar empty (FB-0236): the line stays, without levels, and the
      * document title is the application title, until the page calls again; `setLocation([])` without `from: "root"`
      * returns to the automatic path (the menu path and the parent records, without a record view's title).
-     * Default `"page"`.
+     * Default `"page"`. `back` is an optional action for the enabled location bar's Back button. Each call replaces
+     * the previous action. When omitted, the button uses the view's configured Back target or the tab's in-app history.
      */
     setLocation(segments: LocationSegment[], options?: {
         from?: "page" | "root";
+        back?: () => void;
     }): void;
     /** Closes this view: a window closes; a page returns to the empty workspace. */
     close(): void;
@@ -771,10 +773,12 @@ export interface ViewDefinition<Options = unknown> {
      */
     locationBar?: false;
     /**
-     * The page's location bar starts with a history Back button (`true`) or has none (`false`), PHP `locationBack`, JSON
+     * The page's location bar starts with a Back button (`true`) or has none (`false`), PHP `locationBack`, JSON
      * `location_back` (docs/shell.md#location-bar-back). Absent: the application's `locationBack` (default none).
      */
     locationBack?: boolean;
+    /** View id opened by Back on this page, PHP `locationBackTarget`, JSON `location_back_target`. */
+    locationBackTarget?: string;
     /**
      * The page's location levels carry their icons (`true`) or are text only (`false`), PHP `locationIcons`, JSON
      * `location_icons` (docs/shell.md#location-bar-icons). Absent: the application's `locationIcons` (default text only).

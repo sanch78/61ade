@@ -25,6 +25,8 @@ type Mounted = { view: ViewDefinition; record?: string; open: ViewOpenMode; cont
   location?: Place[];
   /** `setLocation(…, {from: "root"})`: `location` is the whole bar, without the menu path and the parents; empty, no level. */
   whole?: boolean;
+  /** A Back action for the current levels of this page. */
+  back?: () => void;
   /** A record page: its resolved parent records (`ViewDefinition.parent`), the root first, each with its record view. */
   parents?: { view: ViewDefinition; place: Place }[] };
 
@@ -159,7 +161,7 @@ export class AdminShell {
     if (view && this.openable(view, record)) void this.openView(view, { record, filters: route.filters });
     else this.clear();
   };
-  /** In-app history depth of the current entry; the location bar's Back button is enabled above 0. */
+  /** In-app history depth of the current entry; history Back is available above 0. */
   private depth=0;
   private tracked=false;
   /**
@@ -771,9 +773,16 @@ export class AdminShell {
     if(view.locationBar===false||alone&&!back){hide(title);return;}
     this.root.classList.add("blade-located");
     const icons=view.locationIcons??this.definition.locationIcons===true;
-    bar.show(alone?[]:icons?places:places.map(({icon:_icon,...place})=>place),back?this.depth>0:undefined);
+    bar.show(alone?[]:icons?places:places.map(({icon:_icon,...place})=>place),back?this.locationBack(page):undefined);
     if(!cell.isVisible())cell.show();
     document.title=title;
+  }
+
+  private locationBack(page:Mounted):(() => void)|false{
+    if(page.back)return page.back;
+    const id=page.view.locationBackTarget,target=id===undefined?undefined:this.navigable(id);
+    if(target&&this.openable(target))return ()=>{this.navigate({view:target.id,open:"page"});};
+    return this.depth>0?()=>history.back():false;
   }
 
   /** The automatic path of $page would be only its own top-level menu entry (no group, record or levels of its own). */
@@ -880,11 +889,12 @@ export class AdminShell {
         else attachContent(mounted.wrapper.cell,content,signal);
       },
       setTitle:(text:string)=>{if(!signal.aborted)mounted.window?.setTitle(String(text));},
-      setLocation:(segments:LocationSegment[],options?:{from?:"page"|"root"})=>{
-        const places=this.places(segments),from=options?.from??"page";
+      setLocation:(segments:LocationSegment[],options?:Parameters<ViewHost["setLocation"]>[1])=>{
+        const places=this.places(segments),from=options?.from??"page",back=options?.back;
         if(from!=="page"&&from!=="root")throw new TypeError('61ade: setLocation from is "page" or "root".');
+        if(back!==undefined&&typeof back!=="function")throw new TypeError("61ade: setLocation back is a function.");
         if(signal.aborted||mounted.window||this.page!==mounted)return;
-        mounted.location=places;mounted.whole=from==="root";this.locate();
+        mounted.location=places;mounted.whole=from==="root";mounted.back=back;this.locate();
       },
       close:()=>{
         if(signal.aborted)return;

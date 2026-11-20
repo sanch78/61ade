@@ -995,3 +995,7 @@
 <a id="fb-0243"></a>
 
 ## FB-0243 — A view guide opens automatically once per user
+
+<a id="fb-0245"></a>
+
+## FB-0245 — A Back destination for each page

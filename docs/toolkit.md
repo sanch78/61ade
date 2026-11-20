@@ -545,7 +545,9 @@ command `demo.copy-text` ([example](#example-tasks)).
   onSelect}`, at most 16; `target.filters` links to a filtered list;
   `setLocation(segments, {from: "root"})` makes them the whole bar,
   [a path of its own](shell.md#location-bar-own-path), and with an empty array
-  [an empty bar](shell.md#location-bar-empty); call it again when the selection inside the page
+  [an empty bar](shell.md#location-bar-empty). The optional `back` callback
+  overrides the page's [Back destination](shell.md#location-bar-back-target)
+  for these levels. Call it again when the selection inside the page
   changes; nothing in a window or after close), `close`. A throw shows the
   error dialog and leaves an empty workspace. `attach` replaces the whole
   content; compose a page from one Layout ([recipe](#layout-recipe)).

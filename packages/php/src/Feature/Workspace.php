@@ -48,7 +48,7 @@ final class Workspace
      * Views offered to $actor (bootstrap `views`, docs/toolkit.md#views); tenant-scoped ones only with an active $tenant
      * (membership checked), record views only with the record resource's `get` offered, and a view declaring `available`
      * only while that closure returns true for this context (View). Each entry is
-     * `{id, kind, title, resource?, record?, recordTitle?, parent?, actions, group, icon, desktopOnly, open, menu?, locationBar?, locationBack?, locationIcons?, attention?, guide?, options}`
+     * `{id, kind, title, resource?, record?, recordTitle?, parent?, actions, group, icon, desktopOnly, open, menu?, locationBar?, locationBack?, locationIcons?, locationBackTarget?, attention?, guide?, options}`
      * (`menu` and `locationBar` only as `false`, `locationBack` and `locationIcons` only when declared; `menu`: offered without a menu entry or address of its own; `attention`: `{filters, tone, label?}` of the menu
      * entry's live count, View); the kind provider
      * decides whether the view is offered and builds `actions` and `options`.
@@ -66,6 +66,7 @@ final class Workspace
             $out[$view->id]=[...\Blade\I18n\Translator::presentation(['id'=>$view->id,'kind'=>$view->kind,'title'=>$view->title,
                 ...($view->resource!==null?['resource'=>$view->resource]:[]),...($view->record!==null?['record'=>$view->record]:[]),...($view->recordTitle!==null?['recordTitle'=>$view->recordTitle]:[]),...($view->parent!==null?['parent'=>$view->parent]:[]),
                 'actions'=>$data['actions'],'group'=>$view->group,'icon'=>$view->icon,'desktopOnly'=>$view->desktopOnly,'open'=>$view->open,...($view->menu?[]:['menu'=>false]),...($view->locationBar?[]:['locationBar'=>false]),...($view->locationBack!==null?['locationBack'=>$view->locationBack]:[]),...($view->locationIcons!==null?['locationIcons'=>$view->locationIcons]:[])]),
+                ...($view->locationBackTarget!==null?['locationBackTarget'=>$view->locationBackTarget]:[]),
                 ...($view->attention!==null?['attention'=>['filters'=>$view->attention['filters'],'tone'=>$view->attention['tone']??'warning',...(isset($view->attention['label'])?['label'=>\Blade\I18n\Translator::text($view->attention['label'])]:[])]]:[]),
                 ...($view->guide!==null?['guide'=>\Blade\I18n\Translator::text($view->guide)]:[]),
                 // An empty options map stays a JSON object.
