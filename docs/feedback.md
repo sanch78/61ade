@@ -11127,8 +11127,9 @@ another view long enough to lose the loaded branches. The shell now retains
 its four bounded snapshots for the lifetime of the loaded page. Returning
 shows the saved state immediately and rechecks the authorized parent lists.
 When their rows, order and truncation state match the displayed branches,
-the widget keeps its rows and selection in place. Reloading the page starts
-cold. Access invalidation follows the [Tree contract](toolkit.md#tree).
+the widget keeps its rows and selection in place. [FB-0244](#fb-0244)
+extends this behavior to a browser reload in the same tab.
+Access invalidation follows the [Tree contract](toolkit.md#tree).
 
 On the managed demo all 11 existing Tree cases and one temporary long-return
 case passed. After 31 seconds away the selected root appeared with its network
@@ -11519,6 +11520,34 @@ object. Typecheck, build and demo asset preparation passed.
   All 10 cases in `registry.spec.cjs` and `menu-commands.spec.cjs` passed on
   the managed demo. The guide test covers a new tab before dismissal, reload,
   repeat sign-in, a different account in the same profile and manual opening.
+- **Status.** Implemented and verified on the managed demo.
+
+<a id="fb-0244"></a>
+
+## FB-0244 — Restore the Tree in the first frame after a browser reload
+
+- **Date.** 2026-11-20.
+- **Report.** The category tree opened its branches again after reload.
+  The earlier same-tab restore retained rows only while the document
+  stayed loaded ([FB-0234](#fb-0234), [FB-0235](#fb-0235)).
+- **Implementation.** The shell carries its bounded Tree snapshots through
+  a browser reload with a one-use `sessionStorage` handoff. The new shell
+  must have the same signed-in session, user, tenant, language and list
+  policy for the offered hierarchy sources and their declared count fields.
+  The saved visible rows, expansion, selection and scroll position paint
+  together. The authorized branch reads recheck the data in the background.
+  An existing stable Tree ID uses this behavior automatically.
+- **Contract.** [Tree](toolkit.md#tree).
+- **Verification.** On the managed demo, the previous code showed no rows
+  while reload list replies were held. The updated code painted identical
+  visible rows, expansion, selection and scroll position on two successive
+  reloads with those replies held. A changed row permission discarded the
+  old rows before first paint. A same-tab return kept all branches closed
+  and respected a newer expansion during revalidation. The Tree, registry,
+  tenancy and preferences groups passed 31 cases, followed by seven focused
+  checks on the final code. Typecheck, build, PHP shell and access contracts
+  passed. A temporary PHP check verified the session key, tenant and count
+  source policy binding.
 - **Status.** Implemented and verified on the managed demo.
 
 <a id="fb-0245"></a>

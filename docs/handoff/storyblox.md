@@ -115,6 +115,14 @@ Read on 2026-11-18 from `stories.php`; recheck them. `story_episodes.season_id`
 A spec that expects *Epizódok* to be missing from an episode's bar, or that
 expects a season segment of the page's own, needs updating.
 
+## Asset catalogue Tree on browser reload
+
+The catalogue's usual entry uses the stable Tree ID `assets.tree`. It gets
+the first-frame restore on a browser reload in the same signed-in session
+automatically. The filtered category entry supplies its own `initial` and
+`expand` without an ID and still loads to that declared target.
+[Tree contract](../toolkit.md#tree), [FB-0244](../feedback.md#fb-0244).
+
 ## Empty location bar (D-107)
 
 Delivered in 61ade ([FB-0236](../feedback.md#fb-0236),

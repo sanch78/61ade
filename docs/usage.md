@@ -784,6 +784,14 @@ full SQL. Layout-resizer double-click restores declared size. Content-fitted
 windows/scroll restoration preserve visible records across views rather than
 transferring mismatched row pixel offsets. [Details](workspaces.md#kártyaszerkesztés-rendezés-és-kompakt-ablakok).
 
+A [Tree](toolkit.md#tree) composed over an offered hierarchy with a stable
+`id` keeps its visible branches, selected node and scroll position on a
+same-tab return. A browser reload in the same signed-in session can paint the
+same state before the list replies arrive. On the managed demo, open
+`Kulcsböngésző`, open some branches, select a key and reload the page.
+The first visit and a changed access context load the tree from the server.
+[Verification and limits](feedback.md#fb-0244).
+
 Record pages automatically retain the menu context of the first offered menu
 view for their `record` resource, including direct links and reloads. An explicit
 `group` limits that inheritance to the named group; see the

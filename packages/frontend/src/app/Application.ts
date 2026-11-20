@@ -9,7 +9,7 @@ import { i18n, identity, live, openWindow, preferences, theme, ui, uploads } fro
 import { NamedRegistry, extensions } from "./registries";
 import { registerBuiltins } from "./builtins";
 import { listComponents } from "../components/list";
-import { TreeCache } from "../components/list/TreeCache";
+import type { TreeCache } from "../components/list/TreeCache";
 import { bindCalendar } from "../components/calendar/Calendar";
 import { bindDiagramEditor } from "../components/diagram/DiagramEditor";
 import { bindFileManager } from "../components/files/FileManager";
@@ -33,12 +33,12 @@ export type ShellBridge = {
   navigate(target: NavigationTarget): boolean;
 };
 
-export type Kernel = { app: Application; events: InternalEventBus; kinds: NamedRegistry<ViewKind<any>>; treeCache: TreeCache };
+export type Kernel = { app: Application; events: InternalEventBus; kinds: NamedRegistry<ViewKind<any>> };
 
 const UPLOAD_EVENTS: (keyof UploadEvents)[] = ["upload:queued", "upload:started", "upload:progress", "upload:conflict", "upload:file-done", "upload:file-failed", "upload:complete", "upload:cancelled"];
 
 /** The application page's one `Application` (toolkit K-F3), with the built-in kinds. */
-export function createApplication(bridge: ShellBridge): Kernel {
+export function createApplication(bridge: ShellBridge, treeCache: TreeCache): Kernel {
   const events = createEventBus();
   for (const name of UPLOAD_EVENTS) uploader.on(name, payload => events.dispatch(name, payload as never));
   const kinds = new NamedRegistry<ViewKind<any>>("view kind");
@@ -46,7 +46,6 @@ export function createApplication(bridge: ShellBridge): Kernel {
   const fieldTypes = new NamedRegistry<FieldType>("field type");
   const commands = new NamedRegistry<ClientCommand | MenuCommand>("command");
   const mediaTypes = new NamedRegistry<MediaType>("media type");
-  const treeCache = new TreeCache();
   // Before any module, so a project can replace a built-in entry with `{replace: true}`.
   registerBuiltins({ kinds, presentations, commands, mediaTypes }, { channel: bridge.channel, user: bridge.userId });
   const offered = Object.freeze([...bridge.views]);
@@ -89,7 +88,7 @@ export function createApplication(bridge: ShellBridge): Kernel {
   });
   // The framework surfaces (lists, details, forms) read the page's registries when they are created.
   Object.assign(extensions, { app, presentations, fieldTypes, commands, mediaTypes });
-  return { app, events, kinds, treeCache };
+  return { app, events, kinds };
 }
 
 /** Per module: its import and its initialization each have this long (G1 decision 5). */
