@@ -792,6 +792,12 @@ same state before the list replies arrive. On the managed demo, open
 The first visit and a changed access context load the tree from the server.
 [Verification and limits](feedback.md#fb-0244).
 
+A breadcrumb that opens a node passes its root-to-node IDs to `initialPath`
+and uses the ordinary Tree's stable `id`. The target takes the selection
+while the tree reuses the available branches. Try it through the managed
+demo's D8 `key_path` filter.
+[Tree](toolkit.md#tree), [verification](feedback.md#fb-0246).
+
 Record pages automatically retain the menu context of the first offered menu
 view for their `record` resource, including direct links and reloads. An explicit
 `group` limits that inheritance to the named group; see the

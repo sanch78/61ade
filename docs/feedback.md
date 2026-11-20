@@ -11573,3 +11573,28 @@ object. Typecheck, build and demo asset preparation passed.
   checks for direct landing, the page action taking precedence, and history
   fallback with an unavailable target. The temporary checks were removed.
 - **Status.** Implemented and verified on the managed demo.
+
+<a id="fb-0246"></a>
+
+## FB-0246 — A breadcrumb can select a node in the kept Tree
+
+- **Date.** 2026-11-20.
+- **Report.** A location-bar link to a category recreated the hierarchy with
+  a new initial depth. Every level opened while the requested node loaded.
+  That entry had no Tree ID and could not reuse the ordinary catalogue's
+  loaded branches.
+- **Implementation.** `TreeOptions.initialPath` takes the root-to-target
+  IDs with the ordinary Tree ID. A loaded path uses the same branches with
+  the target selected in the first frame. Missing levels are prepared
+  through the list action before painting. An unavailable target falls
+  back to the ordinary mount, and a broken parent chain stops at its first
+  unmatched step. Fresh background reads still apply.
+- **Contract.** [Tree](toolkit.md#tree).
+- **Verification.** Eleven managed-demo Chromium cases passed. The four
+  temporary navigation cases checked a cached target with all responses
+  held, the one missing branch requested before paint, a cold three-node
+  path and a path with the wrong parent. The other seven cases covered
+  reload, permission changes, same-tab return, desktop and phone selection,
+  initial depth and the selection race. Typecheck, build and demo assets
+  passed.
+- **Status.** Implemented and verified on the managed demo.

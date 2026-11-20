@@ -1542,6 +1542,8 @@ function browser(app, host, view) {
   }
   const media = matchMedia(PHONE3);
   let build, keys, list;
+  const path = host.filters.key_path?.split(",");
+  let initialPath = path && path.length <= 11 && new Set(path).size === path.length && path.every((id) => /^\d{1,20}$/.test(id)) ? path : void 0;
   const root = document.createElement("div");
   root.style.cssText = "width:100%;height:100%";
   host.attach(root);
@@ -1555,7 +1557,7 @@ function browser(app, host, view) {
     const tree = phone ? { rows: [{ id: "tree", header: nodes.title, height: 220, minHeight: 120, resizable: true, collapsable: true }, { ...center, minHeight: 200 }, { id: "value", header: t("\xC9rt\xE9k adatai"), height: 200, collapsable: true, collapsed: true }] } : { cols: [{ id: "tree", header: nodes.title, width: 280, minWidth: 180, resizable: true, collapsable: true }, center, { id: "value", header: t("\xC9rt\xE9k adatai"), width: 300, minWidth: 200, resizable: true, collapsable: true }] };
     const layout = new app.components.PageLayout({ id: `${view.id}.${phone ? "narrow" : "wide"}`, tree });
     layout.mount(root);
-    const nodeTree = keys = new app.components.Tree({ view: nodes, label: "name", iconField: "kind", id: `${view.id}.tree`, expandControl: true });
+    const nodeTree = keys = new app.components.Tree({ view: nodes, label: "name", iconField: "kind", id: `${view.id}.tree`, expandControl: true, initialPath });
     nodeTree.mount(layout.cell("tree"));
     layout.placeholder("key", { text: t("V\xE1lassz egy kulcsot a f\xE1ban.") });
     layout.placeholder("value", { text: t("V\xE1lassz egy \xE9rt\xE9ket a list\xE1ban.") });
@@ -1602,6 +1604,7 @@ function browser(app, host, view) {
       list.mount(layout.cell("values"));
     };
     nodeTree.on("select", ({ row }) => {
+      initialPath = void 0;
       const changed = String(row?.id ?? "") !== String(node?.id ?? "");
       node = row;
       if (!row) {

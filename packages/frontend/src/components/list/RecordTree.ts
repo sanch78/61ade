@@ -172,8 +172,48 @@ export class NodeTree {
   private branch(parent:string):Branch{
     return {rows:this.children(parent).map(id=>this.rows.get(id)!),cut:this.cut.has(parent)};
   }
+  /** Prepares a navigation target off-screen, reusing any loaded parent lists. */
+  startAt(path:readonly string[],initial:Initial,remembered:Remembered,depth:number,snapshot?:TreeSnapshot):void{
+    this.element.dataset.bladeEmpty=t("Betöltés…");
+    const control=this.linked();
+    const prepare=async()=>{
+      const branches=new Map(snapshot?.branches);
+      const found=await this.readPath(path,branches,control.signal);
+      if(control.signal.aborted)return;
+      if(!found){
+        if(snapshot)this.restore(snapshot,initial,remembered);
+        else await this.begin(initial,remembered,depth,!remembered.expanded&&depth>0?this.newBulk():undefined);
+        return;
+      }
+      const opened=new Set(snapshot?.opened??remembered.expanded);
+      for(const id of path.slice(0,-1))opened.add(id);
+      // On a cold mount keep the user's other open branches, reusing the levels just read for the target.
+      if(!snapshot&&remembered.expanded&&!await this.readLevels(control,row=>
+        opened.has(String(row.id))&&(row._subview===undefined||Number(row._subview)>0),branches))return;
+      if(control.signal.aborted)return;
+      this.restore({branches:[...branches],opened:[...opened],scrollTop:snapshot?.scrollTop??0},initial,
+        {expanded:[...opened],selected:path[path.length-1]},!!snapshot);
+      this.save();
+    };
+    this.settled=prepare().catch(async error=>{if(!control.signal.aborted)await this.failed(error);}).finally(()=>control.abort());
+  }
+  /** Each step must occur under its named parent in an authorized branch. */
+  private async readPath(path:readonly string[],branches:Map<string,Branch>,signal:AbortSignal):Promise<boolean>{
+    let parent="";
+    for(const [index,id] of path.entries()){
+      const matches=(branch?:Branch)=>branch?.rows.some(row=>String(row.id)===id&&
+        (index===path.length-1||row._subview===undefined||Number(row._subview)>0));
+      if(!matches(branches.get(parent))){
+        const branch=await this.read(parent,signal);
+        if(signal.aborted||!matches(branch))return false;
+        branches.set(parent,branch);
+      }
+      parent=id;
+    }
+    return true;
+  }
   /** Hydrates one complete first frame. The host receives the initial selection after its synchronous mount. */
-  restore(snapshot:TreeSnapshot,initial:Initial,remembered:Remembered):void{
+  restore(snapshot:Omit<TreeSnapshot,"preferences">,initial:Initial,remembered:Remembered,recheck=true):void{
     this.changed=remembered.expanded!==undefined;
     this.opened=new Set(snapshot.opened);
     this.pendingScroll=snapshot.scrollTop;
@@ -186,20 +226,20 @@ export class NodeTree {
     void Promise.resolve().then(()=>{
       if(control.signal.aborted)return;
       if(this.current!==undefined&&this.picks===picks)this.hooks.select(this.current);
-      return this.revalidate(branches,control);
+      if(recheck)return this.revalidate(branches,control);
     }).catch(error=>console.error("61ade: Tree restore failed",error)).finally(()=>{
       if(this.warm===control){this.warm=undefined;this.replacedDuringWarm.clear();}
       control.abort();
     });
   }
-  /** Rechecks the old visible branches, parent first, then updates them in one render. */
-  private async revalidate(previous:Map<string,Branch>,control:AbortController):Promise<void>{
-    const fresh=new Map<string,Branch>();
+  /** Reads requested branches in hierarchy order, reusing any levels already available. */
+  private async readLevels(control:AbortController,follow:(row:Row)=>boolean,branches=new Map<string,Branch>()):Promise<Map<string,Branch>|undefined>{
     let level=[""];
     while(level.length&&!control.signal.aborted){
       let failure:{error:unknown}|undefined;
       await this.pool(level,async parent=>{
-        try{fresh.set(parent,await this.read(parent,control.signal));}
+        if(branches.has(parent))return;
+        try{branches.set(parent,await this.read(parent,control.signal));}
         catch(error){
           if(!control.signal.aborted){failure={error};control.abort();}
           return false;
@@ -210,9 +250,14 @@ export class NodeTree {
         await this.failed(failure.error);
         return;
       }
-      level=level.flatMap(parent=>(fresh.get(parent)?.rows??[]).map(row=>String(row.id)).filter(id=>previous.has(id)));
+      level=level.flatMap(parent=>(branches.get(parent)?.rows??[]).filter(follow).map(row=>String(row.id)));
     }
-    if(control.signal.aborted)return;
+    if(!control.signal.aborted)return branches;
+  }
+  /** Rechecks the old visible branches, parent first, then updates them in one render. */
+  private async revalidate(previous:Map<string,Branch>,control:AbortController):Promise<void>{
+    const fresh=await this.readLevels(control,row=>previous.has(String(row.id)));
+    if(!fresh||control.signal.aborted)return;
     // A branch loaded or explicitly refreshed during the check keeps its newer response.
     for(const parent of this.replacedDuringWarm)if(this.loaded.has(parent)&&this.exists(parent))fresh.set(parent,this.branch(parent));
     const unchanged=fresh.size===this.loaded.size&&[...fresh].every(([parent,branch])=>
@@ -689,6 +734,10 @@ export class RecordTree extends Component<TreeEvents> implements TreeApi{
     if(options.id!==undefined&&(typeof options.id!=="string"||!KEY.test(options.id)))throw new TypeError("61ade: Tree `id` must match [a-z][a-z0-9_.-]*.");
     const depth=options.expand??0;
     if(!Number.isInteger(depth)||depth<0||depth>DEPTH)throw new TypeError(`61ade: Tree \`expand\` is a whole number of levels from 0 to ${DEPTH}.`);
+    const path=options.initialPath;
+    if(path!==undefined&&(!Array.isArray(path)||path.length<1||path.length>DEPTH+1||
+      new Set(path).size!==path.length||[...path].some(id=>typeof id!=="string"||!id||id.length>100||id.includes("\0"))))
+      throw new TypeError(`61ade: Tree \`initialPath\` is 1–${DEPTH+1} distinct node ids, starting at a root.`);
     const control=options.expandControl,placement=control&&typeof control==="object"?control.placement??"top":"top";
     if(control!==undefined&&typeof control!=="boolean"&&!(control&&typeof control==="object"&&(placement==="top"||placement==="bottom")))
       throw new TypeError("61ade: Tree `expandControl` is true, false or {placement: \"top\"|\"bottom\"}.");
@@ -730,7 +779,8 @@ export class RecordTree extends Component<TreeEvents> implements TreeApi{
         else this.nodes.invalidate(true,reason!=="ended");
       },this.abort.signal);
     }
-    if(snapshot)this.nodes.restore(snapshot,initial,remembered);
+    if(path)this.nodes.startAt([...path],initial,remembered,depth,snapshot);
+    else if(snapshot)this.nodes.restore(snapshot,initial,remembered);
     else void this.nodes.start(initial,remembered,depth);
     this.bind(options.signal);
   }
