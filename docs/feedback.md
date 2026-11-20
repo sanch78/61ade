@@ -11422,3 +11422,30 @@ object. Typecheck, build and demo asset preparation passed.
   `accordion-multiple` with a conditional section were not run in a browser.
   No full-smoke claim.
 - **Status.** Implemented and verified as above.
+
+<a id="fb-0241"></a>
+
+## FB-0241 — A visible sub-view row toggle
+
+- **Date.** 2026-11-20.
+- **Report.** Owner: the table's sub-view toggle does not look right when a
+  row is expanded. The toggle drew the thin Bootstrap `bi-chevron-right` /
+  `bi-chevron-down` glyph in the secondary text colour; the open `∨` in
+  particular read as a faint line beside the row.
+- **Decision.** The toggle takes the framework's existing expand chevron, the
+  one of the accordion and accordion form-section headers (7 px, 2 px stroke
+  in `currentColor`, rotated from right to down), instead of an icon glyph, so
+  every expandable control has one arrow. Size, colour, hover and the
+  accessible name are unchanged.
+- **Contract.** [Sub-views](workspaces.md#sub-views-expandable-rows-and-card-buttons).
+- **Implemented.** `ResponsiveGrid.ts`: the toggle button carries no icon
+  element; `admin.css`: `.blade-subrow-toggle::after` joins the shared chevron
+  rule, `[aria-expanded="false"]` its right-pointing rotation and the
+  reduced-motion rule.
+- **Verification.** `npm run typecheck`, `npm run build`, `npm run
+  demo:assets`; a temporary browser check on the demo (Tenant demó →
+  Projektek) captured the closed and open toggle (7 px chevron, 2 px stroke,
+  centred in the cell) and was removed. `subview.spec.cjs`,
+  `subview-demos.spec.cjs`, `tenancy.spec.cjs` and `form-accordion.spec.cjs`
+  passed all 25 cases. No full-smoke claim.
+- **Status.** Implemented and verified as above.
