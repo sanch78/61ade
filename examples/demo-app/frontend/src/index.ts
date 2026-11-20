@@ -32,6 +32,8 @@ import textRevisions from "./text-revisions";
 import mediaSheet from "./media-sheet";
 // D12 Médiaböngésző: view kind demo.media-browser, a PageLayout panel with an inner layout of components (media-browser.ts)
 import mediaBrowser from "./media-browser";
+// D13 Szolgáltatásjelentés: record view kind demo.service-page over a provider list's row (service-report.ts)
+import serviceReport from "./service-report";
 
 /**
  * Runs every part in D-row order. A failing part does not stop the later ones; the failures are rethrown together, so
@@ -39,7 +41,7 @@ import mediaBrowser from "./media-browser";
  */
 const demo: ApplicationModule = async app => {
   const failures: unknown[] = [];
-  for (const part of [assets, playlist, readings, tasks, playlistEditor, taskPage, registryBrowser, workbench, textRevisions, mediaSheet, mediaBrowser]) {
+  for (const part of [assets, playlist, readings, tasks, playlistEditor, taskPage, registryBrowser, workbench, textRevisions, mediaSheet, mediaBrowser, serviceReport]) {
     try { await part(app); } catch (error) { failures.push(error); }
   }
   if (failures.length) throw new AggregateError(failures, "61ade feature demo: a module part failed");

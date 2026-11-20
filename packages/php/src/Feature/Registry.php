@@ -205,7 +205,7 @@ final class Registry
         // allowed), `filters` exact values of its filterable fields; none of them is a count field itself.
         foreach($this->counts as $resource=>$counts)foreach($counts as $name=>$count){
             $fields=$this->fields($count['resource']);$theirs=$this->counts[$count['resource']]??[];
-            $bad=!(($this->actions[$count['resource'].'.list']??null)?->listSource);
+            $bad=!(($this->actions[$count['resource'].'.list']??null)?->listSource instanceof ListSource);
             foreach($count['match'] as $match){$field=$fields[$match]??null;if(!$field||$field->secret||$field->stored()||in_array($field->type,['textarea','multiselect','password','file'],true)||isset($theirs[$match]))$bad=true;}
             foreach($count['filters']??[] as $filter=>$value)if(!self::filterable($fields[$filter]??null,$value)||isset($theirs[$filter]))$bad=true;
             if($bad)throw new \InvalidArgumentException('Invalid count field: '.$resource.'.'.$name);

@@ -285,6 +285,136 @@ A `list` request without parameters is the first cursor window (default
 limit 100); a list id is refused (400), there is no offset paging.
 Pager/refresh buttons were removed.
 
+<a id="provider-lists"></a>
+
+## Provider lists (rows from PHP instead of SQL)
+
+A list whose rows are not an SQL table (an API, files, a report computed or
+joined from several sources) is a `Blade\Feature\ProviderResource`
+([FB-0252](feedback.md#fb-0252)). It registers `list` and `get` and the list view
+like `SqlResource::register()`. The standard `ListView` then gives everything an
+SQL list gives:
+
+- header filters, the filter panel and the narrow-width `Szűrés`;
+- the declared search, sort and its indicator;
+- row numbers, stripes, cards and tiles;
+- the counts, the empty and no-match texts, `emphasis`, row tones (`column.tones`) and `attention`;
+- `Adatok` / `RecordDetails` with sections and `ID · <key>`;
+- record views, the activation map, record client commands, and server actions with a target;
+- the live channel.
+
+Use it only for data that cannot be an SQL table. Data that a scheduled task
+can store in a table is an `SqlResource`.
+
+```php
+use Blade\Feature\{Context, Field, ProviderResource};
+
+$report = new ProviderResource('host_report', 'host', [
+    new Field('name', 'Név'),
+    new Field('state', 'Állapot', 'select', options: ['ok' => 'Működik', 'down' => 'Leállt'], column: ['tones' => ['down' => 'danger']]),
+    new Field('load', 'Terhelés', 'number'),
+    new Field('owner', 'Felelős', section: 'Részletek'),
+], static fn(Context $ctx): array => [
+    'rows' => $hosts->current($ctx),            // [['host' => 'web-1', 'name' => …, 'state' => 'ok', 'load' => 12, 'owner' => …], …]
+    'notice' => ['text' => 'Készült: 10:42 · forrás: monitor', 'tone' => 'info'],
+], search: ['name']);
+$report->register($registry, 'Gépek', sort: ['field' => 'state', 'direction' => 'asc']);
+```
+
+**Rows.** The second argument names the key field: each row's value of it is
+the record's `id`, 1–100 letters, digits, `_`, `.`, `:` or `-`, and unique in
+the row set. A declared field is not named `revision` or `_…`, nor `id`
+unless it is the key. Declared fields take scalar values or null; a boolean
+becomes `1` or `0`. Rows may hold more keys; only declared fields reach the
+browser. A broken row set is a developer error: the read answers 500 and the
+reason goes to the server log. That covers a missing or duplicate key, an
+invalid notice, and a non-scalar value in a row that the answer returns.
+
+**Two forms.**
+
+- **All rows:** a closure `fn(Context): list<array>`, or
+  `{rows, notice?}`, gives every row of a small, fully materialised set.
+  61ade filters, sorts, numbers, windows and counts them by the
+  [list protocol](#list-protocol) rules: a text filter is a case-insensitive
+  substring; a select, checkbox, number filter or scope is exact. A null value
+  matches no filter, scope or search, not even an empty one, as in SQL. Sorting
+  puts empty values last in both directions, compares number fields as
+  numbers and text without case, and breaks ties by the key (digit-only keys first, numerically, then the others as text). Cursors are keyset
+  cursors over the key and the sort value, as in an SQL list, so a window
+  stays put while rows come and go.
+- **Windowed:** a `Blade\Feature\ListProvider` answers one window:
+  `rows(Context, ListQuery): {rows, total, matched, notice?}` and
+  `row(Context, key): ?array`.
+  - `ListQuery` carries the validated read: `conditions` (`{field, value,
+    match}`, match `exact` or `contains`), `search` and `searchFields`, `sort`
+    (`id` = the key), `offset` and `limit`.
+  - Its `matches()`, `compare()` and `apply()` implement the rules above for a
+    provider that wants them.
+  - Cursors carry the offset. A watch window starts at its anchor cursor's
+    offset, which the list view always sends; `first` alone is refused.
+
+The read is validated by the same code as an SQL list's. Unknown parameters,
+filters on undeclared, textarea or denied fields, an invalid option or number,
+a cursor of another sort, and an oversized limit are refused alike.
+
+**ACL.**
+
+- `list` and `get` are registered actions, checked on the server.
+- The field ACL applies to every value, filter, sort and search field.
+- `_actions` lists the resource's actions the actor may run on each row.
+- Every row is listed by the object ACL of the actor's `list` rules: an `all`
+  or `id` scope, and any deny. A row has no owner, so `own` grants nothing;
+  `delegated` needs a delegation, which a provider resource does not declare.
+- A windowed provider cannot filter a foreign window, so an actor whose `list`
+  permission is limited to some records (an `id` allow without an `all` one,
+  or any object deny) is refused with 403.
+- Without any `list` allow nothing is listed, as in an SQL list.
+- The provider applies its own business scope (actor, tenant) from the
+  `Context`. A provider resource has no tenant column.
+
+**Records and writes.** `get` reads one row by key: `row()` of a windowed
+provider, or a scan of the closure's rows. The resource is read-only. A write
+or command is an ordinary declared action whose resolver is
+`$report->target($ctx, $id)` (`{id, owner: null, row}`), added with
+`Registry::add()` and `Registry::appendViewActions()`.
+
+**Notice.** A list answer may carry `notice: {text, tone}`: plain text of at
+most 300 characters, tone `info` (default), `warning` or `danger`. Use it for
+view-level facts that are not rows, such as the generation time, the source
+or warnings. The list shows it in a row of its own above the rows
+(`role="status"`, the tone's icon). The live channel keeps it current, and a
+changed text is announced again. Translate it in PHP.
+
+**Live.** Polling and the WebSocket service observe a provider list like an
+SQL list: each observation reads the provider again and sends only a changed
+window. There is no change token; a costly source caches its rows itself.
+
+**Not supported.**
+
+- Count fields, and the counts of a sub-view's child records: `countBy` and
+  `countMatching` answer null, so a parent's badge is left out.
+- Editable columns.
+- Secret, password and file fields.
+- Manual order and tenant columns.
+- Media class filters (a `column.media` column is shown but not filtered).
+
+
+**Checks.** `php8.4 tests/shell/provider-lists.php` covers:
+
+- parity with an `SqlResource` over the same rows: every filter, search,
+  scope, sort, page in both directions and numbering, for both forms;
+- watch windows, `get` and record watches, and a consumer action;
+- validation, ACL and developer errors.
+
+`tests/shell/provider-list.spec.cjs` checks the feature demo's
+`Szolgáltatásjelentés` at 1366 and 390 px:
+
+- the notice and the counts;
+- the declared sort and a header sort, a select header filter and the search;
+- the no-match text, `Adatok` with sections and its ID, a record action and the
+  record view;
+- cards and the `Szűrés` dialog on a phone.
+
 <a id="élő-adat-konfigurálása-és-futtatása"></a>
 
 ## Live-data configuration and execution
@@ -326,7 +456,7 @@ WebSocket protocol 2 (JSON text frames; [FB-0075](feedback.md#fb-0075),
 | S→C | `ready {protocol: 2}` | Authenticated; subscriptions may follow. |
 | C→S | `subscribe {id, resource, query}` | Opens subscription `id`, or replaces it (a new first window). |
 | C→S | `unsubscribe {id}` | Ends it. |
-| S→C | `update {id, version, order, upserts, removed, previous, next, total, matched}` | Changed rows, removed ids and the current order of that subscription. |
+| S→C | `update {id, version, order, upserts, removed, previous, next, total, matched, notice?}` | Changed rows, removed ids and the current order of that subscription; `notice` while the list answers one ([provider lists](#provider-lists)). |
 | S→C | `denied {id, status, error}` | That subscription only (403, 404, 400; 429 at the limit); the channel stays open. |
 | close | 4401 | No or refused ticket, or the session ended. |
 | close | 4409 | Another protocol (a page loaded before an update). |

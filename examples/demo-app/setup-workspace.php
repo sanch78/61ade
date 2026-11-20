@@ -245,6 +245,9 @@ require_once __DIR__.'/contacts.php';
 blade_demo_contacts_setup($db);
 $rules[] = ['1', 'demo_contacts', ['list', 'get', 'create', 'update', 'delete']];
 $rules[] = [(string) $reader, 'demo_contacts', ['list', 'get']];
+// Provider list (service-report.php): rows computed in PHP; reading for both, the re-check for the demo account.
+$rules[] = ['1', 'demo_service_report', ['list', 'get', 'recheck']];
+$rules[] = [(string) $reader, 'demo_service_report', ['list', 'get']];
 // Conditional form sections (modules/notifications.json, FB-0240): notification rules whose text sections follow the
 // switch and whose delivery sections follow the delivery choice; the weekly summary is switched off and keeps its text.
 $db->exec("CREATE TABLE IF NOT EXISTS demo_notifications(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL,enabled INTEGER NOT NULL DEFAULT 1,delivery TEXT NOT NULL DEFAULT 'immediate',email_text TEXT NOT NULL DEFAULT '',sms_text TEXT NOT NULL DEFAULT '',delay_minutes TEXT NOT NULL DEFAULT '',digest_time TEXT NOT NULL DEFAULT '',schedule_rule TEXT NOT NULL DEFAULT '')");

@@ -1945,10 +1945,33 @@ var mediaBrowser = (app) => {
 };
 var media_browser_default = mediaBrowser;
 
+// examples/demo-app/frontend/src/service-report.ts
+var KIND9 = "demo.service-page";
+function servicePage(app, host, view) {
+  const t = (key) => app.i18n.t(key);
+  if (!host.record) throw new Error(t("A szolg\xE1ltat\xE1slap egy szolg\xE1ltat\xE1shoz ny\xEDlik meg."));
+  const list = app.viewDefinition(host.record.resource);
+  if (!list) throw new Error(t("A szolg\xE1ltat\xE1sjelent\xE9s nem \xE9rhet\u0151 el."));
+  const label = `${String(host.record.row.name ?? "")} \xB7 ${String(host.record.row.region ?? "")}`;
+  host.setTitle(`${view.title}: ${label}`);
+  host.setLocation([{ label }]);
+  const controller = new AbortController(), signal = controller.signal;
+  host.signal.addEventListener("abort", () => controller.abort(), { once: true });
+  const layout = new app.dhx.Layout(null, { type: "none", rows: [{ id: "details" }] });
+  host.attach(layout);
+  new app.components.RecordDetails({ view: list, record: host.record.row, signal }).mount(layout.getCell("details"));
+  signal.addEventListener("abort", () => layout.destructor(), { once: true });
+  return { destroy: () => controller.abort() };
+}
+var serviceReport = (app) => {
+  app.kinds.register(KIND9, { create: (host, view) => servicePage(app, host, view) });
+};
+var service_report_default = serviceReport;
+
 // examples/demo-app/frontend/src/index.ts
 var demo = async (app) => {
   const failures = [];
-  for (const part of [assets_default, playlist_default, readings_default, tasks_default, playlist_editor_default, task_page_default, registry_browser_default, workbench_default, text_revisions_default, media_sheet_default, media_browser_default]) {
+  for (const part of [assets_default, playlist_default, readings_default, tasks_default, playlist_editor_default, task_page_default, registry_browser_default, workbench_default, text_revisions_default, media_sheet_default, media_browser_default, service_report_default]) {
     try {
       await part(app);
     } catch (error) {

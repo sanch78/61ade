@@ -11833,3 +11833,84 @@ object. Typecheck, build and demo asset preparation passed.
   Part of the combined run above (`command-bar`, `command-menu`, `toolkit-menu`, `mobile-grid`, `location-bar`, `suite-labels`).
 - **Status.** Implemented and verified on the managed demo; consumers drop
   their wrapper selectors and bar heights in their own sessions.
+
+<a id="fb-0252"></a>
+
+## FB-0252 — Lists over rows from PHP handlers (provider lists)
+
+- **Date.** 2026-11-20.
+- **Report.** A consumer showed that its `Adatok` window does not look or behave
+  like the framework list's. Its rows come from handlers: live host reports,
+  manifests, inventories joined from several sources, a recovery engine's state.
+  61ade lists existed only over an `SqlResource`, so the consumer drew its own
+  Suite Grid, filter panel, count, empty state, sort indicator and `Adatok`
+  window. Those copies drift from the framework list with every change and
+  depend on undocumented `.dhx_*` and `blade-status` internals. Any admin over
+  a non-SQL source (an API, files, a computed report) has the same need.
+- **Owner decision.** Approved as a general, additive, opt-in capability
+  (2026-11-20):
+  - A closure form lets 61ade filter, sort, window and count a small row set,
+    and apply each row's object ACL.
+  - A windowed `ListProvider` scopes its own rows; 61ade refuses it for an
+    actor whose list permission is limited to some records.
+  - No tenant column and no count fields.
+  - View-level facts go to a documented notice above the rows, not a separate
+    window.
+  - Data that can be an SQL table stays an `SqlResource`.
+- **Implementation.**
+  - `Blade\Feature\ProviderResource` registers `list`, `get` and the list view
+    with `SqlResource::register`'s view options. `target()` resolves a row for
+    the consumer's own actions.
+  - The row source is `ProviderList`, the closure or windowed form.
+  - `ListProvider` and `ListQuery` carry the validated read, with `matches()`,
+    `compare()` and `apply()` over plain rows.
+  - The shared `ListRules` trait holds the one validation (`normalise`), the
+    filter, sort and search metadata, the cursor format, media, sub-view and
+    count helpers. `ListSource` uses it unchanged in behaviour.
+    `Action::$listSource` is the `ListReader` interface that both sources
+    implement.
+  - A list answer's `notice` (`{text, tone}`) is shown in a row of its own
+    above the rows, and the WebSocket `update` frame carries it.
+  - Feature demo: `Szolgáltatásjelentés` (36 synthetic rows computed in PHP,
+    menu attention, notice, the `Újraellenőrzés` action) and its record view
+    `Szolgáltatáslap`.
+- **Contract.** [Provider lists](workspaces.md#provider-lists), the
+  [live protocol](workspaces.md#élő-adat-konfigurálása-és-futtatása) frame, the
+  [toolkit changes](toolkit.md#changes), [usage](usage.md), [demos](demos.md),
+  the [focused checks](development.md#focused-task-groups) and the
+  [61ade-ui skill](../.agents/skills/61ade-ui/SKILL.md#grid-rules).
+- **Verification.** On the managed demo, against the final candidate:
+  - **PHP:** `provider-lists.php` covers:
+    - parity with an `SqlResource` over the same 250 rows, with nulls and
+      empty strings, for both forms: 12 queries × 7 sorts, every page
+      forward and back, numbering, counts and cursor presence;
+    - keys of mixed kinds paging completely both ways, and watch windows from
+      an anchor;
+    - `get`, the record watch and a consumer action;
+    - refusals identical to the SQL list's;
+    - row, field and windowed ACL, and a revision that hides denied values;
+    - developer errors and reserved names.
+
+    `lists`, `sorting`, `list-presentation`, `tree-navigation`, `tenancy`,
+    `counts`, `access`, `files`, `configuration`, `delegation`, `contracts`,
+    `toolkit` and `i18n` passed, as did `live-protocol.mjs` (26 checks).
+  - **Browser:** `provider-list.spec.cjs` passed at 1366 and 390 px. The
+    `workspace`, `list-integration`, `empty-states`, `mobile-grid`,
+    `grid-sort`, `subview`, `toolkit-list` and `list-presentation` specs
+    passed (52 cases).
+  - **Review:** an independent review found six defects, all fixed with tests:
+    - a non-transitive key order;
+    - a revision hashing hidden fields;
+    - nulls matching empty filters;
+    - a declared `id` field overriding the key;
+    - two documentation claims.
+
+  Not covered:
+  - a provider list's own empty state in a browser (the shared `ListView`
+    path, covered for SQL lists by `empty-states.spec.cjs`);
+  - real screen readers;
+  - a provider list as a sub-view parent or child.
+- **Status.** Implemented and verified on the managed demo. The page command
+  row, once it exists, applies to provider lists through the same `ListView`.
+  The consumer replaces its interim grids and `Adatok` windows in its own
+  session.
