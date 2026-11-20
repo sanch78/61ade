@@ -104,7 +104,7 @@ const DEPTH="bladeDepth";
 
 /** `sessionStorage` time of the last automatic sign-out reload, so a page that keeps answering 401 never loops. */
 const SIGNED_OUT="blade-signed-out";
-/** `sessionStorage` marks of the guides already shown in this sign-in session (AdminShell.guideKey). */
+/** Browser marks of the guides already shown to each user (AdminShell.guideKey). */
 const GUIDE_PREFIX="blade-guide:2:";
 /** At most this many parent levels of a record page (`ViewDefinition.parent`, docs/shell.md#location-bar). */
 const PARENTS=4;
@@ -514,6 +514,15 @@ export class AdminShell {
     }
     // The top-row logo's width is known once its image loads (load does not bubble: capture).
     if(this.topLogo)root.addEventListener("load",event=>{if((event.target as Element).closest?.(".blade-navigation-row .blade-logo"))this.renderMenu();},{capture:true,signal:this.listeners.signal});
+    // Keep marks from tabs that used the old sign-in-session storage.
+    try {
+      for (const key of Object.keys(sessionStorage)) {
+        if (key.startsWith(GUIDE_PREFIX) && sessionStorage.getItem(key)==="1") {
+          localStorage.setItem(key,"1");
+          sessionStorage.removeItem(key);
+        }
+      }
+    } catch {}
     if (this.applicationPage) {
       uploads.configure({ userId: definition.userId });
       this.status.events.on("click", (id: string | number) => { if (id === "upload-status") uploads.reopen(); });
@@ -602,9 +611,6 @@ export class AdminShell {
       // Project modules register their kinds before the first route; a declarative application routes at once.
       if(definition.modules?.length)void loadModules(this.kernel,definition.modules,definition.version).catch(error=>console.error(error)).then(start);
       else start();
-    } else {
-      // A new sign-in session shows every guide once again.
-      try{for(const key of Object.keys(sessionStorage))if(key.startsWith(GUIDE_PREFIX))sessionStorage.removeItem(key);}catch{}
     }
     if(!this.applicationPage||definition.signingIn)this.mountSignIn();
     // Content-sized selectors settle after native widgets render; recalculate menu/logo fit with their actual widths.
@@ -913,12 +919,9 @@ export class AdminShell {
     if(this.guides){if(this.guide)this.controls?.enable("blade-guide");else this.controls?.disable("blade-guide");}
     this.renderMenu();
   }
-  /**
-   * A guide opens by itself once per sign-in session: the first time its view opens as a page in this tab. The mark
-   * is per page path, user and view in `sessionStorage`; the signed-out page clears every mark.
-   */
+  /** A guide opens by itself once per application path, user and view in this browser profile. */
   private guideKey(view:ViewDefinition):string{return GUIDE_PREFIX+JSON.stringify([location.pathname,this.definition.userId??"",view.id]);}
-  private guideShown(view:ViewDefinition):boolean{try{return sessionStorage.getItem(this.guideKey(view))==="1";}catch{return false;}}
+  private guideShown(view:ViewDefinition):boolean{try{return localStorage.getItem(this.guideKey(view))==="1";}catch{return false;}}
   private guideWindow?:AppWindow;
   /** The page view's guide (`guide`) in a non-modal window at the lower right of the workspace; it closes with the view. */
   private showGuide(mounted:Mounted):void{
@@ -936,7 +939,7 @@ export class AdminShell {
       body.append(p);
     }
     win.attach(body);
-    try{sessionStorage.setItem(this.guideKey(view),"1");}catch{}
+    try{localStorage.setItem(this.guideKey(view),"1");}catch{}
     win.signal.addEventListener("abort",()=>{if(this.guideWindow===win)this.guideWindow=undefined;},{once:true});
   }
 

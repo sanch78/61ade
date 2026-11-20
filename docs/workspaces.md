@@ -1655,13 +1655,14 @@ application-level map `application.guides` (`{"<view id>": "<text>"}`).
   the menu position stay). An unknown view id, a non-string or invalid text,
   a JSON list instead of an object, or guides without a workspace throw at
   definition time.
-- **Once per session:** the first time a view with a guide opens as a page in
-  a sign-in session, its guide opens by itself; then it no longer does,
-  whether it was closed by hand or not. The mark is per page path, user and
-  view in the tab's `sessionStorage` (key `blade-guide:2:[path, user, view id]`),
-  so a reload or a language switch keeps it and a new tab starts afresh. The
-  signed-out page (sign-out, session expiry) clears every mark, so the next
-  sign-in shows each guide once again. Leaving the view closes its guide.
+- **Once per user and view:** the shell records the guide as soon as it opens.
+  The mark is kept in `localStorage` for the application path, user ID and view
+  ID (`blade-guide:2:[path, user, view id]`). It survives reloads, new tabs,
+  sign-out and browser restarts in the same browser profile with storage
+  enabled. A separate profile or clearing site data starts afresh. Public
+  access uses the guest identity within that browser profile. Existing marks
+  in an open tab's former session storage are carried forward. Leaving the
+  view closes its guide. [FB-0243](feedback.md#fb-0243)
 - **Not over a work window:** while a non-modal window is open — a project's
   [long-lived window](toolkit.md#long-lived-windows), which survives the
   navigation — a view opened behind it does not open its guide by itself

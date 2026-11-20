@@ -653,7 +653,7 @@ Shared feature-demo steps (sign-in, menu, commands, view switch, API calls,
 synthetic task creation/deletion) live in `tests/shell/feature-demo.cjs`.
 The `test` of `tools/playwright-test.cjs` gives every page a locator handler
 that closes a [view guide](workspaces.md#view-guide) window whenever it is in
-the way of an action (every view's guide opens once per sign-in session); a spec that
+the way of an action (every view's guide opens once per user in the browser context); a spec that
 tests the guide calls `page.removeLocatorHandler(guide(page))` with the
 exported `guide`. Assertions do not trigger the handler.
 Artifacts use `tmp/playwright-results/` or the corresponding subdirectory of

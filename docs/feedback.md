@@ -3797,6 +3797,7 @@ that exactly equals an option label lists every option. The managed
 ## FB-0109 — A guide on every view, once per session, from the top row
 
 - **Date:** 2026-10-31.
+- **Update.** [FB-0243](#fb-0243) supersedes the per-session timing.
 - **Request:** the owner wants the guide ("help") of [FB-0107](#fb-0107) on
   every surface, not only on some: each feature opens with its guide once per
   session, the first time it is tried, saying which 61ade capability it
@@ -11498,3 +11499,24 @@ object. Typecheck, build and demo asset preparation passed.
   (the condition noted in [FB-0177](#fb-0177)); no form is involved. Not
   removed here. No full-smoke claim.
 - **Status.** Implemented and verified as above.
+
+<a id="fb-0243"></a>
+
+## FB-0243 — A view guide opens automatically once per user
+
+- **Date.** 2026-11-20.
+- **Decision.** The common shell opens each view guide automatically once per
+  user in the same browser profile. The `Útmutató` control can reopen it on
+  request. This supersedes the sign-in-session timing of [FB-0109](#fb-0109).
+- **Implementation.** The shell marks each shown guide in `localStorage`
+  by application path, user ID and view ID, and carries over marks from open
+  tabs using the former session storage. The saved mark survives sign-out
+  and new tabs in that profile. The suppression over an open non-modal
+  work window continues to apply ([FB-0200](#fb-0200)).
+- **Contract.** [View guide](workspaces.md#view-guide).
+- **Verification.** Build, type check, demo asset preparation and the
+  `tree-navigation`, `contracts`, `configuration` and `i18n` PHP checks passed.
+  All 10 cases in `registry.spec.cjs` and `menu-commands.spec.cjs` passed on
+  the managed demo. The guide test covers a new tab before dismissal, reload,
+  repeat sign-in, a different account in the same profile and manual opening.
+- **Status.** Implemented and verified on the managed demo.

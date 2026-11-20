@@ -18,8 +18,8 @@ namespace Blade\Feature;
  *   options verbatim after a JSON-safety and size check, so they must never hold backend-only data.
  * $open: `page` (workspace, menu entry, address) or `window` (a framework document window, no history entry).
  * $guide: what the user sees and can do in the view (plain text, localized; blank lines separate paragraphs, at most
- *   4000 characters). The first time the view opens as a page in a sign-in session the shell shows it in a closable
- *   window; the `Útmutató` control shows it again. ApplicationDefinition `guides` sets it by view id.
+ *   4000 characters). The shell automatically shows it in a closable window once per user and browser profile.
+ *   The `Útmutató` control shows it again on request. ApplicationDefinition `guides` sets it by view id.
  * $menu: false offers the view (bootstrap, `app.viewDefinition`, a scoped `ListView` in a project page) without a menu
  *   entry; the address `#view=<id>` and `app.navigate` refuse it like an unknown view. Only a list view that is not a
  *   singleton and has no guide (it never opens as a page) may leave the menu; a record view has no entry anyway.
