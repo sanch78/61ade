@@ -1694,16 +1694,39 @@ var workbench = (app) => {
         return days <= 0 ? clock3.format(at) : days < 7 ? relative.format(-days, "day") : date.format(at);
       };
       let draft = list[0].id, model, effort = "";
-      const layout = new app.dhx.Layout(document.createElement("div"), { type: "none", rows: [{ id: "head", height: "content" }, { id: "body" }, { id: "composer", height: "content" }] });
-      const head = new app.dhx.Toolbar(document.createElement("div"), { data: [
-        { type: "title", id: "title", value: list[0].name },
-        { type: "spacer" },
-        { id: "history", value: t("El\u0151zm\xE9nyek"), icon: "bi bi-clock-history" }
-      ] });
+      const layout = new app.dhx.Layout(document.createElement("div"), { type: "none", rows: [{ id: "head", height: 48 }, { id: "body" }, { id: "composer", height: 48 }] });
       const modelText = () => model ? `${t(model.label)}${model.efforts.length > 1 ? " \xB7 " + t(EFFORTS[effort]) : ""}` : t("Automatikus");
-      const composer = new app.dhx.Toolbar(document.createElement("div"), { data: [
-        { id: "model", value: t("Modell: {choice}", { choice: modelText() }), icon: "bi bi-sliders" }
+      const head = new app.components.CommandBar({ label: t("Munkaasztal"), narrow: "icons", signal, items: [
+        { type: "title", id: "title", label: list[0].name },
+        { type: "spacer" },
+        { type: "popup", id: "history", label: t("El\u0151zm\xE9nyek"), icon: "bi bi-clock-history", items: () => [["Ma", (d) => d <= 0], ["Az elm\xFAlt 7 nap", (d) => d > 0 && d < 7], ["R\xE9gebbi", (d) => d >= 7]].map(([label, test]) => ({
+          type: "group",
+          label: t(label),
+          items: list.filter((x) => test(daysAgo(x.at))).map((x) => ({ id: x.id, label: x.name, detail: ago(x.at), checked: x.id === draft }))
+        })) }
       ] });
+      head.on("select", ({ item }) => {
+        draft = item;
+        head.update("title", { label: list.find((x) => x.id === item).name });
+      });
+      const composer = new app.components.CommandBar({ label: t("Modell"), placement: "bottom", signal, items: [
+        { type: "popup", id: "model", label: t("Modell: {choice}", { choice: modelText() }), menuLabel: t("Modell"), icon: "bi bi-sliders", items: () => {
+          const groups = [{ type: "group", label: t("Modell"), items: [
+            { id: "model:auto", label: t("Automatikus"), detail: t("a feladat alapj\xE1n"), checked: !model },
+            ...MODELS.map((m) => ({ id: "model:" + m.id, label: t(m.label), detail: m.standard ? t("alap\xE9rtelmezett") : void 0, checked: m === model }))
+          ] }];
+          if (model && model.efforts.length > 1)
+            groups.push({ type: "group", label: t("Er\u0151ss\xE9g"), items: model.efforts.map((e) => ({ id: "effort:" + e, label: t(EFFORTS[e]), checked: e === effort })) });
+          return groups;
+        } }
+      ] });
+      composer.on("select", ({ item }) => {
+        if (item.startsWith("model:")) {
+          model = MODELS.find((m) => "model:" + m.id === item);
+          effort = model ? model.efforts.includes(effort) ? effort : model.efforts[Math.floor((model.efforts.length - 1) / 2)] : "";
+        } else effort = item.slice("effort:".length);
+        composer.update("model", { label: t("Modell: {choice}", { choice: modelText() }) });
+      });
       form = new app.dhx.Form(document.createElement("div"), { padding: 16, rows: [
         { type: "input", name: "view", label: t("Aktu\xE1lis n\xE9zet"), labelPosition: "left", labelWidth: 140, readOnly: true },
         {
@@ -1719,42 +1742,12 @@ var workbench = (app) => {
       form.getItem("clear").events.on("click", async () => {
         if (await app.ui.dialog({ message: t("T\xF6rl\xF6d a jegyzetet?"), mode: "confirm", severity: "warning" })) form?.getItem("note").setValue("");
       });
-      layout.getCell("head").attach(head);
+      head.mount(layout.getCell("head"));
       layout.getCell("body").attach(form);
-      layout.getCell("composer").attach(composer);
+      composer.mount(layout.getCell("composer"));
       win.attach(layout);
       signal.addEventListener("abort", () => layout.destructor(), { once: true });
       showView();
-      void app.dhx.awaitRedraw().then(() => {
-        const button = (bar, id) => bar.getRootNode()?.querySelector(`[data-dhx-id="${id}"]`);
-        const historyButton = button(head, "history"), modelButton = button(composer, "model");
-        if (signal.aborted || !historyButton || !modelButton) return;
-        const history = app.ui.menu(historyButton, { label: t("El\u0151zm\xE9nyek"), signal, items: () => [["Ma", (d) => d <= 0], ["Az elm\xFAlt 7 nap", (d) => d > 0 && d < 7], ["R\xE9gebbi", (d) => d >= 7]].map(([label, test]) => ({
-          type: "group",
-          label: t(label),
-          items: list.filter((x) => test(daysAgo(x.at))).map((x) => ({ id: x.id, label: x.name, detail: ago(x.at), checked: x.id === draft }))
-        })) });
-        history.on("select", ({ id }) => {
-          draft = id;
-          head.data.update("title", { value: list.find((x) => x.id === id).name });
-        });
-        const picker = app.ui.menu(modelButton, { label: t("Modell"), signal, items: () => {
-          const groups = [{ type: "group", label: t("Modell"), items: [
-            { id: "model:auto", label: t("Automatikus"), detail: t("a feladat alapj\xE1n"), checked: !model },
-            ...MODELS.map((m) => ({ id: "model:" + m.id, label: t(m.label), detail: m.standard ? t("alap\xE9rtelmezett") : void 0, checked: m === model }))
-          ] }];
-          if (model && model.efforts.length > 1)
-            groups.push({ type: "group", label: t("Er\u0151ss\xE9g"), items: model.efforts.map((e) => ({ id: "effort:" + e, label: t(EFFORTS[e]), checked: e === effort })) });
-          return groups;
-        } });
-        picker.on("select", ({ id }) => {
-          if (id.startsWith("model:")) {
-            model = MODELS.find((m) => "model:" + m.id === id);
-            effort = model ? model.efforts.includes(effort) ? effort : model.efforts[Math.floor((model.efforts.length - 1) / 2)] : "";
-          } else effort = id.slice("effort:".length);
-          composer.data.update("model", { value: t("Modell: {choice}", { choice: modelText() }) });
-        });
-      });
     }
   });
 };

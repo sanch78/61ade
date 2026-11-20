@@ -2,7 +2,8 @@ import { Layout, type Toolbar } from "@dhtmlx/suite";
 import { t } from "../../I18n";
 import { ResponsiveToolbar } from "../../ResponsiveToolbar";
 import { widgetIcons } from "../../WidgetIcons";
-import type { CommandBar as CommandBarApi, CommandBarEvents, CommandBarOptions, CommandButton, CommandChanges, CommandItem, CommandMenu, CommandOption, CommandRange, CommandSelect, CommandToggle } from "../../api/types";
+import { checkPopupItems, popupMenu } from "../../PopupMenu";
+import type { CommandBar as CommandBarApi, CommandBarEvents, CommandBarOptions, CommandButton, CommandChanges, CommandItem, CommandMenu, CommandOption, CommandPopup, CommandRange, CommandSelect, CommandTitle, CommandToggle, PopupMenu } from "../../api/types";
 import { Component } from "./component";
 import { escape } from "./fields";
 
@@ -15,7 +16,8 @@ let serial=0;
 /** `generation` is part of the option ids: options replaced by `update` get ids the toolbar has not drawn. */
 type Choice={kind:"select"|"segmented";item:CommandSelect;options:CommandOption[];value:string;generation:number};
 type Range={kind:"range";item:CommandRange;value:number;emitted:number;last:number;timer?:ReturnType<typeof setTimeout>};
-type Entry={kind:"button";item:CommandButton}|{kind:"toggle";item:CommandToggle;pressed:boolean}|{kind:"menu";item:CommandMenu}|Choice|Range;
+type Popup={kind:"popup";item:CommandPopup;anchor?:HTMLElement;menu?:PopupMenu};
+type Entry={kind:"button";item:CommandButton}|{kind:"toggle";item:CommandToggle;pressed:boolean}|{kind:"menu";item:CommandMenu}|{kind:"title";item:CommandTitle}|Popup|Choice|Range;
 
 const finite=(value:unknown):value is number=>typeof value==="number"&&Number.isFinite(value);
 const invalid=(message:string)=>new TypeError("61ade: "+message);
@@ -26,7 +28,8 @@ const invalid=(message:string)=>new TypeError("61ade: "+message);
  * menu below 768 px or when the items do not fit, keeping ids, state and events. Toggles, selects and segmented choices
  * are native Suite toggle items (`twoState`, `group`: `aria-pressed` in the bar, checked menu entries in a menu); a
  * range is a native range input that stays in the bar beside the collapsed menu; a `menu` is a Suite menu button whose
- * entries are the bar's buttons (a submenu of the collapsed menu).
+ * entries are the bar's buttons (a submenu of the collapsed menu); a `popup` is a button carrying an `app.ui.menu`,
+ * bound again after every redraw and kept in the bar; a `title` is a Suite title item kept first.
  */
 export class CommandBar extends Component<CommandBarEvents> implements CommandBarApi{
   readonly layout:Layout;
@@ -39,21 +42,83 @@ export class CommandBar extends Component<CommandBarEvents> implements CommandBa
   private prefix=`#${++serial}`;
   private observer?:MutationObserver;
   private releaseIcons=widgetIcons();
+  private label?:string;
+  /** `narrow: "icons"`: the top-level items with an icon and a label (Suite id → public id), shown as icons below 768 px. */
+  private narrowable=new Map<string,string>();
+  private narrowed=false;
+  private listeners=new AbortController();
   constructor(options:CommandBarOptions){
     super(options);
     const items=Array.isArray(options?.items)?options.items:[];
     if(options?.label!==undefined&&typeof options.label!=="string")throw invalid("CommandBar label must be text.");
     if(options?.placement!==undefined&&options.placement!=="top"&&options.placement!=="bottom")throw invalid(`invalid CommandBar placement "${String(options.placement)}".`);
+    if(options?.narrow!==undefined&&options.narrow!=="menu"&&options.narrow!=="icons")throw invalid(`invalid CommandBar narrow "${String(options.narrow)}".`);
+    this.label=options.label||undefined;
     const data=items.flatMap((item,index)=>this.item(item,index===0,index===items.length-1));
+    const icons=options.narrow==="icons";
+    if(icons)for(const item of data)if(item.id!==undefined&&item.icon&&item.type!=="title"&&!item.bladeInline&&!String(item.css??"").includes("blade-command--icon"))
+      this.narrowable.set(String(item.id),[...this.entries.keys()].find(id=>id===item.id||this.suiteId("menu",id)===item.id||this.suiteId("select",id)===item.id)!);
     this.layout=new Layout(this.host,{type:"none",rows:[{id:"commands",css:"blade-command-row"+(options.placement==="bottom"?" blade-command-row--bottom":"")}]});
-    this.bar=new ResponsiveToolbar(undefined,{data},{id:"blade-command-menu"+this.prefix,value:t("Műveletek"),icon:"bi bi-grid"});
+    this.bar=new ResponsiveToolbar(undefined,{data},{id:"blade-command-menu"+this.prefix,value:t("Műveletek"),icon:"bi bi-grid",narrow:!icons});
     this.toolbar=this.bar;
     const root=this.bar.getRootNode() as HTMLElement;
-    if(options.label)root.setAttribute("aria-label",options.label);
+    this.name();
     this.bar.events.on("click",(id:string|number)=>this.clicked(String(id)));
-    if([...this.entries.values()].some(entry=>entry.kind==="range"))this.ranges(root);
+    const kinds=new Set([...this.entries.values()].map(entry=>entry.kind));
+    if(kinds.has("range"))this.ranges(root);
+    if(kinds.has("range")||kinds.has("popup")){
+      this.observer=new MutationObserver(()=>this.redrawn());
+      this.observer.observe(root,{childList:true,subtree:true});
+      this.redrawn();
+    }
+    if(this.narrowable.size){
+      window.addEventListener("resize",()=>this.narrow(),{signal:this.listeners.signal});
+      this.narrow();
+    }
     this.layout.getCell("commands").attach(this.bar);
     this.bind(options?.signal);
+  }
+  /** The toolbar's accessible name: the bar's label, else its title. */
+  private name():void{
+    const title=[...this.entries.values()].find(entry=>entry.kind==="title")?.item.label;
+    const name=this.label??title;
+    const root=this.bar.getRootNode() as HTMLElement;
+    if(name)root.setAttribute("aria-label",name);else root.removeAttribute("aria-label");
+  }
+  /** `narrow: "icons"`: below 768 px the narrowable items show their icon only (the label as tooltip and hidden text). */
+  private narrow():void{
+    const narrow=innerWidth<768;
+    if(narrow===this.narrowed)return;
+    this.narrowed=narrow;
+    for(const [suiteId,id] of this.narrowable){
+      const item=this.entries.get(id)!.item as {label:string},drawn=this.bar.data.getItem(suiteId)??{};
+      const css=String(drawn.css??"").split(" ").filter(name=>name&&name!=="blade-command--icon");
+      this.bar.setItem(suiteId,{css:[...css,...(narrow?["blade-command--icon"]:[])].join(" ")||undefined,tooltip:narrow||this.entries.get(id)!.kind==="select"?this.shownLabel(id,item.label):undefined});
+    }
+    this.bar.refit();
+  }
+  /** The visible caption of item $id with label $label (a select shows `label: chosen`). */
+  private shownLabel(id:string,label:string):string{
+    const entry=this.entries.get(id);
+    return entry?.kind==="select"?this.caption(entry):label;
+  }
+  /** After a redraw: the ranges' values come back, every popup menu sits on its drawn button. */
+  private redrawn():void{
+    const root=this.bar.getRootNode() as HTMLElement;
+    root.querySelectorAll<HTMLInputElement>("input[data-blade-range]").forEach(input=>{const entry=this.entries.get(input.dataset.bladeRange!);if(entry?.kind==="range")this.sync(input,entry);});
+    for(const [id,entry] of this.entries){
+      if(entry.kind!=="popup")continue;
+      const anchor=root.querySelector<HTMLElement>(`button[data-dhx-id="${CSS.escape(id)}"]`)??undefined;
+      if(anchor===entry.anchor&&(!anchor||entry.menu))continue;
+      entry.menu?.destroy();entry.menu=undefined;entry.anchor=anchor;
+      if(!anchor||this.destroyed)continue;
+      const menu=entry.menu=popupMenu(anchor,{label:entry.item.menuLabel??entry.item.label,items:entry.item.items,...(entry.item.empty!==undefined?{empty:entry.item.empty}:{})});
+      menu.on("select",({id:item})=>this.emit("select",{id,item}));
+    }
+  }
+  private titleHtml(item:CommandTitle):string{
+    return `<span class="blade-command-title"><span class="blade-command-title__text">${escape(item.label)}</span>`
+      +(item.badge?`<span class="blade-command-title__badge">${escape(item.badge)}</span>`:"")+`</span>`;
   }
   private id(id:unknown):string{
     if(typeof id!=="string"||!ID.test(id)||id==="blade-command-menu"||this.entries.has(id))throw invalid(`invalid or duplicate command id "${String(id)}".`);
@@ -65,6 +130,24 @@ export class CommandBar extends Component<CommandBarEvents> implements CommandBa
     if(!item||typeof item!=="object")throw invalid("a command item must be an object.");
     switch(item.type){
       case "spacer":case "separator":return [{type:item.type}];
+      case "title":{
+        const id=this.id(item.id);
+        if(!first)throw invalid(`command title "${id}" is the bar's first item.`);
+        if(typeof item.label!=="string")throw invalid(`command title "${id}" needs a label.`);
+        if(item.badge!==undefined&&typeof item.badge!=="string")throw invalid(`the badge of command title "${id}" must be text.`);
+        this.entries.set(id,{kind:"title",item});
+        return [{id,type:"title",value:item.label,css:"blade-command--title",bladeLead:true,html:this.titleHtml(item),...(item.hidden?{hidden:true}:{})}];
+      }
+      case "popup":{
+        const id=this.id(item.id);
+        if(!Array.isArray(item.items)&&typeof item.items!=="function")throw invalid(`command popup "${id}" needs its items (an array or a function).`);
+        if(Array.isArray(item.items))checkPopupItems(item.items);
+        if(item.empty!==undefined&&typeof item.empty!=="string")throw invalid(`the empty note of command popup "${id}" must be text.`);
+        if(item.menuLabel!==undefined&&(typeof item.menuLabel!=="string"||!item.menuLabel.trim()))throw invalid(`the menuLabel of command popup "${id}" must be text.`);
+        const button=this.button(id,{...item,type:"button",pinned:true} as CommandButton);
+        this.entries.set(id,{kind:"popup",item});
+        return [{...button,css:[button.css,"blade-command--popup"].filter(Boolean).join(" ")}];
+      }
       case "group":{
         const children=Array.isArray(item.items)?item.items:[];
         if(children.length<2||children.length>12||children.some(child=>!child||(child.type!==undefined&&child.type!=="button"&&child.type!=="toggle")))throw invalid("a command group holds 2–12 buttons or toggles.");
@@ -209,10 +292,6 @@ export class CommandBar extends Component<CommandBarEvents> implements CommandBa
     });
     root.addEventListener("change",event=>{const found=entryOf(event.target);if(found)this.report(found.entry,true);});
     root.addEventListener("keydown",event=>{if(entryOf(event.target)&&/^(Arrow|Home$|End$|Page)/.test(event.key))event.stopPropagation();},{capture:true});
-    const restore=()=>root.querySelectorAll<HTMLInputElement>("input[data-blade-range]").forEach(input=>{const entry=this.entries.get(input.dataset.bladeRange!);if(entry?.kind==="range")this.sync(input,entry);});
-    this.observer=new MutationObserver(restore);
-    this.observer.observe(root,{childList:true,subtree:true});
-    restore();
   }
   private sync(input:HTMLInputElement,entry:Range):void{
     if(input.valueAsNumber!==entry.value)input.value=String(entry.value);
@@ -234,11 +313,26 @@ export class CommandBar extends Component<CommandBarEvents> implements CommandBa
     const entry=this.destroyed?undefined:this.entries.get(id);
     if(!entry||!changes||typeof changes!=="object")return;
     if(changes.label!==undefined&&typeof changes.label!=="string")throw invalid("a command label must be text.");
-    if(entry.kind==="menu"){
+    // An icon-only button's label is its tooltip, so is a narrowed one's.
+    const tip=(suiteId:string)=>this.iconOnly.has(id)||(this.narrowed&&this.narrowable.has(suiteId));
+    if(entry.kind==="title"){
+      if(changes.badge!==undefined&&typeof changes.badge!=="string")throw invalid("a command title badge must be text.");
+      entry.item={...entry.item,...(changes.label!==undefined?{label:changes.label}:{}),...(changes.badge!==undefined?{badge:changes.badge||undefined}:{})};
+      this.state(id,changes.label!==undefined||changes.badge!==undefined?{value:entry.item.label,html:this.titleHtml(entry.item)}:{},{hidden:changes.hidden});
+      if(changes.label!==undefined)this.name();
+    }else if(entry.kind==="menu"){
       if(changes.label!==undefined)entry.item={...entry.item,label:changes.label};
-      this.state(this.suiteId("menu",id),{...(changes.label!==undefined?{value:escape(changes.label),...(this.iconOnly.has(id)?{tooltip:changes.label}:{})}:{}),...(changes.icon!==undefined?{icon:changes.icon}:{})},changes);
+      const suiteId=this.suiteId("menu",id);
+      this.state(suiteId,{...(changes.label!==undefined?{value:escape(changes.label),...(tip(suiteId)?{tooltip:changes.label}:{})}:{}),...(changes.icon!==undefined?{icon:changes.icon}:{})},changes);
+    }else if(entry.kind==="popup"){
+      // A menu named by the label takes the new one when it is bound again.
+      const rename=changes.label!==undefined&&entry.item.menuLabel===undefined;
+      if(changes.label!==undefined)entry.item={...entry.item,label:changes.label};
+      if(rename){entry.menu?.destroy();entry.menu=undefined;}
+      this.state(id,{...(changes.label!==undefined?{value:escape(changes.label),...(tip(id)?{tooltip:changes.label}:{})}:{}),...(changes.icon!==undefined?{icon:changes.icon}:{})},changes);
+      if(rename)this.redrawn();
     }else if(entry.kind==="button"||entry.kind==="toggle"){
-      const values={...(changes.label!==undefined?{value:escape(changes.label),...(this.iconOnly.has(id)?{tooltip:changes.label}:{})}:{}),...(changes.icon!==undefined?{icon:changes.icon}:{})};
+      const values={...(changes.label!==undefined?{value:escape(changes.label),...(tip(id)?{tooltip:changes.label}:{})}:{}),...(changes.icon!==undefined?{icon:changes.icon}:{})};
       if(entry.kind==="toggle"&&changes.pressed!==undefined){entry.pressed=changes.pressed===true;Object.assign(values,{active:entry.pressed});}
       this.state(id,values,changes);
     }else if(entry.kind==="range")this.updateRange(id,entry,changes);
@@ -281,7 +375,7 @@ export class CommandBar extends Component<CommandBarEvents> implements CommandBa
     return entry?.kind==="toggle"?entry.pressed:entry?.kind==="range"||entry?.kind==="select"||entry?.kind==="segmented"?entry.value:undefined;
   }
   protected dispose():void{
-    for(const entry of this.entries.values())if(entry.kind==="range")clearTimeout(entry.timer);
-    this.observer?.disconnect();this.bar.disposeResponsive();this.releaseIcons();this.layout.destructor();
+    for(const entry of this.entries.values())if(entry.kind==="range")clearTimeout(entry.timer);else if(entry.kind==="popup")entry.menu?.destroy();
+    this.listeners.abort();this.observer?.disconnect();this.bar.disposeResponsive();this.releaseIcons();this.layout.destructor();
   }
 }

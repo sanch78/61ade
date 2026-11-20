@@ -506,6 +506,13 @@ The commands of a selected item that need not stay visible go into one
 `CommandBar` (1–12 buttons and separators, each reporting `click`; a
 submenu of `Műveletek` when the bar is narrow).
 
+A panel, tab or window header is a `CommandBar` as well: a `title` first
+(with an optional `badge`), then the commands on the right; a list of earlier
+items (a history, a model picker) is a `popup` item, an `app.ui.menu` that the
+bar binds to its button and reports as `select {id, item}`. With
+`narrow: "icons"` the header keeps its commands as icons on a phone instead of
+moving them into `Műveletek` ([panel header](toolkit.md#commandbar-title)).
+
 A page's own [`app.ui.window`](toolkit.md#app-window) closes on Escape while
 the focus is inside it, also with `modal: false`. Opened without a view's
 `signal` it is a [long-lived window](toolkit.md#long-lived-windows): it stays

@@ -1,8 +1,8 @@
 // D9 Munkaasztal (docs/demos.md#toolkit-consumer): the menu-row command `demo.workbench` (application.php
 // `menuCommands`) and its long-lived work window: non-modal, without a view's signal, so it stays open with its draft
 // across navigation; maximizable and remembered per user (`id`). The note is only browser state of the open window.
-// Its two popup menus (`app.ui.menu`, docs/toolkit.md#popup-menu) open from Suite toolbar buttons beside a title and in
-// the composer row: `Előzmények`, synthetic drafts grouped by date with the current one checked, and the model picker
+// Its header and composer rows are `CommandBar`s (docs/toolkit.md#commandbar-title): the header a title with a popup
+// menu (`Előzmények`, synthetic drafts grouped by date with the current one checked), the composer the model picker
 // (`Automatikus`, the models, then the chosen model's efforts). The drafts and models are synthetic; nothing is saved.
 import type { AppWindow, ApplicationModule, PopupMenuItem } from "@61ade/admin";
 
@@ -49,16 +49,35 @@ const workbench: ApplicationModule = app => {
       const ago = (at: number) => { const days = daysAgo(at); return days <= 0 ? clock.format(at) : days < 7 ? relative.format(-days, "day") : date.format(at); };
       let draft = list[0].id, model: Model | undefined, effort = "";
 
-      const layout = new app.dhx.Layout(document.createElement("div"), { type: "none", rows: [{ id: "head", height: "content" }, { id: "body" }, { id: "composer", height: "content" }] });
-      const head = new app.dhx.Toolbar(document.createElement("div"), { data: [
-        { type: "title", id: "title", value: list[0].name },
-        { type: "spacer" },
-        { id: "history", value: t("Előzmények"), icon: "bi bi-clock-history" },
-      ] });
+      const layout = new app.dhx.Layout(document.createElement("div"), { type: "none", rows: [{ id: "head", height: 48 }, { id: "body" }, { id: "composer", height: 48 }] });
       const modelText = () => model ? `${t(model.label)}${model.efforts.length > 1 ?  " · " + t(EFFORTS[effort]) : ""}` : t("Automatikus");
-      const composer = new app.dhx.Toolbar(document.createElement("div"), { data: [
-        { id: "model", value: t("Modell: {choice}", { choice: modelText() }), icon: "bi bi-sliders" },
+      const head = new app.components.CommandBar({ label: t("Munkaasztal"), narrow: "icons", signal, items: [
+        { type: "title", id: "title", label: list[0].name },
+        { type: "spacer" },
+        { type: "popup", id: "history", label: t("Előzmények"), icon: "bi bi-clock-history", items: () =>
+          ([["Ma", (d: number) => d <= 0], ["Az elmúlt 7 nap", (d: number) => d > 0 && d < 7], ["Régebbi", (d: number) => d >= 7]] as const)
+            .map(([label, test]): PopupMenuItem => ({ type: "group", label: t(label),
+              items: list.filter(x => test(daysAgo(x.at))).map(x => ({ id: x.id, label: x.name, detail: ago(x.at), checked: x.id === draft })) })) },
       ] });
+      head.on("select", ({ item }) => { draft = item; head.update("title", { label: list.find(x => x.id === item)!.name }); });
+      const composer = new app.components.CommandBar({ label: t("Modell"), placement: "bottom", signal, items: [
+        { type: "popup", id: "model", label: t("Modell: {choice}", { choice: modelText() }), menuLabel: t("Modell"), icon: "bi bi-sliders", items: () => {
+          const groups: PopupMenuItem[] = [{ type: "group", label: t("Modell"), items: [
+            { id: "model:auto", label: t("Automatikus"), detail: t("a feladat alapján"), checked: !model },
+            ...MODELS.map(m => ({ id: "model:" + m.id, label: t(m.label), detail: m.standard ? t("alapértelmezett") : undefined, checked: m === model })),
+          ] }];
+          if (model && model.efforts.length > 1)
+            groups.push({ type: "group", label: t("Erősség"), items: model.efforts.map(e => ({ id: "effort:" + e, label: t(EFFORTS[e]), checked: e === effort })) });
+          return groups;
+        } },
+      ] });
+      composer.on("select", ({ item }) => {
+        if (item.startsWith("model:")) {
+          model = MODELS.find(m => "model:" + m.id === item);
+          effort = model ? (model.efforts.includes(effort) ? effort : model.efforts[Math.floor((model.efforts.length - 1) / 2)]) : "";
+        } else effort = item.slice("effort:".length);
+        composer.update("model", { label: t("Modell: {choice}", { choice: modelText() }) });
+      });
       form = new app.dhx.Form(document.createElement("div"), { padding: 16, rows: [
         { type: "input", name: "view", label: t("Aktuális nézet"), labelPosition: "left", labelWidth: 140, readOnly: true },
         { type: "textarea", name: "note", label: t("Jegyzet"), labelPosition: "top", height: 240,
@@ -69,42 +88,12 @@ const workbench: ApplicationModule = app => {
       form.getItem("clear").events.on("click", async () => {
         if (await app.ui.dialog({ message: t("Törlöd a jegyzetet?"), mode: "confirm", severity: "warning" })) form?.getItem("note").setValue("");
       });
-      layout.getCell("head").attach(head);
+      head.mount(layout.getCell("head"));
       layout.getCell("body").attach(form);
-      layout.getCell("composer").attach(composer);
+      composer.mount(layout.getCell("composer"));
       win.attach(layout);
       signal.addEventListener("abort", () => layout.destructor(), { once: true });
       showView();
-
-      // The menus bind the toolbars' own buttons once they are drawn.
-      void app.dhx.awaitRedraw().then(() => {
-        const button = (bar: typeof head, id: string) => bar.getRootNode()?.querySelector<HTMLElement>(`[data-dhx-id="${id}"]`);
-        const historyButton = button(head, "history"), modelButton = button(composer, "model");
-        if (signal.aborted || !historyButton || !modelButton) return;
-
-        const history = app.ui.menu(historyButton, { label: t("Előzmények"), signal, items: () =>
-          ([["Ma", (d: number) => d <= 0], ["Az elmúlt 7 nap", (d: number) => d > 0 && d < 7], ["Régebbi", (d: number) => d >= 7]] as const)
-            .map(([label, test]): PopupMenuItem => ({ type: "group", label: t(label),
-              items: list.filter(x => test(daysAgo(x.at))).map(x => ({ id: x.id, label: x.name, detail: ago(x.at), checked: x.id === draft })) })) });
-        history.on("select", ({ id }) => { draft = id; head.data.update("title", { value: list.find(x => x.id === id)!.name }); });
-
-        const picker = app.ui.menu(modelButton, { label: t("Modell"), signal, items: () => {
-          const groups: PopupMenuItem[] = [{ type: "group", label: t("Modell"), items: [
-            { id: "model:auto", label: t("Automatikus"), detail: t("a feladat alapján"), checked: !model },
-            ...MODELS.map(m => ({ id: "model:" + m.id, label: t(m.label), detail: m.standard ? t("alapértelmezett") : undefined, checked: m === model })),
-          ] }];
-          if (model && model.efforts.length > 1)
-            groups.push({ type: "group", label: t("Erősség"), items: model.efforts.map(e => ({ id: "effort:" + e, label: t(EFFORTS[e]), checked: e === effort })) });
-          return groups;
-        } });
-        picker.on("select", ({ id }) => {
-          if (id.startsWith("model:")) {
-            model = MODELS.find(m => "model:" + m.id === id);
-            effort = model ? (model.efforts.includes(effort) ? effort : model.efforts[Math.floor((model.efforts.length - 1) / 2)]) : "";
-          } else effort = id.slice("effort:".length);
-          composer.data.update("model", { value: t("Modell: {choice}", { choice: modelText() }) });
-        });
-      });
     },
   });
 };

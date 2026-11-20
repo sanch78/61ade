@@ -2128,10 +2128,24 @@ export interface SandboxFrame extends Component<SandboxFrameEvents> {
     post(type: string, payload?: unknown): void;
 }
 /**
- * One command bar item: a button (`type` omitted or `button`), a toggle, a select, a segmented choice, a range, a
- * group of buttons, a separator or a spacer; the last three need no id.
+ * One command bar item: a title, a button (`type` omitted or `button`), a toggle, a select, a segmented choice, a
+ * range, a group of buttons, a menu, a popup menu, a separator or a spacer; the last three need no id.
  */
-export type CommandItem = CommandButton | CommandToggle | CommandSelect | CommandSegmented | CommandRange | CommandGroup | CommandMenu | CommandSeparator | CommandSpacer;
+export type CommandItem = CommandTitle | CommandButton | CommandToggle | CommandSelect | CommandSegmented | CommandRange | CommandGroup | CommandMenu | CommandPopup | CommandSeparator | CommandSpacer;
+/**
+ * The bar's heading text (a panel's or a conversation's name): only as the first item, at most one. It stays first in
+ * the bar, also beside the collapsed `Műveletek` menu, and shortens with `…`; it is not a command. Without the bar's
+ * `label` it is the toolbar's accessible name. `update(id, { label, badge, hidden })` changes it.
+ */
+export interface CommandTitle {
+    type: "title";
+    id: string;
+    /** Plain text (escaped). */
+    label: string;
+    /** A short state marker beside the title (plain text, escaped); `""` in `update` removes it. */
+    badge?: string;
+    hidden?: boolean;
+}
 /** A command bar button; its `id` is what `click` reports and `update` addresses. */
 export interface CommandButton {
     type?: "button";
@@ -2230,6 +2244,28 @@ export interface CommandMenu {
     /** 1–12 entries: buttons (at least one) and separators. */
     items: Array<CommandButton | CommandSeparator>;
 }
+/**
+ * A button that opens an `app.ui.menu` popup menu (docs/toolkit.md#popup-menu: group headings, checked entries, details,
+ * scrolling, APG menu-button keys). The bar binds the menu to its drawn button and again after every redraw. It always
+ * stays in the bar (also beside the collapsed `Műveletek` menu). A pick reports `select {id, item}`; a click reports
+ * nothing. `update(id, …)` changes its label, icon, disabled or hidden state.
+ */
+export interface CommandPopup {
+    type: "popup";
+    id: string;
+    /** Plain text (escaped): the button's text (its tooltip with `iconOnly`) and, without `menuLabel`, the menu's accessible name. */
+    label: string;
+    /** The menu's accessible name when the button's text carries a state (`Modell: Automatikus` → `Modell`). */
+    menuLabel?: string;
+    icon?: string;
+    iconOnly?: boolean;
+    disabled?: boolean;
+    hidden?: boolean;
+    /** The menu's items; a function is read at every opening (a history list, the current choice). */
+    items: PopupMenuItem[] | (() => PopupMenuItem[]);
+    /** The note of a menu without entries. */
+    empty?: string;
+}
 /** A divider line between groups of buttons (also in the collapsed `Műveletek` menu). */
 export interface CommandSeparator {
     type: "separator";
@@ -2249,10 +2285,18 @@ export interface CommandBarOptions extends ComponentOptions {
     label?: string;
     /** `bottom`: a bar below its content, with its rule on top instead of below. Default `top`. */
     placement?: "top" | "bottom";
+    /**
+     * Below 768 px: `menu` (default) moves the items into `Műveletek`; `icons` (a panel header) shows each item that has
+     * an icon as its icon only, the label as its tooltip and accessible name, and collapses only when the bar still does
+     * not fit.
+     */
+    narrow?: "menu" | "icons";
 }
 /** What `CommandBar.update` changes; each key applies to the item kinds that have it (others ignore it). */
 export interface CommandChanges {
     label?: string;
+    /** A title's badge (`""` removes it). */
+    badge?: string;
     icon?: string;
     disabled?: boolean;
     hidden?: boolean;
@@ -2538,6 +2582,11 @@ export interface CommandBarEvents {
     change: {
         id: string;
         value: string | number;
+    };
+    /** An entry (`item`, its id) of popup menu `id` was picked. */
+    select: {
+        id: string;
+        item: string;
     };
 }
 /** A component class bound to the application. */

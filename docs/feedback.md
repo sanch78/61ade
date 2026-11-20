@@ -1011,3 +1011,7 @@
 <a id="fb-0247"></a>
 
 ## FB-0247 — Keep the Tree usable and its breadcrumb destination visible
+
+<a id="fb-0248"></a>
+
+## FB-0248 — One standard panel header: CommandBar title, popup and icons

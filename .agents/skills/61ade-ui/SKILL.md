@@ -91,12 +91,15 @@ tree as decoration for a flat list.
   not cover commands. Keep view selection, sorting, column visibility, actions,
   filtering, and details discoverable through the native toolbar/menu; do not
   add duplicate commands for the same operation.
-- A choice list that opens from a button outside a list's command bar (a
-  history grouped by date, an account or model picker, a sort menu beside a
-  title) is `app.ui.menu`: headings for groups, the current choice checked
-  (read again at every opening), secondary text as `detail`. Never hand-build
-  a `role="menu"` popup; a list's own record commands stay in its toolbar or a
-  `CommandBar` `menu` ([FB-0202](../../../docs/feedback.md#fb-0202)).
+- A choice list that opens from a button (a history grouped by date, an
+  account or model picker, a sort menu beside a title) is a popup menu:
+  headings for groups, the current choice checked (read again at every
+  opening), secondary text as `detail`. On a command bar's button it is the
+  `CommandBar` `popup` item; `app.ui.menu` is only for a button outside a
+  bar. Never hand-build a `role="menu"` popup or a Suite toolbar of your own
+  to carry one; a list's own record commands stay in its toolbar or a
+  `CommandBar` `menu` ([FB-0202](../../../docs/feedback.md#fb-0202),
+  [FB-0248](../../../docs/feedback.md#fb-0248)).
 - Use native controls, theme tokens, and framework sizing. Test light, dark, and
   the default theme; do not recreate a vendor skin or introduce a consumer
   shell layer to obtain a visual tweak.
@@ -165,6 +168,15 @@ tree as decoration for a flat list.
   tab needs commands of its own. Public recipe:
   [page and tab command rows](../../../docs/toolkit.md#page-command-bars);
   owner decision: [FB-0213](../../../docs/feedback.md#fb-0213).
+- A panel, tab or window header (a conversation's name, its history, a new
+  item, more actions) is one `CommandBar` with `narrow: "icons"`: the
+  `title` first (a state as its `badge`), a `spacer`, then the commands on
+  the right with the *more actions* `menu` last; a list of earlier items is
+  a `popup`. Bootstrap Icons only. Never assemble a header from
+  `app.dhx.Toolbar`, a `title` item's HTML or a project heading element.
+  The labels are the project's own words
+  ([panel header](../../../docs/toolkit.md#commandbar-title),
+  [FB-0248](../../../docs/feedback.md#fb-0248)).
 
 ## Grid rules
 
