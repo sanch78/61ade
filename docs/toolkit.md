@@ -1144,6 +1144,18 @@ tree.on("activate", () => layout.tabsOf("details")?.select("details"));
   {row}` is a double-click or Enter, after the node is selected. `selected()`
   returns the row or `undefined`. Mount the tree in the same task that creates
   it: events reach only a mounted component.
+- **Navigation to a node.** Pass `initialPath` with the IDs from a root to
+  the requested node, including both ends. Use the same `id`, source and
+  initial defaults as the ordinary entry. For example, a category breadcrumb
+  may open the usual catalogue with `initialPath: ["world", "characters", "actor"]`.
+  With a matching snapshot, the tree keeps its open branches and highlights
+  the target in the first frame. It reads any missing levels along the path
+  before painting and opens the target's ancestors. A cold mount also
+  restores any saved expanded branches. The chosen node and its open
+  ancestors become the saved state. An unavailable path uses the remembered
+  selection and `initial` fallback. The path must contain 1–11 distinct
+  nonempty strings of at most 100 characters. Every step must match its
+  parent in the authorized list. [FB-0246](feedback.md#fb-0246).
 - `select(id)` selects a loaded node, expands its ancestors and returns
   `true`; an id that is not loaded (below a parent never expanded) returns
   `false` and changes nothing.

@@ -35,6 +35,8 @@ function browser(app: Application, host: ViewHost, view: ViewDefinition<BrowserO
   // Built again when the phone breakpoint changes (the tree keeps its expansion and selection, the toggle its state).
   const media = matchMedia(PHONE);
   let build: AbortController | undefined, keys: Tree | undefined, list: ListView | undefined;
+  const path = host.filters.key_path?.split(",");
+  let initialPath = path && path.length <= 11 && new Set(path).size === path.length && path.every(id => /^\d{1,20}$/.test(id)) ? path : undefined;
   const root = document.createElement("div");
   root.style.cssText = "width:100%;height:100%";
   host.attach(root);
@@ -52,7 +54,7 @@ function browser(app: Application, host: ViewHost, view: ViewDefinition<BrowserO
     const layout: PageLayout = new app.components.PageLayout({ id: `${view.id}.${phone ? "narrow" : "wide"}`, tree });
     layout.mount(root);
 
-    const nodeTree: Tree = keys = new app.components.Tree({ view: nodes, label: "name", iconField: "kind", id: `${view.id}.tree`, expandControl: true });
+    const nodeTree: Tree = keys = new app.components.Tree({ view: nodes, label: "name", iconField: "kind", id: `${view.id}.tree`, expandControl: true, initialPath });
     nodeTree.mount(layout.cell("tree"));
 
     // A region's placeholder shows while no component is mounted there. Not `busy` while the tree starts: a tree whose
@@ -86,6 +88,7 @@ function browser(app: Application, host: ViewHost, view: ViewDefinition<BrowserO
       list.mount(layout.cell("values"));
     };
     nodeTree.on("select", ({ row }) => {
+      initialPath = undefined;
       const changed = String(row?.id ?? "") !== String(node?.id ?? "");
       node = row;
       if (!row) { keyDetails?.destroy(); keyDetails = undefined; }

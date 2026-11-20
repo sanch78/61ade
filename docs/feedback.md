@@ -1003,3 +1003,7 @@
 <a id="fb-0245"></a>
 
 ## FB-0245 — A Back destination for each page
+
+<a id="fb-0246"></a>
+
+## FB-0246 — A breadcrumb can select a node in the kept Tree
