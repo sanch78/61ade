@@ -2,7 +2,7 @@ import { t } from "../../I18n";
 import { Form, Layout, List, Toolbar, Window, message, awaitRedraw } from "@dhtmlx/suite";
 import { ResponsiveToolbar } from "../../ResponsiveToolbar";
 import { widgetIcons } from "../../WidgetIcons";
-import { fitWindow } from "../../WindowSizing";
+import { fitWindow, formLayout } from "../../WindowSizing";
 import { FormValidation, type FieldDefinition } from "../../FormValidation";
 import { acknowledge, requestConfirmation } from "../../MessageDialog";
 import { escape } from "../../RecordPresentation";
@@ -284,10 +284,10 @@ export class DiagramView {
     const win=new Window({css:"blade-content-window",title:escape(title),ariaLabel:title,width:Math.min(420,innerWidth-24),height:Math.min(460,innerHeight-24),modal:true,closable:true});
     this.windows.add(win);
     win.events.on("afterHide",()=>{this.windows.delete(win);void awaitRedraw().then(()=>win.destructor());});
-    const form=new Form(document.createElement("div"),{padding:20,rows:[...items,{css:"blade-form-actions",cols:[
+    const form=new Form(document.createElement("div"),formLayout(items,{css:"blade-form-actions",cols:[
       {type:"button",name:"cancel",text:t("Mégse"),icon:"bi bi-x-lg",view:"flat",color:"secondary",width:"content"},
       {type:"button",name:"submit",text:t(this.actionDefinition(action)?.label??"Mentés"),icon:"bi bi-check-lg",submit:true,color:"primary",width:"content"},
-    ]}]});
+    ]}));
     win.attach(form);win.show();void fitWindow(win);
     const validation=new FormValidation(form,this.actionDefinition(action)?.fields??[]);let saving=false;
     form.events.on("click",(name:string)=>{

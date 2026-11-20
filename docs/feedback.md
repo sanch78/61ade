@@ -987,3 +987,7 @@
 <a id="fb-0241"></a>
 
 ## FB-0241 — A visible sub-view row toggle
+
+<a id="fb-0242"></a>
+
+## FB-0242 — Form windows: a scrolling body and a fixed footer

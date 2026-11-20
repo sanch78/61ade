@@ -56,7 +56,7 @@ const sideBySide=boxes=>boxes.every((box,index)=>box.y===boxes[0].y&&(index===0|
 /** Whether the fields' cells are stacked, each below the previous one at the same left edge and width. */
 const stacked=boxes=>boxes.every((box,index)=>index===0||(box.y>=boxes[index-1].bottom&&box.x===boxes[0].x&&box.width===boxes[0].width));
 /** Nothing scrolls sideways: the page, the window's form and its open section. */
-const sideways=form=>form.evaluate(form=>[document.documentElement,form.querySelector('.dhx_form'),...form.querySelectorAll('.blade-form-section__body:not(.blade-form-section__body--closed)')]
+const sideways=form=>form.evaluate(form=>[document.documentElement,form.querySelector('.dhx_form'),form.querySelector('.blade-form-body'),...form.querySelectorAll('.blade-form-section__body:not(.blade-form-section__body--closed)')]
  .filter(element=>element&&element.scrollWidth>element.clientWidth+1).map(element=>element.className||element.tagName));
 /** The accessible name of the focused control: its label, or a button's text. */
 const focused=page=>page.evaluate(()=>{const element=document.activeElement;return (element.labels?.[0]?.textContent??element.textContent??'').replace('*','').trim();});
@@ -232,7 +232,7 @@ test('a form without rows keeps its 560 px window and full-width fields',async({
  expect(Math.round((await form.boundingBox()).width)).toBe(560);
  expect(await form.locator('.blade-form-row').count()).toBe(0);
  // Every field's cell spans the form's content width.
- const widths=await form.locator('.dhx_form').evaluate(form=>{const style=getComputedStyle(form),inner=form.clientWidth-parseFloat(style.paddingLeft)-parseFloat(style.paddingRight);
+ const widths=await form.locator('.blade-form-body').evaluate(form=>{const style=getComputedStyle(form),inner=form.clientWidth-parseFloat(style.paddingLeft)-parseFloat(style.paddingRight);
   return [...form.querySelectorAll('.dhx_form-element[data-cell-id]')].filter(cell=>!cell.closest('.blade-form-actions')&&cell.getClientRects().length).map(cell=>Math.round(cell.getBoundingClientRect().width)-Math.round(inner));});
  expect(widths.length).toBeGreaterThan(0);
  for(const difference of widths)expect(Math.abs(difference)).toBeLessThanOrEqual(1);

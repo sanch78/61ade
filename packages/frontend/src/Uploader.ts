@@ -3,6 +3,7 @@ import { locale, t } from "./I18n";
 import { escape, recordIcon } from "./RecordPresentation";
 import { requestChoiceAll } from "./MessageDialog";
 import { post } from "./api/Server";
+import { formFooter } from "./WindowSizing";
 
 /** Browser part of a server `UploadPolicy` (`UploadPolicy::metadata()`); never contains server paths. */
 export type UploadPolicy = {
@@ -312,10 +313,10 @@ class UploadService {
     ] });
     const grid = queueGrid(event => this.rowAction(event));
     // The shared window action row (as formActions): the secondary command flat, Close as the primary one.
-    const commands = new Form(document.createElement("div"), { padding: "8px 16px 16px", rows: [{ css: "blade-form-actions", cols: [
+    const commands = new Form(document.createElement("div"), { padding: 0, rows: [formFooter({ css: "blade-form-actions", cols: [
       { type: "button", name: "clear", text: t("Befejezettek törlése"), icon: "bi bi-trash", view: "flat", color: "secondary", width: "content", disabled: true },
       { type: "button", name: "close", text: t("Bezárás"), icon: "bi bi-x-lg", color: "primary", width: "content" },
-    ] }] } as any);
+    ] }, 16)] } as any);
     commands.events.on("click", (name: string) => {
       if (name === "clear") this.clearFinished();
       else if (name === "close") win.hide();

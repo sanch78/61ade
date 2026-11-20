@@ -1,5 +1,5 @@
 import { t } from "../../I18n";
-import { fitWindow } from "../../WindowSizing";
+import { fitWindow, formLayout } from "../../WindowSizing";
 import { Form, Window, message, awaitRedraw, type Layout } from "@dhtmlx/suite";
 import { requestConfirmation } from "../../MessageDialog";
 import type { Row } from "../../Realtime";
@@ -107,7 +107,7 @@ export class ListActions{
       const eligible=(schema:{fields:FieldDefinition[]})=>schema.fields.filter(field=>field.name!=="revision"&&(action.name!=="update"||field.bulk));
       const fields=eligible(schemas[0]).filter(field=>schemas.every(schema=>eligible(schema).some((other:FieldDefinition)=>other.name===field.name)));
       if(schemas.some(schema=>eligible(schema).some((field:FieldDefinition)=>!fields.some(common=>common.name===field.name))))throw new Error(t("A sorok eltérő mezőjogosultságúak. Válassz azonos jogosultságú sorokat."));
-      const form=new Form(document.createElement("div"),{padding:20,rows:[...fields.map(field=>input(field,undefined)),formActions({name:"submit",text:t("Végrehajtás ({count} sor)",{count:ids.length}),icon:actionIcon(action),color:"primary"})]} as any);
+      const form=new Form(document.createElement("div"),formLayout(fields.map(field=>input(field,undefined)),formActions({name:"submit",text:t("Végrehajtás ({count} sor)",{count:ids.length}),icon:actionIcon(action),color:"primary"})));
       this.dialog?.destructor();this.editor?.destructor();this.fileFields?.destroy();this.releaseTypes();this.editor=form;
       this.fileFields=new FileFields(form,fields,list.resourceCall);this.fieldTypes=bindFieldTypes(form,fields);
       const dialog=new Window({css:"blade-content-window",title:escape(action.label+" — "+ids.length+t(" sor")),width:Math.min(560,innerWidth-24),height:Math.min(650,innerHeight-24),modal:true,closable:true});this.dialog=dialog;dialog.attach(form);dialog.show();void fitWindow(dialog);form.events.on("afterValidate",()=>{void fitWindow(dialog);});
@@ -158,7 +158,7 @@ export class ListActions{
       const allowed=schema.fields as FieldDefinition[];
       const start=action.name==="create"?this.createValues(schema.values,allowed):schema.values;
       const shown=allowed.filter(f=>f.name!=="revision"&&f.name!==list.scope?.field);
-      const form=new Form(document.createElement("div"),{padding:20,rows:[...formRows(shown,f=>input(f,f.type==="password"?"":start[f.name],shownOnly(f)),start,schema.formSections,schema.flushSections),formActions({name:"submit",text:action.submitLabel,icon:action.icon??"bi bi-floppy",color:"primary"})]} as any);
+      const form=new Form(document.createElement("div"),formLayout(formRows(shown,f=>input(f,f.type==="password"?"":start[f.name],shownOnly(f)),start,schema.formSections,schema.flushSections),formActions({name:"submit",text:action.submitLabel,icon:action.icon??"bi bi-floppy",color:"primary"})));
       this.dialog?.destructor();this.editor?.destructor();this.fileFields?.destroy();this.releaseTypes();this.editor=form;
       const files=this.fileFields=new FileFields(form,allowed,list.resourceCall,[schema.values,id?list.rows.find(row=>String(row.id)===id):undefined],shownOnly);
       const types=this.fieldTypes=bindFieldTypes(form,shown,shownOnly,()=>{if(this.dialog?.isVisible())void fitWindow(this.dialog);});

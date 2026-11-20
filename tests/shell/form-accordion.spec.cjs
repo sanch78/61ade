@@ -247,7 +247,7 @@ test('flush sections fill the form edge to edge; framed ones keep an even 20 px 
  expect(Math.round(label.y-(title.y+title.height))).toBeGreaterThanOrEqual(16);expect(Math.round(label.y-(title.y+title.height))).toBeLessThanOrEqual(24);
  await form.getByRole('button',{name:'Mégse',exact:true}).click();await expect(form).toBeHidden();
  // Without flushSections, and with the name and the organization in a fixed section: the stack is framed, 20 px
- // from the form's edges and from the action row's rule; the fixed section is a group named by its header, no button.
+ // from the form body's edges and from the footer's rule; the fixed section is a group named by its header, no button.
  await rewrite(page,data=>{
   delete data.flushSections;
   for(const field of data.fields)if(field.name==='name'||field.name==='organization')Object.assign(field,{section:'Alapadatok',sectionCollapsible:false});
@@ -256,7 +256,7 @@ test('flush sections fill the form edge to edge; framed ones keep an even 20 px 
  form=editor(page,'Hozzáadás');await expect(form).toBeVisible();
  await expect.poll(()=>expanded(form)).toEqual(['Elérhetőség:true','Cím:false','Beállítások:false','Megjegyzés:false','Fénykép:false','Galéria:false']);
  await settled(page,form);
- const inner=await box(form.locator('.dhx_form')),sections=form.locator('.blade-form-section');
+ const inner=await box(form.locator('.blade-form-body')),sections=form.locator('.blade-form-section');
  const top=await box(sections.first()),bottom=await box(sections.last()),actions=await box(form.locator('.blade-form-actions'));
  expect(Math.round(top.y-inner.y)).toBe(20);
  expect(Math.round(top.x-inner.x)).toBe(20);expect(Math.round(inner.x+inner.width-(top.x+top.width))).toBe(20);

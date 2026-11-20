@@ -1,6 +1,6 @@
 import { locale, t } from "../../I18n";
 import { ResponsiveToolbar } from "../../ResponsiveToolbar";
-import { fitWindow } from "../../WindowSizing";
+import { fitWindow, formLayout } from "../../WindowSizing";
 import { widgetIcons } from "../../WidgetIcons";
 import { UiPreferences } from "../../UiPreferences";
 import { collapseMotion } from "../../Motion";
@@ -272,7 +272,7 @@ export class Workspace implements ActionHost {
       return;
     }
     const popup=new Window({css:"blade-content-window",title:escape(field.label),width:Math.min(360,innerWidth-24),height:Math.min(260,innerHeight-24),modal:true,closable:true});this.cardEditor=popup;
-    const form=new Form(document.createElement("div"),{padding:16,rows:[input(field,row[name]),formActions({name:"submit",text:t("Mentés"),icon:"bi bi-floppy"})]} as any);
+    const form=new Form(document.createElement("div"),formLayout([input(field,row[name])],formActions({name:"submit",text:t("Mentés"),icon:"bi bi-floppy"}),16));
     popup.attach(form);popup.show();void fitWindow(popup);
     form.events.on("afterValidate",()=>{void fitWindow(popup);});
     const validation=new FormValidation(form,[field],()=>row);let saving=false;
@@ -661,7 +661,7 @@ export class Workspace implements ActionHost {
     // A field of the update form that the actor may write is edited; every other one is shown read-only.
     const fields=this.view.columns.filter(c=>!derivedOf(c)).map(c=>allowed.find(f=>f.name===c.id)||{name:c.id,label:c.header,type:c.type==="select"||c.type==="checkbox"||c.type==="multiselect"?c.type:"text",required:false,max:255,options:c.options??{},...(c.section?{section:c.section,...(c.sectionCollapsible===false?{sectionCollapsible:false as const}:{})}:{}),...(c.row?{row:c.row,...(c.rowWidth?{rowWidth:c.rowWidth}:{})}:{})});
     const fixed=(f:FieldDefinition)=>shownOnly(f)||!allowed.some(a=>a.name===f.name);
-    const form=new Form(document.createElement("div"),{padding:24,rows:[...formRows(fields,f=>input(f,row[f.name],fixed(f)),row,sections,flush),...(action?[formActions({name:"submit",text:t("Mentés"),icon:"bi bi-floppy",color:"primary"})]:[])]} as any);
+    const form=new Form(document.createElement("div"),formLayout(formRows(fields,f=>input(f,row[f.name],fixed(f)),row,sections,flush),action?formActions({name:"submit",text:t("Mentés"),icon:"bi bi-floppy",color:"primary"}):undefined,24));
     this.detailFiles?.destroy();this.detailFiles=new FileFields(form,fields,this.resourceCall,[row],fixed);
     this.detailTypes?.();this.detailTypes=bindFieldTypes(form,fields,fixed);
     this.detail=form;this.detailDirty=false;this.detailConflictShown=false;

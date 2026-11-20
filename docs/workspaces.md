@@ -1562,13 +1562,17 @@ return new ApplicationDefinition(/* … */, windowMaxHeight: 960);
 {"application": {"title": "…", "runtime": "…", "window_max_height": 960}}
 ```
 
-Forms retain 24 px below the final
-button; details retain 24 px beyond article padding. A taller form scrolls
-between the fixed window header and its action row: the row (`Mégse` beside
-the submit button) sticks to the lower edge of the form's scroll area with
-one rule above it, so the buttons stay visible and keep working the form
-while the fields scroll behind them; a short form shows the same row right
-below its last field. Validation remeasures; manual resize remains available.
+A form fits to the lower edge of its footer; details retain 24 px beyond
+article padding. Every framework form has the same frame
+([FB-0242](feedback.md#fb-0242), `WindowSizing.ts` `formLayout`): the fields
+in one body with a 20 px inset on every side (the last field keeps no margin
+of its own), and the action row (`Mégse` beside the submit button) as a fixed
+footer below it, the message dialog's footer: one rule above it, the
+secondary background, 12 px above and below the buttons, the body's inset
+beside them. Only the body scrolls, so a scrollbar runs beside the fields
+and ends at the footer's rule; the form itself never scrolls. A window or
+panel taller than its content keeps the footer at its lower edge.
+Validation remeasures; manual resize remains available.
 `app.ui.window` takes `maxHeight` (px from 120; `Infinity` grows to the
 viewport) for one fitted window that needs another cap than the
 application's default; its requested `height` without fitting is not capped. A Form textarea directly in a content
@@ -2080,14 +2084,14 @@ $contacts->register($registry, 'Kapcsolatok', formSections: 'accordion', flushSe
   the same header without a chevron. It keeps its natural height when it
   fits; in a constrained form only its fields scroll below the stationary
   legend. `sectionCollapsible: false` means always open. Consecutive
-  sections form one framed stack, 20 px from the form's edges and from the
-  action row's rule; with `flushSections` they run edge to edge without the
+  sections form one framed stack, 20 px from the form body's edges and from
+  the footer's rule; with `flushSections` they run edge to edge without the
   frame. Fields outside sections stay plain rows (above the sections they
   need no section of their own: the window's title heads them).
 - **Geometry:** the open sections share the height the fixed sections and the
   plain rows leave; fixed sections can shrink when that space is too small,
   keeping their header above their own scrolling fields. A closed section is
-  its header alone; the action row stays at the form's lower edge. A fitted
+  its header alone; the sections share the form body above its fixed footer. A fitted
   window (the list's form window, an `AppWindow`) measures every section shown,
   so its height (up to its `maxHeight`, else the application's
   [default](#window-sizing), and the viewport)

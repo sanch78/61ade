@@ -27,16 +27,17 @@
    Accordion component's look and geometry inside one Form. A section's header is its disclosure button in a cell that
    carries the Suite cell header classes (the theme's header; the chevron from admin.css), a fixed one's its legend in
    the same look; consecutive sections form one framed stack; the open sections share the form's height and scroll
-   their own fields, a closed one is its header alone and a still (fixed) one prefers its natural height. The action row
-   stays at the lower edge. While a window is measured every section shows at its own height (WindowSizing.ts). */
-/* The framed stack (not flush): the form's padding around it, 20 px on every side (4 px above it after a plain row,
-   20 px to the action row's rule below it). */
+   their own fields, a closed one is its header alone and a still (fixed) one prefers its natural height. They share the
+   form body (WindowSizing.ts formLayout) above the fixed footer. While a window is measured every section shows at its
+   own height (WindowSizing.ts). */
+/* The framed stack (not flush): the body's inset around it, 20 px on every side (4 px above it after a plain row; the
+   last section keeps no margin, so the inset alone separates it from the footer's rule). */
 .dhx_widget.dhx_form .blade-form-section.blade-form-section--accordion { border-radius: 0; margin: 0; }
 .dhx_widget.dhx_form .blade-form-section--accordion:not(.blade-form-section--flush):not(.blade-form-section--accordion + .blade-form-section--accordion) { border-top-left-radius: var(--dhx-border-radius); border-top-right-radius: var(--dhx-border-radius); }
 .dhx_widget.dhx_form .blade-form-section--accordion:not(.blade-form-section--flush):not(:first-child):not(.blade-form-section--accordion + .blade-form-section--accordion) { margin-top: 4px; }
 .dhx_widget.dhx_form .blade-form-section--accordion:not(.blade-form-section--flush) + .blade-form-section--accordion { margin-top: -1px; }
 .dhx_widget.dhx_form .blade-form-section--accordion:not(.blade-form-section--flush):not(:has(+ .blade-form-section--accordion)) { margin-bottom: 12px; border-bottom-left-radius: var(--dhx-border-radius); border-bottom-right-radius: var(--dhx-border-radius); }
-.dhx_widget.dhx_form .blade-form-section--accordion:not(.blade-form-section--flush):has(+ .blade-form-actions) { margin-bottom: 20px; }
+.dhx_widget.dhx_form .blade-form-section--accordion:not(.blade-form-section--flush):last-child { margin-bottom: 0; }
 /* The cell is the header (Suite's padding moves to the button, so the whole header is the button and its focus ring). */
 .dhx_widget.dhx_form .blade-form-section__heading { padding: 0; margin: 0; }
 .dhx_widget.dhx_form .blade-form-section__heading .dhx_button {
@@ -70,25 +71,25 @@
 /* Low specificity (`:where`), so the measuring rules below win. */
 .dhx_widget.dhx_form .blade-form-section--accordion:where(:not(.blade-form-section--still)) > .blade-form-section__body { flex: 1 1 0 !important; min-height: 0; overflow: auto; }
 .dhx_widget.dhx_form .blade-form-section--accordion:not(.blade-form-section--still) > .blade-form-section__body .dhx_form-fieldset { padding-top: 12px; }
-.dhx_widget.dhx_form:has(> .blade-form-section--accordion) > .blade-form-actions { margin-top: auto; }
-.blade-content-window .dhx_widget.dhx_form:has(> .blade-form-section--accordion) > .dhx_form-element:has(> .dhx_form-group--textarea) { flex-grow: 0; }
+.blade-content-window .dhx_widget.dhx_form .blade-form-body:has(> .blade-form-section--accordion) > .dhx_form-element:has(> .dhx_form-group--textarea) { flex-grow: 0; }
 /* Flush (`flushSections`): the sections run edge to edge of the form, as an Accordion fills its region: no frame and no
-   form padding; a rule between sections and above a section after a plain row; the plain rows, the fields and the
-   action row keep a 20 px inset. */
-.dhx_widget.dhx_form:has(> .blade-form-section--flush) { padding: 0 !important; }
-.dhx_widget.dhx_form:has(> .blade-form-section--flush) > :not(.blade-form-section):not(.blade-form-actions) { margin-left: 20px; margin-right: 20px; }
-.dhx_widget.dhx_form:has(> .blade-form-section--flush) > :first-child:not(.blade-form-section) { margin-top: 20px; }
-.dhx_widget.dhx_form:has(> .blade-form-section--flush) > .blade-form-section + :not(.blade-form-section):not(.blade-form-actions) { margin-top: 16px; }
-.dhx_widget.dhx_form:has(> .blade-form-section--flush) > .blade-form-actions { padding: 12px 20px 20px; }
+   body inset; a rule between sections and above a section after a plain row; the plain rows, the fields and the
+   footer keep a 20 px inset. */
+.dhx_widget.dhx_form > .blade-form-body:has(> .blade-form-section--flush) { padding: 0 !important; }
+.dhx_widget.dhx_form .blade-form-body:has(> .blade-form-section--flush) > :not(.blade-form-section) { margin-left: 20px; margin-right: 20px; }
+.dhx_widget.dhx_form .blade-form-body:has(> .blade-form-section--flush) > :first-child:not(.blade-form-section) { margin-top: 20px; }
+.dhx_widget.dhx_form .blade-form-body:has(> .blade-form-section--flush) > :last-child:not(.blade-form-section) { margin-bottom: 20px; }
+.dhx_widget.dhx_form .blade-form-body:has(> .blade-form-section--flush) > .blade-form-section + :not(.blade-form-section) { margin-top: 16px; }
 .dhx_widget.dhx_form .blade-form-section.blade-form-section--flush { border: 0; border-radius: 0; margin: 0; }
 .dhx_widget.dhx_form .blade-form-section.blade-form-section--flush:not(:first-child) { border-top: var(--dhx-border); }
-.dhx_widget.dhx_form .blade-form-section.blade-form-section--flush:not(:has(+ .blade-form-section--flush)):has(> .blade-form-section__body--closed):not(:has(+ .blade-form-actions)) { border-bottom: var(--dhx-border); }
+.dhx_widget.dhx_form .blade-form-section.blade-form-section--flush:not(:has(+ .blade-form-section--flush)):has(> .blade-form-section__body--closed) { border-bottom: var(--dhx-border); }
+/* The footer's rule closes the last section. */
+.dhx_widget.dhx_form .blade-form-body:has(+ .blade-form-actions) > .blade-form-section.blade-form-section--flush:last-child { border-bottom: 0; }
 .dhx_widget.dhx_form .blade-form-section--flush:not(.blade-form-section--still) > .blade-form-section__body .dhx_form-fieldset { padding-left: 20px; padding-right: 20px; }
 .dhx_widget.dhx_form .blade-form-section--flush.blade-form-section--still > .blade-form-section__body > .dhx_form-fieldset > .dhx_layout-cell-content { padding-left: 20px; padding-right: 20px; }
 [data-blade-measure] .dhx_widget.dhx_form .blade-form-section--accordion { flex: 0 0 auto !important; min-height: 0; }
 [data-blade-measure] .dhx_widget.dhx_form .blade-form-section--accordion > .blade-form-section__body { flex: 0 0 auto !important; overflow: visible; }
 [data-blade-measure] .dhx_widget.dhx_form .blade-form-section--accordion > .blade-form-section__body--closed { display: flex !important; }
-[data-blade-measure] .dhx_widget.dhx_form:has(> .blade-form-section--accordion) > .blade-form-actions { margin-top: 0; }
 /* A section-filling field (`sectionFill`, fields.ts formRows; docs/workspaces.md#form-section-fill): the section's header
    names it (its own label stays for screen readers, Suite `hiddenLabel`) and carries its required mark (visual only: the
    input's own `required` announces it, so the header's name stays the label). A textarea is
