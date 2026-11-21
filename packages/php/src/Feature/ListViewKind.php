@@ -166,7 +166,9 @@ final class ListViewKind implements ViewKindProvider
         $actions=[];
         foreach($view->actions as $name){
             $a=$this->registry->get($view->resource,$name);
-            if($singleton && !$ctx->acl->allows($actor->id,$a->resource,$name,'ui',$actor->id,$actor->id))continue;
+            // The object the executor will check: a tenant singleton's key (no owner), else the actor's own record.
+            $perTenant=$this->registry->tenantSingleton($view->resource);
+            if($singleton && !$ctx->acl->allows($actor->id,$a->resource,$name,'ui',$perTenant?$ctx->tenant:$actor->id,$perTenant?null:$actor->id))continue;
             if(!$this->meta->offered($ctx,$a->resource,$name))continue;
             $actions[]=['name'=>$name,'icon'=>$a->icon,'bulk'=>$a->bulk,'confirm'=>$a->confirm?array_filter(['message'=>Translator::text($a->confirm['message']),'title'=>isset($a->confirm['title'])?Translator::text($a->confirm['title']):null,'severity'=>$a->confirm['severity']??'neutral','confirmLabel'=>isset($a->confirm['confirm_label'])?Translator::text($a->confirm['confirm_label']):null,'cancelLabel'=>isset($a->confirm['cancel_label'])?Translator::text($a->confirm['cancel_label']):null],static fn($v)=>$v!==null):null,'label'=>$a->commandLabel??match($name){'create'=>'Hozzáadás','update'=>'Módosítás',default=>$a->label},'submitLabel'=>in_array($name,['create','update'],true)?'Mentés':$a->label,'write'=>$a->write,'fields'=>$this->meta->fields($ctx,$a),...$this->meta->extras($a)];
         }

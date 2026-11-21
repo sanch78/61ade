@@ -163,7 +163,7 @@ test('maximize and restore fill the workspace, and the size, position and maximi
  expect(failures).toEqual([]);
 });
 
-test('phone: the command stays in the row with a 44 px target and the full-screen window has no maximize button',async({page})=>{
+test('phone: the command stays in the row with a 44 px target and the non-modal window fills the workspace without a maximize button',async({page})=>{
  const failures=[];page.on('pageerror',error=>failures.push(error.message));
  await page.setViewportSize({width:390,height:844});
  await signIn(page);
@@ -180,8 +180,9 @@ test('phone: the command stays in the row with a 44 px target and the full-scree
  }
  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
  await openWork(page);
- const box=await work(page).boundingBox();
- expect([Math.round(box.width),Math.round(box.height)]).toEqual([390,844]);
+ await work(page).evaluate(element=>Promise.all(element.getAnimations().map(animation=>animation.finished)));
+ const box=await work(page).boundingBox(),space=await page.locator('.blade-workspace').boundingBox();
+ expect([box.x,box.y,box.width,box.height].map(Math.round)).toEqual([space.x,space.y,space.width,space.height].map(Math.round));
  await expect(work(page).getByRole('button',{name:'Ablak maximalizálása'})).toHaveCount(0);
  expect(failures).toEqual([]);
 });

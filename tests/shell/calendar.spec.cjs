@@ -127,3 +127,17 @@ test('reader sees the calendar read-only and dark theme switches the skin',async
  expect(surface.got).toBe(surface.want);expect(surface.got).not.toBe('rgb(0, 0, 0)');
  await page.getByRole('button',{name:'Éjjeli'}).click();await page.getByRole('menuitem',{name:'Blade',exact:true}).click();
 });
+
+// FB-0255: the vendor stylesheet's third-party font is out of the bundle, so the shell's CSP has nothing to block.
+test('font: no third-party font request or CSP report on the calendar at 1400 and 390 px',async({page})=>{
+ const fonts=[],reports=[];
+ page.on('request',request=>{if(/fonts\.(gstatic|googleapis)\.com/.test(request.url()))fonts.push(request.url());});
+ page.on('console',message=>{if(/Content.Security.Policy/i.test(message.text()))reports.push(message.text());});
+ await openCalendar(page);
+ await page.evaluate(()=>document.fonts.ready);
+ await page.setViewportSize({width:390,height:844});
+ await expect(page.locator('.blade-calendar .dhx_cal_data')).toBeVisible();
+ await page.evaluate(()=>document.fonts.ready);
+ const css=await page.evaluate(async()=>(await (await fetch(document.querySelector('link[href*="admin.css"]').href)).text()).includes('fonts.gstatic.com'));
+ expect(css).toBe(false);expect(fonts).toEqual([]);expect(reports).toEqual([]);
+});

@@ -88,7 +88,7 @@ export class Attachments extends Component<AttachmentsEvents> implements Attachm
       uploader.open({ resource, action, target: target ?? null, targetLabel, policy, files: [file], background: true,
         onFile: row => this.report(entry, row), onUploaded: () => queueMicrotask(settled) });
     }
-    if (list.length) this.changed();
+    if (list.length) { this.render(); this.changed(); }
   }
 
   choose(): void {

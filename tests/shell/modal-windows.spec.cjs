@@ -126,6 +126,47 @@ test('modal: Tab cycles inside, the page is inert, focus returns; stacked dialog
  expect(errors).toEqual([]);
 });
 
+// FB-0257: below 768 px a non-modal window (a background job's, `closable: false`) fills the workspace, so the menu row
+// and the lower bar stay usable; a modal window stays full screen, and the desktop window keeps its own box.
+test('phone: a non-modal window stays between the menu row and the lower bar, a modal one is full screen',async({page})=>{
+ const errors=[];page.on('pageerror',error=>errors.push(error.stack||error.message));
+ await fixture(page);
+ await page.setViewportSize({width:390,height:844});
+ await expect.poll(()=>page.evaluate(()=>innerWidth)).toBe(390);
+ await page.evaluate(()=>{window.__job=window.__bladeApp.ui.window({title:'Háttérfeladat',modal:false,closable:false,fit:false});});
+ const job=dialog(page,'Háttérfeladat');await expect(job).toBeVisible();
+ const inWorkspace=async()=>{
+  await job.evaluate(element=>Promise.all(element.getAnimations().map(animation=>animation.finished)));
+  const [win,area,menu,bar]=await Promise.all([job.boundingBox(),page.locator('.blade-workspace').boundingBox(),page.locator('.blade-navigation-row').boundingBox(),page.locator('.blade-session-bar').boundingBox()]);
+  expect(Math.abs(win.x-area.x)).toBeLessThanOrEqual(1);expect(Math.abs(win.y-area.y)).toBeLessThanOrEqual(1);
+  expect(Math.abs(win.width-area.width)).toBeLessThanOrEqual(1);expect(Math.abs(win.height-area.height)).toBeLessThanOrEqual(1);
+  expect(win.y).toBeGreaterThanOrEqual(menu.y+menu.height-1);expect(win.y+win.height).toBeLessThanOrEqual(bar.y+1);
+  expect(await page.evaluate(([x,y])=>!!document.elementFromPoint(x,y)?.closest('.blade-navigation-row'),[menu.x+menu.width/2,menu.y+menu.height/2])).toBe(true);
+  expect(await page.evaluate(([x,y])=>!!document.elementFromPoint(x,y)?.closest('.blade-session-bar'),[bar.x+bar.width/2,bar.y+bar.height/2])).toBe(true);
+ };
+ await inWorkspace();
+ await expect(page.locator('[inert]')).toHaveCount(0);
+ await expect(job.getByRole('button',{name:'Ablak bezárása'})).toHaveCount(0);
+ await page.setViewportSize({width:360,height:640});
+ await expect.poll(async()=>Math.round((await job.boundingBox()).width)).toBe(360);
+ await inWorkspace();
+ await page.setViewportSize({width:390,height:844});
+ await expect.poll(async()=>Math.round((await job.boundingBox()).height)).toBe(Math.round((await page.locator('.blade-workspace').boundingBox()).height));
+ await page.evaluate(()=>{window.__top=window.__bladeApp.ui.window({title:'Modális',modal:true,fit:false});});
+ const top=dialog(page,'Modális');await expect(top).toBeVisible();
+ await top.evaluate(element=>Promise.all(element.getAnimations().map(animation=>animation.finished)));
+ const full=await top.boundingBox();
+ expect([Math.round(full.x),Math.round(full.y),Math.round(full.width),Math.round(full.height)]).toEqual([0,0,390,844]);
+ await page.evaluate(()=>window.__top.close());await expect(top).toHaveCount(0);
+ await page.evaluate(()=>window.__job.close());await expect(job).toHaveCount(0);
+ await page.setViewportSize({width:1366,height:800});
+ await page.evaluate(()=>{window.__wide=window.__bladeApp.ui.window({title:'Asztali',modal:false,width:420,height:320,fit:false});});
+ const wide=dialog(page,'Asztali');await expect(wide).toBeVisible();
+ const box=await wide.boundingBox();expect(Math.round(box.width)).toBe(420);expect(Math.round(box.height)).toBe(320);
+ await page.evaluate(()=>window.__wide.close());await expect(wide).toHaveCount(0);
+ expect(errors).toEqual([]);
+});
+
 for(const withGuide of [true,false])test(`escape: a project popup inside a modal window takes the first Escape (${withGuide?'with':'without'} a non-modal window)`,async({page})=>{
  await fixture(page);
  if(withGuide)await openWindow(page,'Háttér',false);

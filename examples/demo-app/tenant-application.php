@@ -104,6 +104,14 @@ $serviceOn = static function (Context $ctx): bool {
     new Field('status', 'Állapot', 'select', options: ['new' => 'Új', 'done' => 'Kezelt'], defaultValue: 'new', column: ['editable' => true]),
 ], tenantColumn: 'tenant_id'))->register($workspace->registry, 'Visszajelzések', group: 'Ügyfélszolgálat', icon: 'bi bi-chat-left-text', attention: ['filters' => ['status' => 'new']], available: $serviceOn,
     guide: 'A tenant Visszajelzések szolgáltatásának beérkezett üzenetei; a menüpont az új üzenetek számát mutatja.'."\n\n".'Csak akkor látszik, ha a szolgáltatás az aktív tenantban be van kapcsolva (Tenant demó → Szolgáltatások).');
+// One settings record per tenant (docs/tenancy.md#tenant-singleton): `self` is the active tenant's, the first save creates it.
+(new SqlResource('tenant_settings', 'tenant_settings', 'tenant_id', [
+    new Field('contact', 'Kapcsolattartó', max: 120),
+    new Field('note', 'Megjegyzés', 'textarea', max: 500),
+    new Field('project_count', 'Projektek száma', 'number'),
+], computed: ['project_count' => '(SELECT COUNT(*) FROM tenant_projects p WHERE p.tenant_id = blade_base.tenant_id)'],
+    tenantColumn: 'tenant_id', tenantSingleton: true))->register($workspace->registry, 'Tenant beállítások', group: 'Tenant demó', icon: 'bi bi-sliders',
+    guide: 'Az aktív tenant egyetlen beállításrekordja. Az első mentés hozza létre, a másik tenantnak külön rekordja van.');
 
 // Live data: the feature demo's WebSocket unit serves this application at <endpoint>/tenants (docs/demos.md).
 $liveEndpoint = blade_demo_setting('BLADE_DEMO_LIVE_ENDPOINT');

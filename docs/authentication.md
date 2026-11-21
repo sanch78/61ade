@@ -353,6 +353,32 @@ operator; changing PHP application settings alone cannot promise retention.
 Old sessions already expired or deleted cannot be recovered. An existing
 unexpired session receives the new cookie policy on its next HTTP request.
 
+<a id="host-cookie"></a>
+
+## `__Host-` session cookie
+
+An application on a domain with untrusted sibling subdomains can name its
+session `__Host-<name>` (`sessionName`, JSON `session.name`). The browser then
+refuses a cookie of that name from a sibling subdomain, so a sibling cannot
+overwrite or fix the session ([FB-0254](feedback.md#fb-0254)).
+
+```php
+new ApplicationDefinition(/* … */ sessionName: '__Host-myapp', cookiePath: '/');
+```
+
+- **Required:** `cookiePath` is exactly `/`, or the definition throws
+  `InvalidArgumentException`. A request without HTTPS is refused with a
+  `RuntimeException`, because the browser would drop the cookie. The shell
+  clears a `session.cookie_domain` from the PHP configuration for this request.
+- **Derived cookies** carry the prefix and the same scope:
+  `__Host-<name>_language`, `__Host-<name>_remember` and the short
+  `__Host-<name>_oauth` sign-in session.
+- **Changing the name signs every user out once.** The old session, remember
+  and language cookies are no longer read, so users sign in again and choose
+  their language again unless their account stores it. The old cookies expire
+  on their own.
+- `__Secure-` and other prefixes are not accepted.
+
 <a id="cookie-samesite"></a>
 
 ## Cookie SameSite

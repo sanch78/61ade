@@ -103,9 +103,9 @@ verify(!str_contains($logs, $code) && !str_contains($logs, $credential['cookie']
 // Shell requests, each in its own process (fixtures/authentication/request.php): cookie SameSite and the opt-in
 // client-address binding (docs/authentication.md#cookie-samesite, docs/authentication.md#client-address-binding).
 $workspace->executor->execute($context, 'members', 'security', '2', ['email_confirmation' => '0']);
-$request = static function (array $options, string $address, array $cookies = [], array $post = []): array {
-    $process = proc_open([PHP_BINARY, dirname(__DIR__).'/fixtures/authentication/request.php'], [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']], $pipes);
-    fwrite($pipes[0], json_encode(['options' => $options, 'server' => ['REMOTE_ADDR' => $address, ...($post ? ['REQUEST_METHOD' => 'POST'] : [])], 'cookies' => $cookies, 'post' => $post], JSON_THROW_ON_ERROR));
+$request = static function (array $options, string $address, array $cookies = [], array $post = [], array $server = [], array $ini = []): array {
+    $process = proc_open([PHP_BINARY, ...$ini, dirname(__DIR__).'/fixtures/authentication/request.php'], [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']], $pipes);
+    fwrite($pipes[0], json_encode(['options' => $options, 'server' => ['REMOTE_ADDR' => $address, ...$server, ...($post ? ['REQUEST_METHOD' => 'POST'] : [])], 'cookies' => $cookies, 'post' => $post], JSON_THROW_ON_ERROR));
     fclose($pipes[0]);
     [$output, $errors] = [stream_get_contents($pipes[1]), stream_get_contents($pipes[2])];
     if (proc_close($process) !== 0 || $errors !== '') throw new RuntimeException('Shell request failed: '.$errors);
@@ -130,6 +130,35 @@ $moved = $request([], '203.0.113.9', $jar($login));
 verify(($moved['data']['identity'] ?? null) === '2' && $moved['session']['id'] === $login['session']['id'] && $events() === [], 'Without binding the session survives an address change');
 $language = $request([], '203.0.113.9', $jar($login), ['action' => 'language', 'locale' => 'hu', 'csrf' => $moved['data']['csrf']]);
 verify($cookie($language, 'blade_auth_test_language')['samesite'] === 'Lax', 'Default language cookie: Lax');
+
+// `__Host-` session name (FB-0254): every derived cookie is Secure, `Path=/` and has no Domain, even with an ini domain.
+$host = ['sessionName' => '__Host-blade_auth_test', 'cookiePath' => '/'];
+$hosted = static fn(?array $c): bool => $c !== null && $c['secure'] === true && $c['path'] === '/' && ($c['domain'] ?? '') === '';
+$login = $signIn($host, '198.51.100.7');
+verify($login['data']['identity'] === '2' && $login['session']['name'] === '__Host-blade_auth_test' && $hosted($login['session']), 'Host session cookie: Secure, Path=/, no Domain');
+verify($hosted($cookie($login, '__Host-blade_auth_test_remember')), 'Host remember cookie: Secure, Path=/, no Domain');
+$page = $request($host, '198.51.100.7', $jar($login));
+verify(($page['data']['identity'] ?? null) === '2' && $page['session']['id'] === $login['session']['id'], 'Host session continues from its cookie');
+$language = $request($host, '198.51.100.7', $jar($login), ['action' => 'language', 'locale' => 'hu', 'csrf' => $page['data']['csrf']]);
+verify($hosted($cookie($language, '__Host-blade_auth_test_language')), 'Host language cookie: Secure, Path=/, no Domain');
+$domain = ['-d', 'session.cookie_domain=example.test'];
+verify($request([], '198.51.100.7', [], [], [], $domain)['session']['domain'] === 'example.test', 'An ordinary session name keeps the ini domain');
+verify($request($host, '198.51.100.7', [], [], [], $domain)['session']['domain'] === '', 'A host session drops an ini domain');
+foreach (['off', 'OFF', ''] as $https) {
+    $refused = false;
+    try { $request($host, '198.51.100.7', [], [], ['HTTPS' => $https]); } catch (RuntimeException $error) { $refused = str_contains($error->getMessage(), 'needs HTTPS'); }
+    verify($refused, 'A host session name is refused without HTTPS: "'.$https.'"');
+}
+foreach (['/admin/', '/app'] as $path) {
+    $invalid = false;
+    try { new Blade\Shell\ApplicationDefinition('T', $app->identities, $app->menu, $app->runtime, sessionName: '__Host-blade_auth_test', cookiePath: $path); } catch (InvalidArgumentException) { $invalid = true; }
+    verify($invalid, 'A host session name needs Path=/: '.$path);
+}
+foreach (['__Secure-app', '__Host-', '__Host-1app', '__host-app'] as $name) {
+    $invalid = false;
+    try { new Blade\Shell\ApplicationDefinition('T', $app->identities, $app->menu, $app->runtime, sessionName: $name); } catch (InvalidArgumentException) { $invalid = true; }
+    verify($invalid, 'Invalid session name refused: '.$name);
+}
 
 // Strict and bound: both credentials Strict, the language preference stays Lax.
 $strict = ['sameSite' => 'Strict', 'bindSessionToClientAddress' => true];

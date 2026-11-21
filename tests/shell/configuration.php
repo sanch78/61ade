@@ -333,6 +333,15 @@ try {
     file_put_contents($directory.'/broken-module.json', json_encode($broken, JSON_THROW_ON_ERROR));
     rejected(static fn() => WorkspaceConfiguration::build($tenantDb, [$directory.'/broken-module.json'], static fn() => [], true), 'menu: false on a JSON singleton accepted');
     unset($broken['resources']['tasks']['view']['menu'], $broken['resources']['tasks']['view']['singleton']);
+    // `storage.tenant_singleton` (docs/tenancy.md#tenant-singleton): a singleton view without create; a key other than the tenant column is refused.
+    $single = ['resources' => ['site_settings' => ['storage' => ['table' => 'site_settings', 'key' => 'tenant_id', 'tenant_column' => 'tenant_id', 'tenant_singleton' => true],
+        'fields' => [['name' => 'title', 'label' => 'Title']], 'view' => ['title' => 'Settings']]]];
+    file_put_contents($directory.'/single-module.json', json_encode($single, JSON_THROW_ON_ERROR));
+    $singleView = WorkspaceConfiguration::build($tenantDb, [$directory.'/single-module.json'], static fn() => [], true)->registry->viewById('site_settings');
+    verify(($singleView->options['singleton'] ?? false) === true && !in_array('create', $singleView->actions, true), 'JSON tenant_singleton is a singleton view without create');
+    $single['resources']['site_settings']['storage']['key'] = 'id';
+    file_put_contents($directory.'/single-module.json', json_encode($single, JSON_THROW_ON_ERROR));
+    rejected(static fn() => WorkspaceConfiguration::build($tenantDb, [$directory.'/single-module.json'], static fn() => [], true), 'JSON tenant_singleton with another key accepted');
     // `view.available` and module `views.<id>.available` (docs/workspaces.md#view-availability) name a workspace binding.
     $available = static fn(Blade\Feature\Context $context): bool => $context->tenant === '1';
     $broken['resources']['tasks']['view']['available'] = 'tasks.available';

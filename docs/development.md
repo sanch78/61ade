@@ -142,7 +142,10 @@ test:browser` first runs `node tools/build.mjs --check`, which builds all of
 these files in memory and refuses to test an output that differs from the
 source. `npm run typecheck` checks `packages/frontend/src` and, with
 `tsc -p examples/demo-app/frontend`, the demo module against the generated
-`dist/admin.d.ts` (build first after an API change).
+`dist/admin.d.ts` (build first after an API change). The build leaves the
+scheduler's third-party font faces out of `admin.css` and fails on any
+third-party `url()` there, because the shell's CSP would block it
+([FB-0255](feedback.md#fb-0255)).
 
 ### Consumer layout
 

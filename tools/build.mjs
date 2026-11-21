@@ -51,6 +51,12 @@ const result = await build({
                     loader: "css",
                     resolveDir: path.dirname(args.path),
                 }));
+                // The shell's CSP allows no third-party font, and the calendar takes its font from the active theme.
+                build.onLoad({ filter: /dhtmlxscheduler\.css$/ }, async (args) => ({
+                    contents: (await readFile(args.path, "utf8")).replace(/@font-face\s*\{[^}]*fonts\.gstatic\.com[^}]*\}/g, ""),
+                    loader: "css",
+                    resolveDir: path.dirname(args.path),
+                }));
                 build.onLoad({ filter: /suite\.min\.css$/ }, async (args) => ({
                     contents: (await readFile(args.path, "utf8")).replace(
                         /@import\s+url\([^)]*cdn\.dhtmlx\.com[^)]*\);?/g,
@@ -63,6 +69,9 @@ const result = await build({
         },
     ],
 });
+// A quoted external URL anywhere (@import, image-set); `=` and `\` before the quote are namespaces inside SVG data URIs.
+if (/url\(\s*["']?(?:https?:)?\/\/|(?<![=\\])["'](?:https?:)?\/\//i.test(result.outputFiles.find((file) => file.path.endsWith("admin.css")).text))
+    throw new Error("admin.css: a third-party URL is blocked by the shell's CSP; inline or remove it");
 // SandboxFrame's document: the bootstrap is a classic script (an opaque-origin frame cannot load module scripts without
 // CORS), left readable for review and inlined into sandbox.html. Its meta CSP admits exactly that script by its hash
 // plus blob: (the delivered code), so the untrusted code can load no same-origin script (docs/toolkit.md#sandbox-protocol).

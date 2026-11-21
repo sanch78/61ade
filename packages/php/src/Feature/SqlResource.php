@@ -40,8 +40,12 @@ final class SqlResource
      * through the declared consumer link tables (Delegation). Each link's `resourceColumn` is a stored column of this
      * resource (the key, a stored field such as a parent foreign key, a default or the owner column); computed, related,
      * count and secret fields are not. Without a declaration a `delegated` rule fails the operation.
+     * $tenantSingleton: one record per tenant (FB-0258), keyed by $tenantColumn ($key === $tenantColumn, unique in the
+     * table). Its view is a singleton; `get` and `update` address it as `self` only, the first save creates it, and a
+     * tenant without a row reads the field defaults. It has no create or delete, owner, shared rows, order, delegation,
+     * related or count storage, `where` or unique rules. Computed values are empty until the row exists.
      */
-    public function __construct(private string $resource, private string $table, private string $key, private array $fields, private ?string $ownerColumn = null, private array $defaults = [], private ?\Closure $guard = null, private ?\Closure $normalize = null, private string $where = '1=1', private bool $selfOnly = false, private ?\Closure $afterSave = null, private ?\Closure $deleteGuard = null, private array $related = [], private array $readOnly = [], private array $unique = [], private bool $acceptOwnerInput = false, private array $search = [], private ?\Closure $afterDelete = null, private array $computed = [], private ?string $tenantColumn = null, private ?array $order = null, private array $createOnly = [], private array $counts = [], private ?string $sharedTenant = null, private array $sharedRoles = [], private ?Delegation $delegation = null)
+    public function __construct(private string $resource, private string $table, private string $key, private array $fields, private ?string $ownerColumn = null, private array $defaults = [], private ?\Closure $guard = null, private ?\Closure $normalize = null, private string $where = '1=1', private bool $selfOnly = false, private ?\Closure $afterSave = null, private ?\Closure $deleteGuard = null, private array $related = [], private array $readOnly = [], private array $unique = [], private bool $acceptOwnerInput = false, private array $search = [], private ?\Closure $afterDelete = null, private array $computed = [], private ?string $tenantColumn = null, private ?array $order = null, private array $createOnly = [], private array $counts = [], private ?string $sharedTenant = null, private array $sharedRoles = [], private ?Delegation $delegation = null, private bool $tenantSingleton = false)
     {
         $known=array_column($fields,null,'name');
         foreach($computed as $name=>$sql){
@@ -81,11 +85,15 @@ final class SqlResource
         if (($sharedTenant !== null && ($tenantColumn === null || !preg_match('/^[a-zA-Z0-9_.:-]{0,100}$/D', $sharedTenant))) || ($sharedRoles && $sharedTenant === null)
             || !array_is_list($sharedRoles) || count($sharedRoles) > 20 || count(array_unique($sharedRoles)) !== count($sharedRoles)
             || array_filter($sharedRoles, static fn($role) => !is_string($role) || !preg_match('/^[a-z][a-z0-9_]*$/D', $role))) throw new \InvalidArgumentException('Invalid shared tenant declaration.');
-        if ($tenantColumn !== null && (in_array($tenantColumn,[$key,$ownerColumn,...array_keys($defaults),...array_map(static fn($f)=>$f->name,$fields)],true) || in_array($tenantColumn,array_merge(...$unique ?: [[]]),true))) throw new \InvalidArgumentException('The tenant column is set by the server only.');
+        if ($tenantColumn !== null && (in_array($tenantColumn,[...($tenantSingleton?[]:[$key]),$ownerColumn,...array_keys($defaults),...array_map(static fn($f)=>$f->name,$fields)],true) || in_array($tenantColumn,array_merge(...$unique ?: [[]]),true))) throw new \InvalidArgumentException('The tenant column is set by the server only.');
+        if ($tenantSingleton && ($tenantColumn === null || $key !== $tenantColumn || $selfOnly || $ownerColumn !== null || $sharedTenant !== null || $order !== null || $delegation !== null || $related || $counts || $unique || $createOnly || $where !== '1=1'
+            || array_filter($fields, static fn($f) => $f->validation['unique'] ?? false))) throw new \InvalidArgumentException('Invalid tenant singleton: '.$resource);
         foreach ([$table,$key,...array_keys($defaults),...array_map(static fn($f)=>$f->name,$fields),...($ownerColumn?[$ownerColumn]:[]),...($tenantColumn!==null?[$tenantColumn]:[])] as $column) if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/D',$column)) throw new \InvalidArgumentException('Invalid SQL identifier');
     }
     /** `archived_at`/`archived_by` verified once (first archive-aware read or delete) on the connection in use. */
     private bool $archiveColumns=false;
+    /** Whether the database keeps the key unique (keyIndexed()), read once on the connection in use. */
+    private ?bool $keyUnique=null;
     private function archive(): bool { return $this->deletePolicy==='archive'; }
     /** The tenant realm of $ctx (Registry::realm(): `read` values, `write` value); null when unscoped; fails closed. */
     private function realm(Context $ctx): ?array
@@ -119,8 +127,48 @@ final class SqlResource
         foreach ($this->related as $storage) $expressions = [...$expressions, ...$storage->expressions($ctx->db, $this->key)];
         // Text like stored columns (RelatedStorage does the same): filters bind strings, number sorting casts.
         foreach ($this->computed as $name => $sql) $expressions[] = "CAST(($sql) AS CHAR) AS `$name`";
+        $this->keyReady($ctx);
         if (!$expressions && !$this->archive()) return $this->table;
         return '(SELECT blade_base.*'.($expressions ? ', '.implode(', ', $expressions) : '')." FROM {$this->table} blade_base".($this->archive() ? ' WHERE blade_base.archived_at IS NULL' : '').') blade_source';
+    }
+    /** Related and delegation storage and shared rows name a record by its key alone: it must be unique across tenants (FB-0258). */
+    private function keyBound(): bool
+    {
+        return $this->tenantColumn!==null&&!$this->tenantSingleton&&($this->related||$this->delegation!==null||$this->sharedTenant!==null);
+    }
+    /** Whether the database itself keeps the key unique: a one-column primary key or unique index. */
+    private function keyIndexed(\PDO $db): bool
+    {
+        $driver=$db->getAttribute(\PDO::ATTR_DRIVER_NAME);
+        if($driver==='sqlite'){
+            $primary=array_column(array_filter($db->query("PRAGMA table_info({$this->table})")->fetchAll(\PDO::FETCH_ASSOC),static fn($c)=>(int)$c['pk']>0),'name');
+            if($primary===[$this->key])return true;
+            foreach($db->query("PRAGMA index_list({$this->table})")->fetchAll(\PDO::FETCH_ASSOC) as $index)
+                if((int)$index['unique']===1&&(int)($index['partial']??0)===0&&array_column($db->query('PRAGMA index_info("'.str_replace('"','""',$index['name']).'")')->fetchAll(\PDO::FETCH_ASSOC),'name')===[$this->key])return true;
+            return false;
+        }
+        if($driver!=='mysql')return false;
+        $indexes=[];
+        foreach($db->query("SHOW INDEX FROM `{$this->table}` WHERE Non_unique = 0")->fetchAll(\PDO::FETCH_ASSOC) as $part)$indexes[$part['Key_name']][]=$part['Column_name'];
+        return in_array([$this->key],$indexes,true);
+    }
+    /**
+     * Fails closed: a key-bound resource whose table holds a repeated key serves no list or record. After a write
+     * ($written) the same finding is a 409, so the executor's rollback undoes a key the database generated.
+     */
+    private function keyReady(Context $ctx, bool $written = false): void
+    {
+        if(!$this->keyBound()||($this->keyUnique??=$this->keyIndexed($ctx->db)))return;
+        if($ctx->db->query("SELECT 1 FROM {$this->table} GROUP BY {$this->key} HAVING COUNT(*) > 1 LIMIT 1")->fetchColumn()===false)return;
+        if($written)throw new Failure('Ilyen bejegyzés már létezik.',409);
+        throw new \LogicException("The key of {$this->resource} must be unique across tenants: it has related, delegation or shared storage.");
+    }
+    /** Without a unique index, a write may not take a key another record holds; with one, the database refuses it. */
+    private function keyFree(Context $ctx, array $values, ?array $target): void
+    {
+        if(!$this->keyBound()||!isset($values[$this->key])||($target&&(string)$values[$this->key]===$target['id'])||($this->keyUnique??=$this->keyIndexed($ctx->db)))return;
+        $q=$ctx->db->prepare("SELECT COUNT(*) FROM {$this->table} WHERE {$this->key} = ?");$q->execute([$values[$this->key]]);
+        if((int)$q->fetchColumn()>0)throw new Failure('Ilyen bejegyzés már létezik.',409);
     }
     /**
      * Registers `list`, `get`, optional `create`/`update` and the list view (id $id, default the resource; see
@@ -131,6 +179,7 @@ final class SqlResource
     public function register(Registry $registry, string $title, bool $create = true, bool $update = true, ?string $group = null, ?ViewLayout $layout = null, bool $selection = false, bool $rowSelection = false, ?int $rowHeight = null, ?int $tileMinWidth = null, bool $tiles = false, string|array|null $activate = null, ?string $id = null, array $commands = [], ?string $guide = null, bool $menu = true, ?array $sort = null, ?array $attention = null, ?array $modes = null, ?int $cardColumns = null, string $formSections = 'panels', bool $flushSections = false, ?\Closure $available = null, ?array $emphasis = null, ?string $icon = null): View
     {
         $this->registry=$registry;
+        if($this->tenantSingleton)$create=false;
         $registry->registerFields($this->resource,$this->fields);
         $mapped = [];
         $known = array_column($this->fields, null, 'name');
@@ -141,7 +190,7 @@ final class SqlResource
                 $mapped[$field] = true;
             }
         }
-        if($this->tenantColumn!==null)$registry->scopeToTenant($this->resource,$this->sharedTenant,$this->sharedRoles);
+        if($this->tenantColumn!==null)$registry->scopeToTenant($this->resource,$this->sharedTenant,$this->sharedRoles,$this->tenantSingleton);
         if($this->counts)$registry->counts($this->resource,$this->counts);
         if($this->delegation!==null){
             // Ownership keys are stored columns of this table only; the outer row is never one of the link tables.
@@ -173,7 +222,7 @@ final class SqlResource
                 $actions[]='move';
             }
         }
-        return $registry->view($this->resource,$title,array_values(array_map(static fn($f)=>['id'=>$f->name,'header'=>$f->label],array_filter($this->fields,static fn($f)=>!$f->scopeOnly&&!$f->stored()))),$actions,group:$group,layout:$layout,selection:$selection,rowSelection:$rowSelection,rowHeight:$rowHeight,tileMinWidth:$tileMinWidth,tiles:$tiles,activate:$activate,id:$id,commands:$commands,guide:$guide,menu:$menu,sort:$sort,attention:$attention,modes:$modes,cardColumns:$cardColumns,icon:$icon,available:$available,emphasis:$emphasis);
+        return $registry->view($this->resource,$title,array_values(array_map(static fn($f)=>['id'=>$f->name,'header'=>$f->label],array_filter($this->fields,static fn($f)=>!$f->scopeOnly&&!$f->stored()))),$actions,singleton:$this->tenantSingleton,group:$group,layout:$layout,selection:$selection,rowSelection:$rowSelection,rowHeight:$rowHeight,tileMinWidth:$tileMinWidth,tiles:$tiles,activate:$activate,id:$id,commands:$commands,guide:$guide,menu:$menu,sort:$sort,attention:$attention,modes:$modes,cardColumns:$cardColumns,icon:$icon,available:$available,emphasis:$emphasis);
     }
     /**
      * Bulk-capable delete with the definition's policy: `delete` (default; needs no extra columns) removes the row and its
@@ -183,7 +232,7 @@ final class SqlResource
      */
     public function registerDelete(Registry $registry, string $deletePolicy = 'delete'):void
     {
-        if(!in_array($deletePolicy,self::DELETE_POLICIES,true))throw new \InvalidArgumentException('Invalid delete policy.');
+        if(!in_array($deletePolicy,self::DELETE_POLICIES,true)||$this->tenantSingleton)throw new \InvalidArgumentException('Invalid delete policy.');
         $this->deletePolicy=$deletePolicy;
         $this->registry??=$registry;
         $registry->add(new Action($this->resource,'delete','Törlés',[new Field('revision','Verzió',required:true,max:64),new Field('preview','Előnézet','checkbox')],function(Context $ctx,array $target,array $values) use ($registry):array{
@@ -193,11 +242,12 @@ final class SqlResource
             $usages=Usages::count($ctx,$providers,[$target['id']]);
             // The preview changes nothing; it is journaled as `delete_preview` (ACL decision on `delete`).
             if(($values['preview']??'0')==='1')return ['count'=>1,'usages'=>$usages,'audit_action'=>'delete_preview'];
+            [$inTenant,$tenantValue]=$this->rowTenant($ctx,$target['row']);
             if($this->archive()){
-                $q=$ctx->db->prepare("UPDATE {$this->table} SET archived_at=?, archived_by=? WHERE {$this->key}=? AND archived_at IS NULL");$q->execute([gmdate('Y-m-d\\TH:i:s\\Z'),substr($ctx->actor->id,0,64),$target['id']]);
+                $q=$ctx->db->prepare("UPDATE {$this->table} SET archived_at=?, archived_by=? WHERE {$this->key}=?$inTenant AND archived_at IS NULL");$q->execute([gmdate('Y-m-d\\TH:i:s\\Z'),substr($ctx->actor->id,0,64),$target['id'],...$tenantValue]);
             }else{
                 foreach ($this->related as $storage) $storage->delete($ctx->db,$target['id']);
-                $q=$ctx->db->prepare("DELETE FROM {$this->table} WHERE {$this->key}=?");$q->execute([$target['id']]);
+                $q=$ctx->db->prepare("DELETE FROM {$this->table} WHERE {$this->key}=?$inTenant");$q->execute([$target['id'],...$tenantValue]);
             }
             $cleared=Usages::clear($ctx,$providers,[$target['id']],$this->deletePolicy,$usages);
             $ctx->acl->invalidate();
@@ -212,18 +262,47 @@ final class SqlResource
         ]));
         foreach($registry->views() as $view)if($view->resource===$this->resource&&$view->kind==='list')$registry->appendViewActions($view->id,['delete']);
     }
+    /** A statement's condition on $row's own tenant: the framework never assumes a key is unique across tenants (FB-0258). */
+    private function rowTenant(Context $ctx, array $row, string $alias = ''): array
+    {
+        if($this->tenantColumn===null)return ['',[]];
+        return [" AND $alias{$this->tenantColumn} = ?",[$row[$this->tenantColumn] ?? $this->realm($ctx)['write']]];
+    }
+    /** The active tenant's record of a tenant singleton; without a row, its defaults under `new` until the first save. */
+    private function singleton(Context $ctx, ?string $id): array
+    {
+        if($id!=='self')throw new Failure('Nem található objektum.',404);
+        $tenant=$this->realm($ctx)['write'];
+        // The ACL object is the tenant's key, as in the list; `self` is only the address. A missing row takes no lock, so
+        // on MySQL the first saves of different tenants share no gap lock.
+        $q=$ctx->db->prepare("SELECT * FROM {$this->table} WHERE {$this->key} = ?");
+        $q->execute([$tenant]);$row=$q->fetch(\PDO::FETCH_ASSOC);
+        if($row&&$ctx->db->getAttribute(\PDO::ATTR_DRIVER_NAME)==='mysql'){
+            $q=$ctx->db->prepare("SELECT * FROM {$this->table} WHERE {$this->key} = ? FOR UPDATE");
+            $q->execute([$tenant]);$row=$q->fetch(\PDO::FETCH_ASSOC);
+        }
+        if(!$row)return ['id'=>'self','acl_id'=>(string)$tenant,'owner'=>null,'new'=>true,'row'=>[...array_column(array_map(static fn($f)=>['name'=>$f->name,'value'=>$f->defaultValue],$this->fields),'value','name'),...$this->defaults,$this->key=>$tenant]];
+        if($this->computed){
+            $q=$ctx->db->prepare('SELECT '.implode(', ',array_map(static fn($name,$sql)=>"CAST(($sql) AS CHAR) AS `$name`",array_keys($this->computed),$this->computed))." FROM {$this->table} blade_base WHERE blade_base.{$this->key} = ?");
+            $q->execute([$tenant]);$row=array_replace($row,$q->fetch(\PDO::FETCH_ASSOC)?:[]);
+        }
+        return ['id'=>'self','acl_id'=>(string)$tenant,'owner'=>null,'row'=>$row];
+    }
     public function target(Context $ctx, ?string $id): array
     {
+        if($this->tenantSingleton)return $this->singleton($ctx,$id);
         if($this->selfOnly) { if($id!==$ctx->actor->id && $id!=='self')throw new Failure('Csak a saját profil érhető el.',403); $id=$ctx->actor->id; }
         if($id===null || !preg_match('/^[a-zA-Z0-9_.:-]{1,100}$/D',$id)) throw new Failure('Hiányzó objektum.',404);
         $this->archiveReady($ctx->db);
+        $this->keyReady($ctx);
         $tenants=$this->realm($ctx)['read']??[];
         $q=$ctx->db->prepare("SELECT * FROM {$this->table} WHERE {$this->key} = ? AND ({$this->where})".($tenants?" AND {$this->tenantColumn} IN (".implode(',',array_fill(0,count($tenants),'?')).')':'').($this->archive()?' AND archived_at IS NULL':'').($ctx->db->getAttribute(\PDO::ATTR_DRIVER_NAME)==='mysql'?' FOR UPDATE':''));
         $q->execute([$id,...$tenants]); $row=$q->fetch(\PDO::FETCH_ASSOC);
         if(!$row)throw new Failure('Nem található objektum.',404);
         if($this->computed){
-            $q=$ctx->db->prepare('SELECT '.implode(', ',array_map(static fn($name,$sql)=>"CAST(($sql) AS CHAR) AS `$name`",array_keys($this->computed),$this->computed))." FROM {$this->table} blade_base WHERE blade_base.{$this->key} = ?");
-            $q->execute([$row[$this->key]]);$row=array_replace($row,$q->fetch(\PDO::FETCH_ASSOC)?:[]);
+            [$inTenant,$tenantValue]=$this->rowTenant($ctx,$row,'blade_base.');
+            $q=$ctx->db->prepare('SELECT '.implode(', ',array_map(static fn($name,$sql)=>"CAST(($sql) AS CHAR) AS `$name`",array_keys($this->computed),$this->computed))." FROM {$this->table} blade_base WHERE blade_base.{$this->key} = ?$inTenant");
+            $q->execute([$row[$this->key],...$tenantValue]);$row=array_replace($row,$q->fetch(\PDO::FETCH_ASSOC)?:[]);
         }
         foreach ($this->related as $storage) $row = array_replace($row, $storage->read($ctx->db, (string)$row[$this->key]));
         // A shared row: the executor refuses its write actions with a tenant, and the journal records it as shared.
@@ -231,8 +310,9 @@ final class SqlResource
     }
     public function project(Context $ctx,array $row,string $action): array
     {
+        // $id is the ACL object; a tenant singleton answers with its address `self` instead of the key.
         $id=(string)$row[$this->key];$owner=$this->ownerColumn?(string)$row[$this->ownerColumn]:null;
-        $out=['id'=>$id,'revision'=>$this->revision($row)];
+        $out=['id'=>$this->tenantSingleton?'self':$id,'revision'=>$this->revision($row)];
         // A count field the actor may read gets its value from ListSource::counted() (left out when it cannot be counted).
         foreach($this->fields as $field) if(!$field->secret && $ctx->acl->fieldAllowed($ctx->actor->id,$this->resource,$action,$ctx->channel,$id,$owner,$field->name))$out[$field->name]=isset($this->counts[$field->name])?null:$row[$field->name];
         // A shared row is marked; with an active tenant it offers no write action but create (Executor::sharedWrite()).
@@ -284,8 +364,9 @@ final class SqlResource
             foreach($ids as $index=>$id)if($id!==$target['id']&&(string)($current[$id]??'')!==(string)($index+1)
                 &&!$ctx->acl->allows($ctx->actor->id,$this->resource,'move',$ctx->channel,(string)$id,isset($owners[$id])?(string)$owners[$id]:null))throw new Failure('Nincs hozzáférés.',403);
         }
-        $update=$ctx->db->prepare("UPDATE {$this->table} SET $field = ? WHERE {$this->key} = ?");
-        foreach($ids as $index=>$id)if((string)($current[$id]??'')!==(string)($index+1))$update->execute([$index+1,$id]);
+        [$inTenant,$tenantValue]=$this->rowTenant($ctx,$target['row']);
+        $update=$ctx->db->prepare("UPDATE {$this->table} SET $field = ? WHERE {$this->key} = ?$inTenant");
+        foreach($ids as $index=>$id)if((string)($current[$id]??'')!==(string)($index+1))$update->execute([$index+1,$id,...$tenantValue]);
         return ['id'=>$target['id'],'position'=>$at+1,'audit'=>['before'=>$before,'position'=>$at+1]];
     }
     /**
@@ -313,6 +394,7 @@ final class SqlResource
         $inTenant=$tenant!==null?" AND {$this->tenantColumn} = ?":'';
         $ruleValues=$target?array_replace(array_intersect_key($target['row'],array_column($this->fields,null,'name')),$values):$values;
         if($this->guard)($this->guard)($ctx,$target,$ruleValues);
+        $normalized=[];
         if($this->normalize){$normalized=($this->normalize)($ctx,$target,$ruleValues);$values=$target?array_intersect_key($normalized,$values):$normalized;}
         foreach ($this->fields as $field) {
             if (!($field->validation['unique'] ?? false) || !isset($values[$field->name]) || $values[$field->name] === '') continue;
@@ -344,13 +426,21 @@ final class SqlResource
         }
         $allValues=$values;
         foreach ($this->related as $storage) $values = array_diff_key($values, $storage->fields);
-        if($target){
-            if(!$allValues)throw new Failure('Nincs módosítás.');
+        if($target&&!$allValues)throw new Failure('Nincs módosítás.');
+        if($target&&!isset($target['new'])){
             $this->delegatedWrite($ctx,$target,array_replace($target['row'],$allValues),$allValues);
-            if($values){$q=$ctx->db->prepare("UPDATE {$this->table} SET ".implode(',',array_map(static fn($k)=>"$k = ?",array_keys($values)))." WHERE {$this->key} = ?");
-            $q->execute([...array_values($values),$target['id']]);}$id=$target['id'];
+            // Related rows stay under the old key, where another tenant's later record would find them.
+            if($this->keyBound()&&$this->related&&isset($values[$this->key])&&(string)$values[$this->key]!==$target['id'])throw new Failure('A mező nem módosítható.',409);
+            $this->keyFree($ctx,$values,$target);
+            [$inTenant,$tenantValue]=$this->rowTenant($ctx,$target['row']);
+            if($values){$q=$ctx->db->prepare("UPDATE {$this->table} SET ".implode(',',array_map(static fn($k)=>"$k = ?",array_keys($values)))." WHERE {$this->key} = ?$inTenant");
+            $q->execute([...array_values($values),$this->tenantSingleton?$target['row'][$this->key]:$target['id'],...$tenantValue]);}$id=$target['id'];
         }else{
-            $values=array_merge($this->defaults,$values);
+            // The first save of a tenant singleton stores the field defaults its form showed, as the normalize hook left them.
+            $shown=[];
+            if($target)foreach($this->fields as $field)if($field->defaultValue!==null&&!$field->scopeOnly&&!$field->secret&&$field->type!=='password'&&!isset($this->computed[$field->name])&&(!$this->normalize||array_key_exists($field->name,$normalized)))$shown[$field->name]=$this->normalize?$normalized[$field->name]:$field->defaultValue;
+            $values=array_merge($shown,$this->defaults,$values);
+            if($this->keyBound()&&($values[$this->key]??null)==='')unset($values[$this->key]);
             if($this->ownerColumn && (!$this->acceptOwnerInput || !array_key_exists($this->ownerColumn,$values)))$values[$this->ownerColumn]=$ctx->actor->id;
             if($tenant!==null)$values[$this->tenantColumn]=$tenant;
             if($this->order){
@@ -359,7 +449,25 @@ final class SqlResource
                 $values[$this->order['field']]=(int)$q->fetchColumn();
             }
             $this->delegatedWrite($ctx,null,array_replace($values,array_diff_key($allValues,$values)),$allValues);
-            $q=$ctx->db->prepare("INSERT INTO {$this->table} (".implode(',',array_keys($values)).') VALUES ('.implode(',',array_fill(0,count($values),'?')).')');$q->execute(array_values($values));$id=$ctx->db->lastInsertId();
+            $this->keyFree($ctx,$values,null);
+            $q=$ctx->db->prepare("INSERT INTO {$this->table} (".implode(',',array_keys($values)).') VALUES ('.implode(',',array_fill(0,count($values),'?')).')');
+            try{$q->execute(array_values($values));}
+            catch(\PDOException $error){
+                // Two first saves of a tenant singleton (a duplicate key, or a MySQL deadlock): the later one reloads.
+                if(!$target||!((string)$error->getCode()==='40001'||($error->errorInfo[1]??null)===1062||str_contains($error->getMessage(),'UNIQUE constraint')))throw $error;
+                throw new Failure('Az adat közben módosult. Nyisd meg újra.',409);
+            }
+            // A client-chosen key is the id; lastInsertId() is then an unrelated rowid.
+            $id=$target?'self':(($values[$this->key]??'')!==''?$values[$this->key]:$ctx->db->lastInsertId());
+            if(!$target&&$this->keyBound()){
+                $this->keyReady($ctx,true);
+                // Related rows follow the key as stored ('007' in an integer key is 7), found within this tenant.
+                if($this->related){
+                    $q=$ctx->db->prepare("SELECT {$this->key} FROM {$this->table} WHERE {$this->key} = ? AND {$this->tenantColumn} = ?");$q->execute([$id,$tenant]);
+                    $id=$q->fetchColumn();
+                    if($id===false||$id===null)throw new \LogicException("The new key of {$this->resource} cannot be read back within its tenant.");
+                }
+            }
         }
         foreach ($this->related as $storage) $storage->save($ctx->db,(string)$id,$allValues);
         $ctx->acl->invalidate();

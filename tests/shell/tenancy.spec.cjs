@@ -321,3 +321,37 @@ test.describe('view availability',()=>{
   expect(errors).toEqual([]);
  });
 });
+
+// Tenant singleton (FB-0258, docs/tenancy.md#tenant-singleton): `Tenant beállítások` is one record per tenant, created by
+// its first save; the run empties the demo table before, between and after its cases.
+const settingsStore=`${runtime}/${process.env.BLADE_DEMO_INSTANCE||'web'}/tenants.sqlite`;
+const clearSettings=()=>execFileSync(process.env.BLADE_PHP||'php8.4',['-r',`$db=new PDO('sqlite:${settingsStore}',null,null,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);$db->exec('PRAGMA busy_timeout=10000');$db->exec('DELETE FROM tenant_settings');`]);
+test.describe('tenant singleton',()=>{
+ test.describe.configure({mode:'serial'});
+ test.beforeAll(clearSettings);
+ test.afterAll(clearSettings);
+ for(const [width,height,phone] of [[1366,768,false],[390,844,true]])test(`the first save creates the active tenant's record, the other tenant keeps its own (${width} px)`,async({page})=>{
+  clearSettings();
+  const errors=[];page.on('pageerror',error=>errors.push(error.message));
+  await page.setViewportSize({width,height});
+  await signIn(page,'demo@example.test','/tenants/');
+  await chooseTenant(page,'Alpha',phone);
+  await page.goto('/tenants/#view=tenant_settings');await page.reload();
+  const contact=page.getByRole('textbox',{name:'Kapcsolattartó'});
+  await expect(contact).toBeVisible();await expect(contact).toHaveValue('');
+  expect((await api(page,'tenant_settings','get','self',{})).body.data.id).toBe('self');
+  const value=`Alfa ${width}`;
+  await contact.fill(value);
+  await page.getByRole('button',{name:'Mentés',exact:true}).click();
+  await expect.poll(async()=>(await api(page,'tenant_settings','get','self',{})).body.data.contact).toBe(value);
+  await page.reload();
+  await expect(page.getByRole('textbox',{name:'Kapcsolattartó'})).toHaveValue(value);
+  expect(Number((await api(page,'tenant_settings','get','self',{})).body.data.project_count)).toBeGreaterThan(0);
+  expect((await api(page,'tenant_settings','get','1',{})).status).toBe(404);
+  await chooseTenant(page,'Beta',phone);
+  await page.goto('/tenants/#view=tenant_settings');await page.reload();
+  await expect(page.getByRole('textbox',{name:'Kapcsolattartó'})).toHaveValue('');
+  await chooseTenant(page,'Alpha',phone);
+  expect(errors).toEqual([]);
+ });
+});

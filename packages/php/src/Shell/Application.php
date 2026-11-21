@@ -18,6 +18,11 @@ final class Application
 
     public function run(): void
     {
+        // A browser drops a `__Host-` cookie that is not Secure or names a Domain, so such a request is refused, not half signed in.
+        if ($this->definition->hostCookie()) {
+            if (!$this->secure()) throw new \RuntimeException('A __Host- session cookie needs HTTPS.');
+            if (session_status() !== PHP_SESSION_ACTIVE) ini_set('session.cookie_domain', '');
+        }
         $this->headers();
         $settings = $this->definition->languages;
         $requested = $_COOKIE[$this->definition->sessionName.'_language'] ?? null;
@@ -264,6 +269,7 @@ final class Application
         session_set_cookie_params([
             'lifetime' => $this->definition->sessionCookieLifetime,
             'path' => $this->definition->cookiePath,
+            ...($this->definition->hostCookie() ? ['domain' => ''] : []),
             'secure' => $this->secure(),
             'httponly' => true,
             'samesite' => $this->definition->sameSite,
@@ -522,7 +528,8 @@ final class Application
 
     private function secure(): bool
     {
-        return isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
+        // FastCGI may pass an empty value on plain HTTP.
+        return !empty($_SERVER['HTTPS']) && strtolower((string) $_SERVER['HTTPS']) !== 'off';
     }
 
     private function rememberCookie(string $value, int $expires): void

@@ -115,7 +115,8 @@ final readonly class ApplicationDefinition
          */
         public bool $locationIcons = false,
     ) {
-        if ($title === '' || $runtime === '' || !preg_match('/^[a-zA-Z][a-zA-Z0-9_]+$/D', $sessionName)
+        if ($title === '' || $runtime === '' || !preg_match('/^(?:__Host-)?[a-zA-Z][a-zA-Z0-9_]+$/D', $sessionName)
+            || ($this->hostCookie() && $cookiePath !== '/')
             || !str_starts_with($cookiePath, '/') || preg_match('/[;\x00-\x20]/', $cookiePath)
             || !preg_match('~^(?:/|(?:\.\./)*)?[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)*$~D', $assets)
             || !self::paths($modules, 'm?js') || !self::paths($stylesheets, 'css')
@@ -170,6 +171,12 @@ final readonly class ApplicationDefinition
         // `view:<id>` activation targets name record views once every view is declared.
         $workspace?->registry->checkViews();
         $workspace?->registry->checkFileFields();
+    }
+
+    /** The session name carries the `__Host-` prefix (docs/authentication.md#host-cookie): Secure, `Path=/`, no Domain. */
+    public function hostCookie(): bool
+    {
+        return str_starts_with($this->sessionName, '__Host-');
     }
 
     /** The shell CSP's `frame-src` value: `'self'` and the declared frame sources; '' when none is declared. */

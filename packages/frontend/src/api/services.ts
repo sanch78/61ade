@@ -201,9 +201,11 @@ export function openWindow(options: WindowOptions & { css?: string }, user = "")
   const remembered = id !== undefined && !mobile ? new UiPreferences(user, "window:" + id) : undefined;
   // A desktop non-modal window stays inside the workspace (below the menu row, above the lower bar).
   const floating = !mobile && !(options.modal ?? true), area = () => floating ? floatArea() : undefined;
+  // On a phone it fills that area, so the menu row and the lower bar stay usable (FB-0257); a modal window is full screen.
+  const docked = mobile && !(options.modal ?? true), dock = docked ? workspaceBox() : undefined;
   const saved = remembered?.window(), start = saved && clampBox(saved, area());
   const win = new Window({ css: options.css ?? "blade-content-window", title: escape(options.title), ariaLabel: full(options.title),
-    width: mobile ? innerWidth : start?.width ?? Math.min(options.width ?? 720, innerWidth - 24), height: mobile ? innerHeight : start?.height ?? Math.min(options.height ?? 560, innerHeight - 24),
+    width: mobile ? dock?.width ?? innerWidth : start?.width ?? Math.min(options.width ?? 720, innerWidth - 24), height: mobile ? dock?.height ?? innerHeight : start?.height ?? Math.min(options.height ?? 560, innerHeight - 24),
     modal: options.modal ?? true, closable, resizable: !mobile && (options.resizable ?? true), movable: !mobile });
   let closed = false;
   const finish = () => { if (closed) return; closed = true; controller.abort(); void awaitRedraw().then(() => win.destructor()); };
@@ -286,12 +288,12 @@ export function openWindow(options: WindowOptions & { css?: string }, user = "")
     if (next.left !== now.left || next.top !== now.top) win.setPosition(next.left, next.top);
     return next.left !== now.left || next.top !== now.top || next.width !== now.width;
   };
-  if (floating) {
-    const signal = controller.signal, space = document.querySelector(".blade-workspace");
-    addEventListener("resize", keep, { signal });
+  if (floating || docked) {
+    const signal = controller.signal, space = document.querySelector(".blade-workspace"), follow = docked ? fill : keep;
+    addEventListener("resize", () => follow(), { signal });
     // A drag past the top edge scrolls the (overflow-hidden) body and with it the menu row away: put it back first.
-    document.addEventListener("mouseup", () => requestAnimationFrame(() => { document.body.scrollTop = document.body.scrollLeft = 0; if (keep()) remember(); }), { signal, capture: true });
-    if (space) { const observer = new ResizeObserver(() => keep()); observer.observe(space); signal.addEventListener("abort", () => observer.disconnect(), { once: true }); }
+    if (floating) document.addEventListener("mouseup", () => requestAnimationFrame(() => { document.body.scrollTop = document.body.scrollLeft = 0; if (keep()) remember(); }), { signal, capture: true });
+    if (space) { const observer = new ResizeObserver(() => follow()); observer.observe(space); signal.addEventListener("abort", () => observer.disconnect(), { once: true }); }
   }
   if (!(options.modal ?? true)) {
     nonModal.add(api);
@@ -306,7 +308,8 @@ export function openWindow(options: WindowOptions & { css?: string }, user = "")
     const dialog = win.getContainer()?.closest<HTMLElement>('[role="dialog"]');
     if (dialog && document.activeElement && dialog.contains(document.activeElement)) { event.preventDefault(); api.close(); }
   }, { signal: controller.signal });
-  if (start) win.show(start.left, start.top); else win.show();
+  const opening = start ?? dock;
+  if (opening) win.show(opening.left, opening.top); else win.show();
   if (saved?.maximized) toggle(true);
   if (floating) keep();
   if (shaped) {

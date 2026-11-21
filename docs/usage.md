@@ -528,7 +528,7 @@ Further framework pieces a page uses instead of building its own
 - files attached to a message or request: [`Attachments`](toolkit.md#attachments);
 - one blocking operation: [`app.ui.progress`](dialogs.md#progress);
 - a job's phases: [`Steps`](toolkit.md#steps);
-- a window that must stay open: `closable: false`;
+- a window that must stay open: `closable: false`; non-modal, it leaves the menu row and lower bar usable on a phone too;
 - one object kept current: [`app.live.watch`](toolkit.md#record-watch) on a record resource, never a timer;
 - a cacheable GET action read in code: [`app.server.request(…, {id, version})`](toolkit.md#request-version);
 - a copy button: [`app.ui.copy`](toolkit.md#copy);
@@ -645,7 +645,8 @@ use only a disposable one.
 
 [Tenancy](tenancy.md) is opt-in: `new Workspace($registry, $pdo, tenancy: true)` or
 a JSON `"tenancy": {}`, then `Tenancy::install()`. Scoped resources declare
-`tenantColumn` (JSON `tenant_column`) on `SqlResource` and on their lookups.
+`tenantColumn` (JSON `tenant_column`) on `SqlResource` and on their lookups; a
+record each tenant has once is a [tenant singleton](tenancy.md#tenant-singleton).
 Roles stay global. Membership is assigned in Users or in Tenants. The shell
 shows a selector only for several memberships, and the server resolves and
 rechecks the tenant on every request; without a membership, scoped resources

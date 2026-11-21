@@ -1035,3 +1035,27 @@
 <a id="fb-0253"></a>
 
 ## FB-0253 — Long-running jobs: job actions, JobQueue and the job window
+
+<a id="fb-0254"></a>
+
+## FB-0254 — `__Host-` session cookie
+
+<a id="fb-0255"></a>
+
+## FB-0255 — Admin stylesheet against its own CSP
+
+<a id="fb-0256"></a>
+
+## FB-0256 — `Attachments.add` draws the chip at once
+
+<a id="fb-0257"></a>
+
+## FB-0257 — A phone's non-modal window keeps the menu and the lower bar
+
+<a id="fb-0258"></a>
+
+## FB-0258 — Tenant isolation of keyed statements, and the tenant singleton
+
+<a id="fb-0259"></a>
+
+## FB-0259 — Server-side user preferences

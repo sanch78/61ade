@@ -101,6 +101,12 @@ reloads the shell, and the view comes back with Beta's retained feedback.
 Checks: `php8.4 tests/shell/tenancy.php`, shell `tenancy.spec.cjs`
 (`view availability`).
 
+[Tenant singleton](tenancy.md#tenant-singleton): `Tenant demó` →
+`Tenant beállítások` is one settings record per tenant. It opens empty, the
+first save creates it, and the other tenant keeps its own; `Projektek száma` is
+a computed field. Checks: the same PHP script, shell `tenancy.spec.cjs`
+(`tenant singleton`).
+
 [Sub-views](workspaces.md#sub-views), one per kind:
 
 In cards, the child-list button overlays the cover's upper-right corner, or
@@ -1001,6 +1007,12 @@ File names and asset titles are English demo data (owner request of
 Hungarian names of an existing database (`BLADE_DEMO_SIGNAGE_FORMER`: the file
 unless the English name is taken, the asset title only while it is the former
 one):
+
+| Media | Files | Source |
+| --- | --- | --- |
+| 10 images (1672 × 941 PNG, 10 s each) | `<title>.png`, e.g. `Craft coffee, slow mornings.png` | Generative images uploaded by the owner |
+| 4 videos (MP4) | `3d-logo-intro.mp4`, `black-friday-neon.mp4`, `office-building-at-dusk.mp4`, `sunny-pedestrian-street.mp4` | Stock clips uploaded by the owner from free sources |
+| 4 music tracks (MP3, about 3 min each) | `calm-music.mp3`, `exciting-music.mp3`, `cheerful-music.mp3`, `dramatic-music.mp3` | Mood tracks for the demo playlist |
 
 The brand scene `blade-brand.js` is source code and stays in Git
 (`resources/files/`). Every `setup-workspace.php` run

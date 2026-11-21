@@ -339,4 +339,127 @@ check($avail->registry->updateView($avail->registry->viewById('feedback')->with(
 $avail->registry->updateView($avail->registry->viewById('topics')->with(available:static fn(Context $ctx):bool=>false));
 check(!isset($offer($vb)['topics'])&&isset($offer($vb)['feedback']),'Availability: updateView() adds it to a registered view; a page child of a hidden parent keeps its own entry');
 unset($vdb,$avail,$vgrant,$offer,$inA,$inB);
+
+// FB-0258: a key two tenants share stays on the row's tenant in every framework statement; the declared tenant singleton.
+$kdb=new PDO('sqlite::memory:',null,null,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);Schema::install($kdb);Tenancy::install($kdb);
+$kdb->exec('CREATE TABLE pairs (tenant_id TEXT NOT NULL, id TEXT NOT NULL, title TEXT, position INTEGER NOT NULL DEFAULT 0, archived_at TEXT, archived_by TEXT, PRIMARY KEY(tenant_id, id))');
+$kdb->exec("CREATE TABLE site (tenant_id TEXT PRIMARY KEY, title TEXT NOT NULL DEFAULT '')");
+[$ka,$kb,$kc]=[Tenancy::ensure($kdb,'Alfa'),Tenancy::ensure($kdb,'Béta'),Tenancy::ensure($kdb,'Gamma')];
+$kw=new Workspace(new Registry(),$kdb,tenancy:true);
+$pairs=new SqlResource('pairs','pairs','id',[new Field('title','Cím'),new Field('position','Hely','number'),new Field('peek','Betekintés')],computed:['peek'=>'blade_base.title'],tenantColumn:'tenant_id',order:['field'=>'position','scope'=>null]);
+$pairs->register($kw->registry,'Párok',create:false);$pairs->registerDelete($kw->registry);
+$archived=new SqlResource('pairs_archive','pairs','id',[new Field('title','Cím')],tenantColumn:'tenant_id');
+$archived->register($kw->registry,'Archív',create:false);$archived->registerDelete($kw->registry,'archive');
+$site=new SqlResource('site','site','tenant_id',[new Field('title','Cím',defaultValue:'Alap'),new Field('peek','Betekintés')],computed:['peek'=>'blade_base.title'],tenantColumn:'tenant_id',tenantSingleton:true);
+$site->register($kw->registry,'Beállítások');
+$kgrant=$kdb->prepare("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope) VALUES ('user','1',?,?,'ui','allow','all')");
+foreach(['pairs'=>['get','update','move','delete'],'pairs_archive'=>['get','delete'],'site'=>['get','update']] as $resource=>$actions)foreach($actions as $action)$kgrant->execute([$resource,$action]);
+$in=fn(?string $tenant)=>new Context(new Identity('1','Egy'),'ui',$kw->acl,$kdb,tenant:$tenant);
+$run=fn(?string $tenant,string $resource,string $action,?string $id,array $values=[])=>$kw->executor->execute($in($tenant),$resource,$action,$id,$values);
+$stored=fn(string $tenant,string $column='title')=>$kdb->query("SELECT $column FROM pairs WHERE tenant_id='$tenant' AND id='x'")->fetchColumn();
+$seed=function()use($kdb,$ka,$kb){$kdb->exec('DELETE FROM pairs');$kdb->exec("INSERT INTO pairs(tenant_id,id,title,position) VALUES ('$ka','x','alfa',1),('$ka','y','alfa2',2),('$kb','x','beta',1),('$kb','y','beta2',2)");};
+$seed();
+$row=$run($kb,'pairs','get','x');
+check($row['title']==='beta'&&$row['peek']==='beta','Shared key: the computed re-read stays on the row\'s tenant');
+$run($kb,'pairs','update','x',['title'=>'új','revision'=>$row['revision']]);
+check($stored($kb)==='új'&&$stored($ka)==='alfa','Shared key: an update leaves the other tenant\'s row');
+$run($kb,'pairs','move','y',['before'=>'x','revision'=>$run($kb,'pairs','get','y')['revision']]);
+check((int)$stored($kb,'position')===2&&(int)$stored($ka,'position')===1,'Shared key: a move renumbers its own tenant only');
+$run($kb,'pairs','delete','x',['revision'=>$run($kb,'pairs','get','x')['revision']]);
+check($stored($kb)===false&&$stored($ka)==='alfa','Shared key: a delete leaves the other tenant\'s row');
+$seed();
+$run($kb,'pairs_archive','delete','x',['revision'=>$run($kb,'pairs_archive','get','x')['revision']]);
+check($stored($kb,'archived_at')!==null&&$stored($ka,'archived_at')===null,'Shared key: an archive leaves the other tenant\'s row');
+$seed();
+try{(new SqlResource('pairs_linked','pairs','id',[new Field('title','Cím'),new Field('extra','Más')],related:[new Blade\Feature\RelatedStorage('pair_extra','pair_id',['extra'=>'extra'])],tenantColumn:'tenant_id'))->target($in($kb),'x');throw new RuntimeException('A shared key with related storage accepted');}
+catch(LogicException $e){check(str_contains($e->getMessage(),'unique across tenants'),'Shared key: related storage is refused');}
+// Key-bound resources (related, delegation, shared rows): the key is unique across tenants, by an index or a fail-closed data check.
+$kdb->exec('CREATE TABLE pair_extra (pair_id TEXT PRIMARY KEY, extra TEXT)');$kdb->exec("INSERT INTO pair_extra VALUES ('main','ALFA-SECRET')");
+$kdb->exec('CREATE TABLE codes (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, title TEXT)');$kdb->exec("INSERT INTO codes VALUES ('main','$ka','alfa')");
+$kdb->exec('CREATE TABLE loose (id TEXT, tenant_id TEXT NOT NULL, title TEXT)');
+$related=fn()=>[new Blade\Feature\RelatedStorage('pair_extra','pair_id',['extra'=>'extra'])];
+$keyed=fn()=>[new Field('id','Azonosító',max:20),new Field('title','Cím'),new Field('extra','Más')];
+$secret=fn()=>$kdb->query("SELECT extra FROM pair_extra WHERE pair_id='main'")->fetchColumn();
+(new SqlResource('coded','codes','id',$keyed(),related:$related(),tenantColumn:'tenant_id'))->register($kw->registry,'Kódok');
+(new SqlResource('defaulted','codes','id',[new Field('title','Cím'),new Field('extra','Más')],defaults:['id'=>'main'],related:$related(),tenantColumn:'tenant_id'))->register($kw->registry,'Alapkulcs');
+$loose=new SqlResource('loose','loose','id',$keyed(),related:$related(),tenantColumn:'tenant_id');$loose->register($kw->registry,'Laza');
+foreach(['coded','defaulted','loose'] as $resource)foreach(['list','get','create'] as $action)$kgrant->execute([$resource,$action]);
+check($run($kb,'coded','list','',['limit'=>10])['items']===[]&&$run($ka,'coded','list','',['limit'=>10])['items'][0]['extra']==='ALFA-SECRET','Key-bound: a unique key lists only the tenant\'s own related value');
+fails(fn()=>$run($kb,'coded','create',null,['id'=>'main','title'=>'Foglalt','extra'=>'B']),409,'Key-bound: a key another tenant holds cannot be created');
+fails(fn()=>$run($kb,'defaulted','create',null,['title'=>'Foglalt','extra'=>'B']),409,'Key-bound: nor through a storage default');
+check($secret()==='ALFA-SECRET','Key-bound: a refused create leaves the other tenant\'s related row');
+check($run($kb,'coded','create',null,['id'=>'fresh','title'=>'Új','extra'=>'B-ÉRTÉK'])['id']==='fresh'&&$secret()==='ALFA-SECRET'&&$kdb->query("SELECT extra FROM pair_extra WHERE pair_id='fresh'")->fetchColumn()==='B-ÉRTÉK','Key-bound: a client-chosen key is the answered id and writes its own related row');
+$run($ka,'loose','create',null,['id'=>'l1','title'=>'A','extra'=>'A']);
+fails(fn()=>$run($kb,'loose','create',null,['id'=>'l1','title'=>'B','extra'=>'B']),409,'Key-bound without an index: the data check refuses another tenant\'s key');
+check(array_column($run($ka,'loose','list','',['limit'=>10])['items'],'id')===['l1'],'Key-bound without an index: a table without a repeated key still works');
+$kdb->exec("INSERT INTO loose VALUES ('l1','$kb','kívülről')");
+$logged=ini_set('error_log','/dev/null');
+fails(fn()=>$run($kb,'loose','list','',['limit'=>10]),500,'Key-bound without an index: a repeated key refuses the list');
+ini_set('error_log',(string)$logged);
+try{$loose->target($in($ka),'l1');throw new RuntimeException('A repeated key without an index accepted');}catch(LogicException $e){check(str_contains($e->getMessage(),'unique across tenants'),'Key-bound without an index: a repeated key refuses the record');}
+$kdb->exec('CREATE TABLE nums (id INTEGER PRIMARY KEY, tenant_id TEXT NOT NULL, title TEXT)');$kdb->exec("INSERT INTO nums VALUES (2,'$ka','alfa')");$kdb->exec("INSERT INTO pair_extra VALUES ('2','ALFA-KETTO')");
+(new SqlResource('nums','nums','id',$keyed(),related:$related(),tenantColumn:'tenant_id'))->register($kw->registry,'Számok');
+foreach(['get','create','update'] as $action)$kgrant->execute(['nums',$action]);
+$blank=$run($kb,'nums','create',null,['id'=>'','title'=>'Üres kulcs','extra'=>'B-ÜRES'])['id'];
+check((string)$blank!=='2'&&$kdb->query("SELECT extra FROM pair_extra WHERE pair_id='2'")->fetchColumn()==='ALFA-KETTO','Key-bound: an empty key never lands on another tenant\'s related row');
+check((string)$run($kb,'nums','create',null,['id'=>'007','title'=>'Hetes','extra'=>'B-HET'])['id']==='7'&&$run($kb,'nums','get','7')['extra']==='B-HET','Key-bound: related rows follow the key as stored');
+$numRow=$run($kb,'nums','get','7');
+fails(fn()=>$run($kb,'nums','update','7',['id'=>'8','revision'=>$numRow['revision']]),409,'Key-bound: a key with related rows cannot be renamed');
+$kdb->exec('CREATE TABLE halves (id TEXT, tenant_id TEXT NOT NULL, title TEXT, archived_at TEXT)');$kdb->exec('CREATE UNIQUE INDEX halves_live ON halves(id) WHERE archived_at IS NULL');
+$kdb->exec("INSERT INTO halves VALUES ('h','$ka','alfa','2026-01-01'),('h','$kb','beta',NULL)");
+$halves=new SqlResource('halves','halves','id',[new Field('title','Cím'),new Field('extra','Más')],related:$related(),tenantColumn:'tenant_id');
+try{$halves->target($in($kb),'h');throw new RuntimeException('A partial unique index counted as a unique key');}catch(LogicException $e){check(str_contains($e->getMessage(),'unique across tenants'),'Key-bound: a partial unique index is no unique key');}
+$kdb->exec("CREATE TABLE defkeys (id TEXT NOT NULL DEFAULT 'main', tenant_id TEXT NOT NULL, title TEXT)");$kdb->exec("INSERT INTO defkeys VALUES ('main','$ka','alfa')");
+(new SqlResource('defkeys','defkeys','id',[new Field('title','Cím')],tenantColumn:'tenant_id',sharedTenant:''))->register($kw->registry,'Alapértelmezett kulcs');
+foreach(['list','create'] as $action)$kgrant->execute(['defkeys',$action]);
+fails(fn()=>$run($kb,'defkeys','create',null,['title'=>'Béta']),409,'Key-bound: a database-default key another tenant holds is refused');
+check((int)$kdb->query('SELECT COUNT(*) FROM defkeys')->fetchColumn()===1&&count($run($ka,'defkeys','list','',['limit'=>10])['items'])===1,'Key-bound: the refused write is rolled back and the resource keeps working');
+try{(new SqlResource('shared_pairs','pairs','id',[new Field('title','Cím')],tenantColumn:'tenant_id',sharedTenant:''))->target($in($kb),'x');throw new RuntimeException('Shared rows over a repeated key accepted');}catch(LogicException $e){check(str_contains($e->getMessage(),'unique across tenants'),'Key-bound: shared rows need a unique key');}
+
+$view=$kw->registry->viewById('site');
+check(($view->options['singleton']??false)===true&&!in_array('create',$view->actions,true)&&in_array('update',$view->actions,true),'Tenant singleton: a singleton view with get and update, no create');
+fails(fn()=>$run(null,'site','get','self'),403,'Tenant singleton: refused without a tenant');
+fails(fn()=>$run($ka,'site','get',$ka),404,'Tenant singleton: only `self` addresses it, never a tenant id');
+fails(fn()=>$run($ka,'site','get',$kb),404,'Tenant singleton: another tenant\'s id is not found');
+$first=$run($ka,'site','get','self');
+check($first['id']==='self'&&$first['title']==='Alap'&&$first['peek']===null&&(int)$kdb->query('SELECT COUNT(*) FROM site')->fetchColumn()===0,'Tenant singleton: a tenant without a row reads the defaults and a read creates nothing');
+check($run($ka,'site','update','self',['title'=>'Egyes','revision'=>$first['revision']])['id']==='self','Tenant singleton: the first save answers self');
+$saved=$run($ka,'site','get','self');
+check($saved['title']==='Egyes'&&$saved['peek']==='Egyes'&&$kdb->query('SELECT tenant_id FROM site')->fetchAll(PDO::FETCH_COLUMN)===[$ka],'Tenant singleton: the first save creates this tenant\'s row, computed follows');
+fails(fn()=>$run($ka,'site','update','self',['title'=>'Régi','revision'=>$first['revision']]),409,'Tenant singleton: a stale revision is refused');
+$other=$run($kb,'site','get','self');
+check($other['title']==='Alap','Tenant singleton: the other tenant reads its own defaults');
+$run($kb,'site','update','self',['title'=>'Kettes','revision'=>$other['revision']]);
+$run($ka,'site','update','self',['title'=>'Egyes+','revision'=>$saved['revision']]);
+check($kdb->query('SELECT title FROM site ORDER BY tenant_id')->fetchAll(PDO::FETCH_COLUMN)===($ka<$kb?['Egyes+','Kettes']:['Kettes','Egyes+']),'Tenant singleton: each tenant writes its own row');
+$race=$site->target($in($kc),'self');$raceRevision=$site->project($in($kc),$race['row'],'get')['revision'];
+$kdb->exec("INSERT INTO site(tenant_id,title) VALUES ('$kc','Másik')");
+fails(fn()=>$site->save($in($kc),$race,['title'=>'Késő','revision'=>$raceRevision]),409,'Tenant singleton: the later of two first saves is refused');
+check($kdb->query("SELECT title FROM site WHERE tenant_id='$kc'")->fetchColumn()==='Másik','Tenant singleton: the earlier first save stands');
+Tenancy::join($kdb,$ka,'1');Tenancy::join($kdb,$kb,'1');
+$kdeny=$kdb->prepare("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id) VALUES ('user','1','site',?,'ui','deny','id',?)");
+foreach(['get','update'] as $action)$kdeny->execute([$action,$kb]);
+fails(fn()=>$run($kb,'site','get','self'),403,'Tenant singleton: an id deny on the tenant\'s key refuses get');
+fails(fn()=>$run($kb,'site','update','self',['title'=>'Tiltott','revision'=>$other['revision']]),403,'Tenant singleton: an id deny on the tenant\'s key refuses update');
+check($run($ka,'site','get','self')['title']==='Egyes+','Tenant singleton: the deny of one tenant leaves the other');
+$offered=fn(string $tenant)=>array_column($kw->views(new Identity('1','Egy'),$tenant),'id');
+check(in_array('site',$offered($ka),true)&&!in_array('site',$offered($kb),true),'Tenant singleton: the view follows the same ACL object as the executor');
+$kdb->exec("DELETE FROM blade_rules WHERE resource='site' AND effect='deny'");
+$kdb->exec('CREATE TABLE site_money (tenant_id TEXT PRIMARY KEY, title TEXT, currency TEXT NOT NULL, status TEXT, code TEXT, cleared TEXT)');
+$money=new SqlResource('site_money','site_money','tenant_id',[new Field('title','Cím'),new Field('currency','Pénznem',defaultValue:'EUR'),new Field('status','Állapot',defaultValue:'draft'),new Field('code','Kód',defaultValue:'abc'),new Field('cleared','Törölt',defaultValue:'must-not-store')],readOnly:['status'],
+    normalize:static fn($ctx,$target,array $values)=>[...$values,'code'=>strtoupper((string)($values['code']??'')),'cleared'=>null],tenantColumn:'tenant_id',tenantSingleton:true);
+$moneyTarget=$money->target($in($ka),'self');
+$money->save($in($ka),$moneyTarget,['title'=>'Egy mező','revision'=>$money->project($in($ka),$moneyTarget['row'],'get')['revision']]);
+check($kdb->query("SELECT currency,status,code,cleared FROM site_money WHERE tenant_id='$ka'")->fetch(PDO::FETCH_NUM)===['EUR','draft','ABC',null],'Tenant singleton: the first save stores the shown defaults, read-only and normalized ones too');
+try{$site->registerDelete($kw->registry);throw new RuntimeException('A tenant singleton delete accepted');}catch(InvalidArgumentException){}
+foreach([
+    'no tenant column'=>fn()=>new SqlResource('s','site','tenant_id',[new Field('title','T')],tenantSingleton:true),
+    'another key'=>fn()=>new SqlResource('s','site','id',[new Field('title','T')],tenantColumn:'tenant_id',tenantSingleton:true),
+    'owner'=>fn()=>new SqlResource('s','site','tenant_id',[new Field('title','T')],ownerColumn:'owner',tenantColumn:'tenant_id',tenantSingleton:true),
+    'shared rows'=>fn()=>new SqlResource('s','site','tenant_id',[new Field('title','T')],tenantColumn:'tenant_id',sharedTenant:'',tenantSingleton:true),
+    'unique field'=>fn()=>new SqlResource('s','site','tenant_id',[new Field('title','T',validation:['unique'=>true])],tenantColumn:'tenant_id',tenantSingleton:true),
+    'where'=>fn()=>new SqlResource('s','site','tenant_id',[new Field('title','T')],where:'1=0',tenantColumn:'tenant_id',tenantSingleton:true),
+    'the tenant column as a key without the singleton'=>fn()=>new SqlResource('s','site','tenant_id',[new Field('title','T')],tenantColumn:'tenant_id'),
+] as $label=>$invalid){try{$invalid();throw new RuntimeException('Tenant singleton accepted: '.$label);}catch(InvalidArgumentException){}}
+unset($kdb,$kw,$pairs,$archived,$site,$kgrant,$in,$run,$stored,$seed,$loose,$money);
 echo "tenancy: ok\n";

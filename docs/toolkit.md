@@ -330,7 +330,10 @@ the workspace with a 12 px margin, below the menu row and above the lower bar
 position included), after a drag, when it is restored, and when the
 workspace or the viewport changes size; a larger window is made smaller to
 fit. A project no longer watches the menu row to move its window. Modal windows
-keep the viewport with a 12 px margin. Content that grows a fitted window past the workspace is corrected at the next resize. A project that needs to know the page's view
+keep the viewport with a 12 px margin. Below 768 px a non-modal window fills
+the workspace, so the menu row and the lower bar stay usable also under a
+`closable: false` window, and it follows the workspace when it changes; a modal
+window stays full screen ([FB-0257](feedback.md#fb-0257)). Content that grows a fitted window past the workspace is corrected at the next resize. A project that needs to know the page's view
 listens to `view:opened` / `view:closed`; a [menu command](shell.md#menu-commands)
 is the usual way to open such a window from every view
 ([FB-0199](feedback.md#fb-0199)). While a non-modal window is open, a view
@@ -632,6 +635,9 @@ await send({ text, attachments: files.ids() }); files.clear();   // wait while f
   (`‹name› eltávolítása`) is for the pointer and stays out of the Tab order. A
   polite status says `Csatolva: ‹name›` and `Sikertelen feltöltés: ‹name›.
   ‹reason›`, not every percent.
+- **Adding.** `add()` draws each file's chip at once, before the uploader's
+  first report, and `pending` is true from that moment
+  ([FB-0256](feedback.md#fb-0256)).
 - **Limits.** The component has no drop surface of its own; the page passes
   its drop to `add()`. Each file is its own upload call and only that call's
   reports reach its chip, so another `Attachments` or a file picker on the same
@@ -3957,6 +3963,11 @@ Results per phase are recorded in [FB-0081](feedback.md#fb-0081); the plan's
 | M107 | From 768 px a non-modal, non-maximized window stays inside the workspace ([long-lived windows](#long-lived-windows)) | [FB-0250](feedback.md#fb-0250) | info: code that observes `.blade-navigation-row` to move its window can go; a spec that drags a window over the menu row finds it below |
 | M108 | Public `--blade-panel-header` and `--blade-tab-row` in both families ([tokens](shell.md#panel-header-tokens)); the Blade chrome paints cell headers and the tab row through them | [FB-0250](feedback.md#fb-0250) | if used: skin CSS that paints `.dhx_layout-cell-header`, `.blade-tabs__row` or `.dhx_tabbar-tab-button` backgrounds sets the tokens instead |
 | M109 | [`CommandBar`](#commandbar-title): the `role="toolbar"` element carries the bar's label (else its title), and a bar in a plain element is at least `--blade-command-bar-height` (48 px) | [FB-0251](feedback.md#fb-0251) | info: a spec that found a bar as `Eszköztár` or through its own wrapper finds it by its label; a project height around a bar can go |
+| M110 | A session name may start with `__Host-` ([host cookie](authentication.md#host-cookie)): Secure, `Path=/` and no Domain, for the derived language, remember and OAuth cookies too; refused otherwise | [FB-0254](feedback.md#fb-0254) | if used: a consumer that changes its `sessionName` needs `cookiePath: '/'` and HTTPS, and signs every user out once |
+| M111 | `admin.css` no longer carries the calendar vendor's third-party Inter faces, which the shell's CSP blocked | [FB-0255](feedback.md#fb-0255) | info: no visible change; a local workaround for those font requests can go |
+| M112 | [`Attachments.add`](#attachments) draws the chip at once, before the uploader's first report | [FB-0256](feedback.md#fb-0256) | info: a project's own placeholder for a starting upload can go |
+| M113 | Below 768 px a non-modal `app.ui.window` fills the workspace instead of the screen ([long-lived windows](#long-lived-windows)); a modal window stays full screen | [FB-0257](feedback.md#fb-0257) | info: a spec that expects a full-screen non-modal window on a phone finds it between the menu row and the lower bar; a project's own phone workaround can go |
+| M114 | Tenant-scoped `SqlResource` statements stay on the row's tenant when a key repeats across tenants; [tenant singleton](tenancy.md#tenant-singleton) (`tenantSingleton`, JSON `tenant_singleton`) | [FB-0258](feedback.md#fb-0258) | if used: a tenant-scoped resource with related or delegation storage or shared rows needs a key unique across tenants (best a one-column primary key or unique index); if its table holds a repeated key, it answers 500 until that is fixed; a hand-written per-tenant `self` view can become a tenant singleton keyed by its tenant column. info: `HTTPS` empty or `OFF` now counts as plain HTTP for cookies |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the

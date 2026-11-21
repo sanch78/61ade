@@ -463,5 +463,10 @@
   "{count} leállt szolgáltatás": "{count} services down",
   "A szolgáltatáslap egy szolgáltatáshoz nyílik meg.": "The service page opens for one service.",
   "A szolgáltatásjelentés nem érhető el.": "The service report is not available.",
-  "Régióellenőrzés": "Region check"
+  "Régióellenőrzés": "Region check",
+  "Tenant beállítások": "Tenant settings",
+  "Kapcsolattartó": "Contact",
+  "Megjegyzés": "Note",
+  "Projektek száma": "Number of projects",
+  "Az aktív tenant egyetlen beállításrekordja. Az első mentés hozza létre, a másik tenantnak külön rekordja van.": "The active tenant's single settings record. The first save creates it; the other tenant has its own record."
 }

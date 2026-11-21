@@ -93,8 +93,8 @@ For such a resource the framework:
 - treats another tenant's object as not found (404) for get, update, delete,
   bulk items and custom actions resolved through `target()`;
 - stamps the active tenant on create. The tenant column cannot be a declared
-  field, default, key, owner or unique column, so a client value is rejected as
-  an unknown field;
+  field, default, key (except for a [tenant singleton](#tenant-singleton)),
+  owner or unique column, so a client value is rejected as an unknown field;
 - checks uniqueness (`validation.unique`, `unique` keys) within the tenant, so
   another tenant's values are neither revealed nor in the way;
 - refuses the resource without an active tenant. The executor, `__form` and
@@ -113,6 +113,63 @@ tenant-scoped rows. Counts of tenant-scoped records on a global resource use
 tenant scope and ACL ([FB-0173](feedback.md#fb-0173)).
 
 Global resources (no tenant column) sit next to scoped ones unchanged.
+
+Every framework statement addressed by the key also names the row's tenant
+(computed re-read, update, move, delete, archive), so a key another tenant
+holds too reaches only the active tenant's row ([FB-0258](feedback.md#fb-0258)).
+
+`RelatedStorage`, `RelatedSet`, delegation links and shared rows name a record
+by its key alone, so a resource that uses any of them needs a key that is unique
+across tenants. Declare it as a one-column primary key or unique index: the
+database then refuses a repeated key, and the caller gets 409. Without such an
+index the framework checks the data. A write that takes another record's key
+gets 409, and a table that holds a repeated key anyway serves no list or record
+of that resource (a generic 500, with a developer error in the log). A partial
+unique index does not count. On MySQL only a real unique index also stops two
+simultaneous creates of one key. With related storage the key cannot be renamed
+(409), and the related row follows the key as the database stored it.
+
+ACL rules are global, so a rule with scope `id` or a delegation link names a key
+in every tenant the actor belongs to. It never reaches a tenant the actor is not
+a member of. Keep keys unique across tenants when a rule must mean one record.
+
+<a id="tenant-singleton"></a>
+
+### Tenant singleton
+
+A record that each tenant has exactly once, such as its settings, is declared
+instead of hand-written ([FB-0258](feedback.md#fb-0258)). The key is the tenant
+column, which must be unique in the table:
+
+```sql
+CREATE TABLE site_settings (tenant_id TEXT PRIMARY KEY, contact TEXT NOT NULL DEFAULT '');
+```
+
+```php
+(new SqlResource('site_settings', 'site_settings', 'tenant_id', [
+    new Field('contact', 'Contact', max: 120),
+    new Field('projects', 'Projects', 'number'),
+], computed: ['projects' => '(SELECT COUNT(*) FROM projects p WHERE p.tenant_id = blade_base.tenant_id)'],
+    tenantColumn: 'tenant_id', tenantSingleton: true))->register($registry, 'Settings');
+```
+
+JSON: `storage: {table, key: "tenant_id", tenant_column: "tenant_id",
+tenant_singleton: true}`.
+
+- The view is a singleton page. `get` and `update` take only the id `self`,
+  which is always the active tenant's record; any other id, a tenant id
+  included, is 404. Answers carry `id: "self"`.
+- A tenant without a row reads the field defaults, and a read creates nothing.
+  The first `update` creates the row and stores those defaults with the edited
+  values. Of two simultaneous first saves the later one gets 409 and reloads.
+- Without an active tenant it is refused (403), like every scoped resource.
+- `computed` is safe; its values are empty until the row exists.
+- The ACL object is the tenant's key, so a rule with scope `id` names the tenant
+  id, never `self`. Scope `own` matches nothing, because the record has no owner.
+- Grant `get` and `update`. There is no `create` or `delete`. An owner column,
+  shared rows, manual order, delegation, related or count storage, `where`,
+  unique rules and a key other than the tenant column are refused at
+  declaration.
 
 Fail-closed rule: only adapters that apply the tenant to every read and write
 mark a resource as scoped (`Registry::scopeToTenant()`, called by `SqlResource`).

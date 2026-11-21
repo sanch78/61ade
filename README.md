@@ -30,6 +30,8 @@ Capabilities grow with actual application needs; no external framework benchmark
 or exhaustive component coverage is required. See [product direction](docs/product-direction.md)
 for requirements and verified status.
 
+Applications keep their business code, data and integrations in their own repositories.
+
 <a id="dokumentáció"></a>
 
 ## Documentation
@@ -43,6 +45,7 @@ recorded durably and incorporated into the relevant guide; this is mandatory.
 - [Testing feedback and lessons](docs/feedback.md)
 - [Detailed concept](docs/concept.md)
 - [Development plan and milestones](docs/development-plan.md)
+- [Server-side user preferences (proposal)](docs/user-preferences-plan.md)
 - [Directories and package boundaries](docs/repository-layout.md)
 - [ACL, organizations and API security](docs/security-model.md)
 - [DHTMLX capabilities and licenses](docs/component-matrix.md)

@@ -395,6 +395,8 @@ if (!$db->query("SELECT COUNT(*) FROM tenant_items WHERE tenant_id = ''")->fetch
 // only while the tenant's `feedback` service is on (Alpha on, Beta off). Switching it off keeps the tenant's feedback.
 $db->exec('CREATE TABLE IF NOT EXISTS tenant_services(id INTEGER PRIMARY KEY AUTOINCREMENT, tenant_id TEXT NOT NULL, service TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 0, UNIQUE(tenant_id, service))');
 $db->exec("CREATE TABLE IF NOT EXISTS tenant_feedback(id INTEGER PRIMARY KEY AUTOINCREMENT, tenant_id TEXT NOT NULL, message TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'new')");
+// A tenant singleton (docs/tenancy.md#tenant-singleton): no seed, the first save creates the tenant's row.
+$db->exec("CREATE TABLE IF NOT EXISTS tenant_settings(tenant_id TEXT PRIMARY KEY, contact TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '')");
 $service = $db->prepare("INSERT OR IGNORE INTO tenant_services(tenant_id, service, enabled) VALUES (?, 'feedback', ?)");
 foreach ([[$alfa, 1], [$beta, 0]] as [$tenant, $enabled]) $service->execute([$tenant, $enabled]);
 if (!$db->query('SELECT COUNT(*) FROM tenant_feedback')->fetchColumn()) {
@@ -412,6 +414,7 @@ $grant = $db->prepare("INSERT INTO blade_rules(subject_type,subject_id,resource,
 $rules = [['role', $editor, 'tenant_projects', ['list', 'get', 'create', 'update'], 'ui'], ['role', $editor, 'tenant_tasks', ['list', 'get', 'create', 'update', 'delete'], 'ui'], ['role', $editor, 'tenant_notices', ['list', 'get'], 'ui'],
     ['role', $editor, 'tenant_categories', ['list', 'get'], 'ui'], ['role', $editor, 'tenant_items', ['list', 'get', 'create', 'update', 'delete'], 'ui'],
     ['role', $editor, 'tenant_services', ['list', 'get', 'update'], 'ui'], ['role', $editor, 'tenant_feedback', ['list', 'get', 'create', 'update'], 'ui'],
+    ['role', $editor, 'tenant_settings', ['get', 'update'], 'ui'],
     ['user', '1', 'tenant_projects', ['list', 'get', 'create'], 'api'], ['user', '1', 'tenant_notices', ['list', 'get'], 'api']];
 foreach ($rules as [$type, $subject, $resource, $actions, $channel]) foreach ($actions as $action) {
     $exists->execute([$type, $subject, $resource, $action, $channel]);

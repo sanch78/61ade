@@ -62,8 +62,10 @@ final class Registry
      * $shared: the tenant column value of shared rows (FB-0175), read by every tenant and written only without a tenant
      * by an actor holding one of the $sharedRoles keys (realm()).
      */
-    public function scopeToTenant(string $resource, ?string $shared = null, array $sharedRoles = []): void { $this->tenantScoped[$resource] = ['shared' => $shared, 'roles' => $sharedRoles]; }
+    public function scopeToTenant(string $resource, ?string $shared = null, array $sharedRoles = [], bool $singleton = false): void { $this->tenantScoped[$resource] = ['shared' => $shared, 'roles' => $sharedRoles, 'singleton' => $singleton]; }
     public function tenantScoped(string $resource): bool { return isset($this->tenantScoped[$resource]); }
+    /** Whether $resource is one record per tenant (FB-0258): its ACL object is the active tenant's key. */
+    public function tenantSingleton(string $resource): bool { return $this->tenantScoped[$resource]['singleton'] ?? false; }
     /**
      * Tenant realm of $ctx on $resource: null for a resource without tenant scope, otherwise `read` (the tenant column
      * values $ctx reads), `write` (the value it creates and changes rows in) and `shared` (the declared shared value or

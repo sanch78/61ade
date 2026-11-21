@@ -313,3 +313,34 @@ test('phone: a wide menu at a right-hand button is shifted into the viewport; at
  expect(Math.abs(box.x-anchor.left)<1||Math.abs(box.x+box.width-anchor.right)<1).toBe(true);
  await page.evaluate(()=>{window.__wide.destroy();document.getElementById('wide-anchor').remove();});
 });
+
+// FB-0256: `Attachments.add` draws the chip at once, while the uploader's first request is still held.
+for(const [width,height] of [[1366,768],[390,844]])test(`attachments: the chip appears on add with the first upload request held (${width} px)`,async({page})=>{
+ const failures=[];page.on('pageerror',error=>failures.push(error.message));
+ await fixture(page);
+ await page.setViewportSize({width,height});
+ let release,held=0;const gate=new Promise(resolve=>{release=resolve;});
+ await page.route(url=>url.searchParams.has('blade'),async route=>{
+  if(route.request().method()==='POST'&&route.request().postDataBuffer()?.includes('__upload')){held++;await gate;}
+  await route.fallback().catch(()=>{});
+ });
+ await page.evaluate(()=>{
+  const app=window.__bladeApp,stored=app.viewDefinition('demo_attachments').actions.flatMap(action=>action.fields??[]).find(field=>field.file&&'upload' in field.file).file;
+  const win=window.__attachWindow=app.ui.window({title:'Csatolás',modal:false,width:480,height:240,fit:false});
+  const files=window.__files=new app.components.Attachments({label:'Csatolmányok',signal:win.signal,upload:{resource:'demo_attachments',action:'file_upload',target:null,targetLabel:'Teszt',policy:stored.policy}});
+  win.attach(files);
+  const extension=String(stored.policy.extensions[0]).replace(/^\./,'');
+  files.add([new File(['61ade'],'tartott.'+extension,{type:'text/plain'})]);
+ });
+ const chip=page.locator('.blade-attachment').filter({hasText:'tartott.'});
+ await expect(chip).toBeVisible();
+ await expect.poll(()=>held).toBeGreaterThan(0);
+ expect(await page.evaluate(()=>window.__files.pending)).toBe(true);
+ await expect(chip).toBeVisible();
+ release();
+ await expect.poll(()=>page.evaluate(()=>window.__files.pending),{timeout:15000}).toBe(false);
+ await expect(chip).toHaveCount(1);
+ await page.evaluate(()=>window.__attachWindow.close());
+ await page.unroute(url=>url.searchParams.has('blade')).catch(()=>{});
+ expect(failures).toEqual([]);
+});
