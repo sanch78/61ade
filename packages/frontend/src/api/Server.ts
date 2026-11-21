@@ -27,7 +27,7 @@ const endpoint = (): string => { const url = new URL(location.href); url.hash = 
  * Internal (the uploader keeps its own retry and error mapping on it); modules use `server.call`/`server.request`.
  */
 export function post(resource: string, action: string, options: CallOptions = {}): Promise<Response> {
-  const request = JSON.stringify({ resource, action, id: options.id ?? null, values: options.values ?? {} });
+  const request = JSON.stringify({ resource, action, id: options.id ?? null, values: options.values ?? {}, ...(options.token !== undefined ? { token: options.token } : {}) });
   const headers: Record<string, string> = { "X-BLADE-CSRF": csrf };
   let body: BodyInit = request;
   // Binary content travels as multipart parts; the JSON request is the `request` part beside them.

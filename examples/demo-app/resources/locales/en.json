@@ -462,5 +462,6 @@
   "Újraellenőrzés": "Re-check",
   "{count} leállt szolgáltatás": "{count} services down",
   "A szolgáltatáslap egy szolgáltatáshoz nyílik meg.": "The service page opens for one service.",
-  "A szolgáltatásjelentés nem érhető el.": "The service report is not available."
+  "A szolgáltatásjelentés nem érhető el.": "The service report is not available.",
+  "Régióellenőrzés": "Region check"
 }

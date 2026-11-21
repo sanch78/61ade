@@ -132,7 +132,7 @@ e-mail codes, SMTP/DB credentials, raw bodies or secret field values.
 | ACL rules/roles changed | Security + audit | Audited through registered actions; A2 admin is implemented. |
 | List reads/export | Audit | Planned; volume/detail undecided. |
 | Configuration/schema changes, installation | Operational | Planned. |
-| Jobs/retries/integration errors/slow queries | Operational | Planned, M6. |
+| Jobs/retries/integration errors/slow queries | Operational | Jobs implemented: job actions, `JobQueue`, job states and journaled outcomes ([jobs](workspaces.md#jobs), FB-0253); retries of integrations, error views and slow-query logs planned, M6. |
 
 <a id="5-nyitott-tervezési-kérdések-és-javasolt-munka"></a>
 

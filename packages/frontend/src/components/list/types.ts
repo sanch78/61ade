@@ -13,7 +13,7 @@ export type ActionConfirmation={message:string;title?:string;severity?:DialogSev
  * `usages`: the action (a delete) reports references through a `preview` call before it is confirmed.
  * `upload`: the action receives files through the shared uploader with this policy (no record needed).
  */
-export type ActionDefinition={name:string;label:string;submitLabel:string;write:boolean;icon?:string;bulk?:boolean;confirm?:ActionConfirmation;usages?:boolean;upload?:UploadPolicy;fields:FieldDefinition[]};
+export type ActionDefinition={name:string;label:string;submitLabel:string;write:boolean;icon?:string;bulk?:boolean;confirm?:ActionConfirmation;usages?:boolean;upload?:UploadPolicy;job?:{heartbeat:number};fields:FieldDefinition[]};
 export type Region={id?:"filter"|"grid"|"form";header?:string;rows?:Region[];cols?:Region[];width?:number;height?:number;minWidth?:number;resizable?:boolean;collapsable?:boolean;collapsed?:boolean};
 export type Column={id:string;header:string;type?:string;media?:string;presentation?:string;imageBase?:string;altOf?:string;mediaOf?:string;part?:MediaPart;options?:Record<string,string>;width?:number;minWidth?:number;maxWidth?:number;editable?:boolean;secondary?:boolean;align?:"left"|"center"|"right";
   /** A registered field type of the column's field (`app.fieldTypes`). */

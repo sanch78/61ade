@@ -2697,6 +2697,71 @@ steps.state("running", "failed");    // a refused request
   characters, a non-blank `label` and a declared `current`, else `TypeError`;
   an undeclared id in `current` or `state` throws `Error`.
 
+<a id="jobs"></a>
+
+#### Jobs: `app.jobs` and JobView
+
+`app.jobs` starts and follows the long-running job of a job action (PHP
+`Action` `job`, [jobs](workspaces.md#jobs), [FB-0253](feedback.md#fb-0253)).
+`components.JobView` shows one job in a page region. A list's job action needs
+no code: its toolbar command, record command, tree command, `RecordForm` or list
+form starts the job through `app.jobs` and opens the job window instead of a
+toast.
+
+```ts
+const job = await app.jobs.start("demo_service_report", "audit", { id: row.id, title: t("Régióellenőrzés") });
+app.events.on("job:done", ({ status }) => { if (status.id === job.id && status.state === "done") void list.reload(); }, { signal });
+
+// The same job in a page region instead of the window:
+const view = new app.components.JobView({ job, title: t("Régióellenőrzés"), signal: host.signal });
+view.on("done", ({ status }) => console.log(status.result));
+view.mount(layout.getCell("job"));
+```
+
+- **Start.** `start(resource, action, {id?, values?, signal?, title?, window?})`
+  sends the action with a fresh client token (`CallOptions.token`).
+  - A network failure (status 0) asks the server for the job of that token up
+    to three times. A start whose answer was lost is found, never started
+    twice.
+  - Any other refusal (validation, ACL) rejects like `server.call`.
+  - `job:started` reports `{job}` (`{id, resource, action}`).
+  - `window: false` follows the job without the window.
+- **Window.** `open(job, {title?})` opens the framework job window (one per
+  job and page, modal like every framework window, closable: closing it does
+  not stop the job, and `open` shows it again). It holds one `JobView`.
+- **JobView.**
+  - **Shows:**
+    - the stage, or the state's text (`role="status"`);
+    - a native `<progress>`: the percent, or indeterminate without one;
+    - `Lépés: n / m` and `Eltelt idő: m:ss`;
+    - the heartbeat warning (`A feladat {seconds} másodperce nem jelzett.`) once
+      a running job's heartbeat has not changed for `heartbeatAfter` seconds,
+      measured by the page's clock;
+    - the log (`role="log"`, `Napló`, levels marked in text);
+    - the result (a `reveal` as `label: value — note`), the error, or the
+      cancelled text;
+    - `Megszakítás` while the status says `cancel`.
+  - **Methods and events:** `status` is the last status read, and `cancel()`
+    asks the source to stop. Events `progress` and `done` carry `{status}`.
+  - **Options:** `job`, `title` (the bar's name, default `Feladat`), `guard`
+    (default true) and `signal`.
+- **Polling and events.**
+  - Each job is polled once per page however many views show it: after 1 s,
+    backing off ×1.5 up to 5 s while nothing changes, and up to 15 s after
+    network failures.
+  - Polling pauses while the page is hidden and resumes at once when it is
+    shown. A 401, 403 or 404 stops it (`A feladat nem érhető el.`).
+  - Each job is its action and id, so jobs of different sources never mix.
+  - `job:progress` reports each changed `{status}` and `job:done` the final one.
+    The status's `log` is every line read so far.
+- **Leave guard and reattach.** While a job this page started or reattached is
+  queued or running, leaving or reloading the page asks first
+  (`beforeunload`). After a reload the shell reads the user's running jobs
+  (`running()`) and reopens their windows.
+- **Reads.** `status(job, after?)`, `cancel(job)` and `running()` are `__job`
+  calls; the server checks each like the job action itself.
+- **Errors.** A malformed job reference or option throws `TypeError`.
+
 <a id="views"></a>
 
 ## Views
@@ -3982,6 +4047,7 @@ feedback reference; once the transition closes, changes follow
 
 | Date | Change | Reason | Feedback |
 | --- | --- | --- | --- |
+| 2026-11-20 | `Application.jobs` (`Jobs`, `JobReference`, `JobStatus`, `JobState`, `JobLogLine`, `JobStartOptions`), `components.JobView` (`JobViewOptions`, `JobViewEvents`, `JobView`), `AppEvents` `job:started`, `job:progress`, `job:done`, `CallOptions.token`, `ActionMetadata.job`; PHP `Action` `job` and `heartbeat`, `Blade\Jobs\JobSource`, `JobQueue`, `Job`, `Jobs` and the `__job` reads ([jobs](#jobs), [server side](workspaces.md#jobs)). Additive: actions without `job` and `TaskQueue` are unchanged; a consumer that declares a `job: true` action runs `JobQueue::install()` in its setup. | Consumers built their own process windows and polling for multi-step server operations. | [FB-0253](feedback.md#fb-0253) |
 | 2026-11-20 | `Snapshot.notice` (`{text, tone}`): a list answer's view-level notice, shown above the rows and kept by the live channel's `update` frame; PHP `ProviderResource`, `ListProvider`, `ListQuery` and the `ListReader` interface of `Action::$listSource` (formerly `?ListSource`), [provider lists](workspaces.md#provider-lists). Additive: `ListSource` implements `ListReader`, and SQL lists read, validate and answer as before. | Consumers drew their own grid, filters, counts and `Adatok` window over rows from PHP handlers, and those copies drifted from the framework list. | [FB-0252](feedback.md#fb-0252) |
 | 2026-11-20 | `Application.viewport` (`Viewport`), `AppEvents["viewport:change"]`; `PageLayoutOptions.narrow`, `PageLayoutEvents.variant`, `PageLayout.narrow` (M101). Additive. | Consumer pages ran their own 767 px media query, six of them only once. | [FB-0250](feedback.md#fb-0250) |
 | 2026-11-20 | New components `Attachments` and `Steps` (types `AttachmentItem`, `AttachmentsOptions`, `AttachmentsEvents`, `Attachments`, `StepDefinition`, `StepState`, `StepsOptions`, `Steps`); `Ui.progress` (`ProgressOptions`, `ProgressDialog`), `WindowOptions.closable` (M102, M103). Additive. | Consumers hand-built attachment chips, steppers and un-closable progress windows. | [FB-0250](feedback.md#fb-0250) |

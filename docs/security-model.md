@@ -131,6 +131,15 @@ record id alone grants nothing when the resolver names another ACL object
 ([FB-0250](feedback.md#fb-0250)). A refused record watch is journaled as
 `subscribe`/`rejected` with the requested id, once per attempt, like a refused
 `get`.
+[Job](workspaces.md#jobs) reads (`__job`: status, find, running, cancel) need the
+job action offered on the channel, an API key's scope included. A status or
+cancel also needs the actor's object permission on the start's ACL object
+(`acl_id` or target, with its owner); anything else answers 404. `JobQueue`
+shows only the actor's own jobs in the same tenant. Before a job's body runs,
+the account, tenant membership, the start's channel and scopes, and the
+action's ACL on its target are checked again. A job action with `job: true`
+stores its inputs, so it declares no secret or password field
+([FB-0253](feedback.md#fb-0253)).
 With [client-address binding](authentication.md#client-address-binding), an
 address change ends the session on its next HTTP request. The deleted session
 file then fails the per-observation recheck, so the channel closes with 4401;

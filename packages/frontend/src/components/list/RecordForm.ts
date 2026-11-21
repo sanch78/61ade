@@ -1,4 +1,5 @@
 import { t } from "../../I18n";
+import { jobs } from "../job/Jobs";
 import { Form, Layout, awaitRedraw } from "@dhtmlx/suite";
 import { acknowledge } from "../../MessageDialog";
 import { FileFields } from "../../FilePicker";
@@ -145,7 +146,8 @@ export class RecordForm extends Component<RecordFormEvents> implements RecordFor
       form.disable();
       try{
         if(!await confirmed({confirm:this.action?.confirm??undefined,submitLabel:this.action?.submitLabel??this.action?.label??t("Mentés")}))throw DECLINED;
-        const result=await server.call<any>(this.options.resource,this.options.action,{id:this.options.id??null,values,signal:this.abort.signal});
+        // A job action (docs/toolkit.md#jobs) starts its job and opens the job window; its answer is `{job}`.
+        const result=this.action?.job?{job:await jobs.start(this.options.resource,this.options.action,{id:this.options.id??null,values,signal:this.abort.signal,title:this.action.label})}:await server.call<any>(this.options.resource,this.options.action,{id:this.options.id??null,values,signal:this.abort.signal});
         await awaitRedraw();
         if(this.destroyed)return result;
         this.changedFields=false;

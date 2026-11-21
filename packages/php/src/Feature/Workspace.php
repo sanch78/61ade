@@ -16,12 +16,15 @@ final class Workspace
     public readonly TaskQueue $tasks;
     /** Chunked upload protocol (`__upload`) of actions declaring an UploadPolicy. */
     public readonly Transfers $transfers;
+    /** 61ade's job engine (`Action::$job` true) and the `__job` reads of every job action (docs/workspaces.md#jobs). */
+    public readonly \Blade\Jobs\JobQueue $jobs;
+    public readonly \Blade\Jobs\Jobs $jobReads;
     /** Optional multi-tenancy ($tenancy: true); null keeps the application single-realm with no tenant checks at all. */
     public readonly ?\Blade\Tenancy\Tenancy $tenancy;
     public function __construct(public readonly Registry $registry,public readonly \PDO $db,bool $tenancy=false)
     {
         $this->tenancy=$tenancy?new \Blade\Tenancy\Tenancy($db):null;
-        $this->acl=new Acl($db,$registry->delegation(...));$this->journal=new Journal($db);$this->executor=new Executor($registry,$db,$this->journal);$this->tasks=new TaskQueue($db);$this->transfers=new Transfers($registry,$this->executor,$this->journal);
+        $this->acl=new Acl($db,$registry->delegation(...));$this->journal=new Journal($db);$this->jobs=new \Blade\Jobs\JobQueue($db);$this->jobReads=new \Blade\Jobs\Jobs($registry,$this->jobs);$this->executor=new Executor($registry,$db,$this->journal,$this->jobs);$this->tasks=new TaskQueue($db);$this->transfers=new Transfers($registry,$this->executor,$this->journal);
     }
     public function version(string $actor): int
     {
@@ -216,6 +219,7 @@ final class Workspace
             $owner=is_string($secret)&&$secret!==''?Transfers::owner($secret):'';
             // Only admitted actors start post-response tasks (including an explicitly configured public account).
             register_shutdown_function(fn()=>$this->tasks->afterResponse());
+            register_shutdown_function(fn()=>$this->jobs->afterResponse($this,$identities));
             $method=$_SERVER['REQUEST_METHOD']??'';
             if($method==='GET'||$method==='HEAD'){
                 // Field-free reads of `get` actions (<img>/<video> sources): the query string is the whole envelope, `v` a cache key.
@@ -268,6 +272,13 @@ final class Workspace
                 $list=$values['subscriptions'];
                 echo json_encode(['ok'=>true,'data'=>['results'=>$this->watch($ctx,$list)]],JSON_THROW_ON_ERROR|JSON_INVALID_UTF8_SUBSTITUTE);exit;
             }
+            if($data['action']==='__job'){
+                $ctx=new Context($actor,$channel,$this->acl,$this->db,$scopes,owner:$owner,tenant:$tenant);
+                $values=$data['values']??[];
+                $result=$this->jobReads->handle($ctx,$data['resource'],$values);
+                if(($values['operation']??null)==='cancel')$this->journal->record($actor->id,$channel,substr($data['resource'],0,100),'job_cancel',substr((string)($values['id']??''),0,100),$result['cancelled']?'success':'rejected',detail:['action'=>substr((string)($values['action']??''),0,100)],tenant:$tenant);
+                echo json_encode(['ok'=>true,'data'=>$result],JSON_THROW_ON_ERROR|JSON_INVALID_UTF8_SUBSTITUTE);exit;
+            }
             if($data['action']==='__bulk'){
                 $values=$data['values'];
                 if(!is_string($values['operation']??null)||!is_array($values['items']??null)||array_diff(array_keys($values),['operation','items']))throw new Failure('Hibás tömeges művelet.');
@@ -300,7 +311,9 @@ final class Workspace
                 echo json_encode(['ok'=>true,'data'=>$described],JSON_THROW_ON_ERROR|JSON_INVALID_UTF8_SUBSTITUTE);exit;
             }
             $handled=true;
-            $result=$this->executor->execute(new Context($actor,$channel,$this->acl,$this->db,$scopes,$uploads,$owner,$tenant),$data['resource'],$data['action'],$id,$data['values']??[]);
+            // A job action's client token (docs/workspaces.md#jobs): the same token answers the same job.
+            $token=$data['token']??null;if($token!==null&&!is_string($token))throw new Failure('Hibás feladatazonosító.');
+            $result=$this->executor->execute(new Context($actor,$channel,$this->acl,$this->db,$scopes,$uploads,$owner,$tenant),$data['resource'],$data['action'],$id,$data['values']??[],token:$token);
             $this->respond($result);
         }catch(Failure $e){if(!$handled)$this->journal->record($actor?->id??'',$channel,'transport','request','','rejected');http_response_code($e->status);echo json_encode(['ok'=>false,'error'=>$e->getMessage(),'fieldErrors'=>(object)$e->fieldErrors,...($e->details?['details'=>$e->details]:[])],JSON_THROW_ON_ERROR|JSON_INVALID_UTF8_SUBSTITUTE);}
         exit;

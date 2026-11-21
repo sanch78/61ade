@@ -5,7 +5,7 @@ use Blade\Audit\Journal;
 
 final class Executor
 {
-    public function __construct(public Registry $registry, private \PDO $db, public Journal $journal) {}
+    public function __construct(public Registry $registry, private \PDO $db, public Journal $journal, public ?\Blade\Jobs\JobQueue $jobs = null) {}
     /** Bounded, explicitly opted-in batch; each object has its own ACL, transaction and audit. A handler's array result is the item's `data` (without `audit`). */
     public function bulk(Context $ctx, string $resource, string $name, array $items): array
     {
@@ -108,7 +108,7 @@ final class Executor
         foreach($field->file['accept'] as $class)if(str_starts_with((string)$file['mime_type'],$class.'/'))return null;
         return 'A fájl típusa ehhez a mezőhöz nem engedélyezett.';
     }
-    public function execute(Context $ctx, string $resource, string $name, ?string $id, array $input, bool $fieldEdit = false, bool $partial = false): mixed
+    public function execute(Context $ctx, string $resource, string $name, ?string $id, array $input, bool $fieldEdit = false, bool $partial = false, ?string $token = null): mixed
     {
         $fields=[];$detail=[];$claimed=[];
         $ctx->acl->invalidate();
@@ -193,6 +193,15 @@ final class Executor
                 if(!array_filter($stored,static fn(Field $field)=>FileClaims::accepts($field->file['accept'],$mime)))throw new Failure('A fájl típusa ehhez a mezőhöz nem engedélyezett.',400,[],['code'=>'type']);
             }
             $handler=$fieldEdit?$action->editHandler:$action->handler;
+            // A job action (docs/workspaces.md#jobs) starts its job in this transaction and answers its id; the same
+            // client token (idempotent start, lost-answer recovery) answers the same job.
+            if($action->job!==false)$handler=function(Context $ctx,array $target,array $values)use($action,$token):array{
+                if($token!==null&&!preg_match('/^[A-Za-z0-9_-]{16,64}$/D',$token))throw new Failure('Hibás feladatazonosító.');
+                $source=$action->job===true?($this->jobs??throw new \LogicException('A job action needs the workspace job queue.')):$action->job;
+                $job=$source->start($ctx,$action,$target,$values,$token??bin2hex(random_bytes(16)));
+                if(!preg_match('/^[A-Za-z0-9_.:-]{1,100}$/D',$job))throw new \LogicException('A job id is 1–100 letters, digits, _ . : or -.');
+                return ['job'=>['id'=>$job,'resource'=>$action->resource,'action'=>$action->name],'audit'=>['job'=>$job]];
+            };
             try{$result=$handler($ctx,$target,$values);}
             catch(Failure $error){
                 // A handler's own per-file report (`failed`, e.g. a 409 conflict) also lists the parts rejected by the policy.

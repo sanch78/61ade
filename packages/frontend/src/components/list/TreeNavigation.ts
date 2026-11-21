@@ -1,4 +1,5 @@
 import { Layout } from "@dhtmlx/suite";
+import { jobs } from "../job/Jobs";
 import { ResponsiveToolbar } from "../../ResponsiveToolbar";
 import { t } from "../../I18n";
 import { UiPreferences } from "../../UiPreferences";
@@ -87,7 +88,9 @@ export class TreeNavigation {
     if(action.name!=="create"&&action.name!=="update"&&!fields.length){
       try{
         if(!await confirmed(action))return;
-        const result=await server.call(this.view.resource!,action.name,{id:node!,values:action.fields.some(field=>field.name==="revision")?{revision:row!.revision}:{}});
+        const values=action.fields.some(field=>field.name==="revision")?{revision:row!.revision}:{};
+        // A job action (docs/toolkit.md#jobs) starts its job and opens the job window.
+        const result=action.job?{job:await jobs.start(this.view.resource!,action.name,{id:node!,values,title:action.label})}:await server.call(this.view.resource!,action.name,{id:node!,values});
         resultNotice(result);
         await this.tree.reload(parent);
         if(action.name==="delete"){if(parent)this.tree.select(parent);else this.tree.clear();}

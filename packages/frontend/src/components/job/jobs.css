@@ -1,0 +1,13 @@
+/* JobView (docs/toolkit.md#jobs): the progress dialog's message and bar, then the step, elapsed time, log and outcome. */
+.blade-job { display: flex; flex-direction: column; gap: 8px; height: 100%; box-sizing: border-box; padding: 16px; overflow: hidden; }
+.blade-job__stage { margin: 0; font-size: 14px; line-height: 20px; overflow-wrap: anywhere; }
+.blade-job__bar { width: 100%; }
+.blade-job__meta { margin: 0; min-height: 18px; font-size: 12px; color: var(--dhx-font-color-secondary); }
+.blade-job__warning { margin: 0; font-size: 13px; color: var(--dhx-color-warning); }
+.blade-job__log { flex: 1 1 auto; min-height: 48px; margin: 0; padding: 8px; list-style: none; overflow: auto; font: 12px/18px var(--dhx-font-family-monospace, monospace); background: var(--dhx-background-secondary); border: 1px solid var(--dhx-border-color); border-radius: var(--dhx-border-radius, 4px); }
+.blade-job__log[hidden] { display: none; }
+.blade-job__line time { color: var(--dhx-font-color-secondary); }
+.blade-job__line--warning { color: var(--dhx-color-warning); }
+.blade-job__line--error { color: var(--dhx-color-danger); }
+.blade-job__outcome { margin: 0; font-size: 14px; overflow-wrap: anywhere; }
+.blade-job__outcome--failed { color: var(--dhx-color-danger); }

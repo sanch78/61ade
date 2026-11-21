@@ -62,6 +62,8 @@ export interface Application {
   readonly viewport: Viewport;
   /** Typed page-wide event bus. */
   readonly events: EventBus;
+  /** Long-running jobs of job actions (docs/toolkit.md#jobs). */
+  readonly jobs: Jobs;
   /** The effective identity, signed in or public (presentation data only; never a permission source). */
   readonly identity: Identity;
   /**
@@ -143,6 +145,11 @@ export interface CallOptions {
    * `call`, it throws `TypeError`.
    */
   version?: string;
+  /**
+   * A job action's idempotent client token (16–64 of `A-Za-z0-9_-`, docs/toolkit.md#jobs): the same token answers
+   * the same job. `Jobs.start` sets it; a module rarely needs it.
+   */
+  token?: string;
 }
 
 /**
@@ -693,6 +700,88 @@ export interface AppEvents {
   "sandbox:error": { message: string; code: SandboxErrorCode };
   /** The viewport crossed 768 px (`Application.viewport`). */
   "viewport:change": { narrow: boolean };
+  /** A job action of this page started its job (`Jobs.start`, also a list's job action). */
+  "job:started": { job: JobReference };
+  /** A followed job's status changed (stage, progress, log, state). */
+  "job:progress": { status: JobStatus };
+  /** A followed job finished: `done`, `failed` or `cancelled`. */
+  "job:done": { status: JobStatus };
+}
+
+/** A job of a job action: its id, and the action that started it. */
+export interface JobReference { id: string; resource: string; action: string }
+/** `queued`, `running`, then `done`, `failed` or `cancelled`. */
+export type JobState = "queued" | "running" | "done" | "failed" | "cancelled";
+export interface JobLogLine { at: string; level: "info" | "warning" | "error"; text: string }
+/** A job's status as `__job` answers it (docs/toolkit.md#jobs); times are ISO 8601 UTC. */
+export interface JobStatus extends JobReference {
+  state: JobState;
+  title?: string;
+  stage?: string;
+  /** 0–100; absent or null while indeterminate. */
+  percent?: number | null;
+  step?: { index: number; count: number };
+  /** The log lines read so far (a status read with `after` holds only the newer ones). */
+  log: JobLogLine[];
+  /** The index after the last line (the `after` of the next read). */
+  logNext: number;
+  created?: string;
+  started?: string;
+  heartbeat?: string;
+  finished?: string;
+  /** The body's answer, such as `{reveal: {label, value, note?}}`. */
+  result?: Record<string, unknown>;
+  error?: string;
+  /** Whether `Jobs.cancel` can still stop it. */
+  cancel: boolean;
+  /** Seconds without news after which the job window warns (`Action::$heartbeat`). */
+  heartbeatAfter: number;
+}
+export interface JobStartOptions {
+  /** The target record (the action's resolver), null for none. */
+  id?: string | null;
+  values?: Record<string, unknown>;
+  /** Aborts the start request only; a started job runs on. */
+  signal?: AbortSignal;
+  /** The job window's title (default `Feladat`). */
+  title?: string;
+  /** Default true: the framework job window opens; false follows the job without it (events, leave guard). */
+  window?: boolean;
+}
+/**
+ * `app.jobs` (docs/toolkit.md#jobs). `start` sends the action with a fresh token, finds the job by that token when the
+ * answer is lost (a network failure), reports `job:started` and opens the job window. The page then follows the job
+ * once (polling backs off while nothing changes and pauses while the page is hidden) and asks before the page is left
+ * while it runs. After a reload the shell reopens the user's running jobs. Each read is an ACL-checked `__job` call.
+ */
+export interface Jobs {
+  start(resource: string, action: string, options?: JobStartOptions): Promise<JobReference>;
+  /** The framework job window of $job (one per job and page). */
+  open(job: JobReference, options?: { title?: string }): AppWindow;
+  /** One status read, with the log from line $after. */
+  status(job: JobReference, after?: number): Promise<JobStatus>;
+  /** Asks the job to stop; false when it cannot. */
+  cancel(job: JobReference): Promise<boolean>;
+  /** The user's queued and running jobs. */
+  running(): Promise<JobReference[]>;
+}
+export interface JobViewOptions extends ComponentOptions {
+  job: JobReference;
+  /** The progress bar's accessible name (default `Feladat`). */
+  title?: string;
+  /** Default true: the page asks before it is left while the job runs. */
+  guard?: boolean;
+}
+export interface JobViewEvents {
+  progress: { status: JobStatus };
+  done: { status: JobStatus };
+}
+/** The job window's content as a component (`components.JobView`), for a page that shows a job in its own region. */
+export interface JobView extends Component<JobViewEvents> {
+  /** The last status read, undefined before the first. */
+  readonly status?: JobStatus;
+  /** Asks the job to stop (`Megszakítás`); false when it cannot. */
+  cancel(): Promise<boolean>;
 }
 
 /**
@@ -1053,6 +1142,8 @@ export interface ActionMetadata {
   usages?: boolean;
   /** The action receives files through the shared uploader with this policy. */
   upload?: UploadPolicy;
+  /** A long-running job action (`Action::$job`, docs/toolkit.md#jobs): start it with `Jobs.start`. */
+  job?: { heartbeat: number };
   fields?: FieldMetadata[];
 }
 
@@ -2740,6 +2831,7 @@ export interface Components {
   readonly DiagramEditor: ComponentClass<DiagramEditorOptions, DiagramEditor>;
   readonly MediaPlayer: ComponentClass<MediaPlayerOptions, MediaPlayer>;
   readonly TextDiff: ComponentClass<TextDiffOptions, TextDiff>;
+  readonly JobView: ComponentClass<JobViewOptions, JobView>;
   readonly SandboxFrame: ComponentClass<SandboxFrameOptions, SandboxFrame>;
   readonly CommandBar: ComponentClass<CommandBarOptions, CommandBar>;
   readonly PageLayout: ComponentClass<PageLayoutOptions, PageLayout>;

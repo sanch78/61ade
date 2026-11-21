@@ -19,6 +19,7 @@ import { MediaPlayer } from "../components/media/MediaPlayer";
 import { TextDiff } from "../components/diff/TextDiff";
 import { Attachments } from "../components/upload/Attachments";
 import { Steps } from "../components/progress/Steps";
+import { JobView, jobs, onJobEvent, reattachJobs } from "../components/job/Jobs";
 import { PageLayout } from "../components/layout/PageLayout";
 import { Tabs } from "../components/layout/Tabs";
 import { Accordion } from "../components/layout/Accordion";
@@ -44,6 +45,7 @@ const UPLOAD_EVENTS: (keyof UploadEvents)[] = ["upload:queued", "upload:started"
 export function createApplication(bridge: ShellBridge, treeCache: TreeCache): Kernel {
   const events = createEventBus();
   for (const name of UPLOAD_EVENTS) uploader.on(name, payload => events.dispatch(name, payload as never));
+  onJobEvent((name, payload) => events.dispatch(name, payload as never));
   // The one breakpoint's crossings, for the page's whole life (the shell creates one application per page).
   onViewport(narrow => events.dispatch("viewport:change", { narrow }));
   const kinds = new NamedRegistry<ViewKind<any>>("view kind");
@@ -67,6 +69,7 @@ export function createApplication(bridge: ShellBridge, treeCache: TreeCache): Ke
     live: live(bridge.channel),
     viewport: Object.freeze({ get narrow() { return narrow(); } }),
     events,
+    jobs,
     identity: identity(bridge.userId, bridge.displayName, bridge.tenant, bridge.authenticated),
     kinds,
     presentations,
@@ -83,6 +86,7 @@ export function createApplication(bridge: ShellBridge, treeCache: TreeCache): Ke
       SandboxFrame: sandboxFrameClass(payload => events.dispatch("sandbox:error", payload)),
       MediaPlayer,
       TextDiff,
+      JobView,
       Attachments,
       Steps,
       PageLayout: class extends PageLayout { constructor(options: PageLayoutOptions) { super({ user: bridge.userId }, options); } },
@@ -96,6 +100,8 @@ export function createApplication(bridge: ShellBridge, treeCache: TreeCache): Ke
   });
   // The framework surfaces (lists, details, forms) read the page's registries when they are created.
   Object.assign(extensions, { app, presentations, fieldTypes, commands, mediaTypes });
+  // A signed-in user's running jobs reopen after a reload (docs/toolkit.md#jobs), once the page has started.
+  if (bridge.authenticated !== false) setTimeout(() => void reattachJobs(), 0);
   return { app, events, kinds };
 }
 

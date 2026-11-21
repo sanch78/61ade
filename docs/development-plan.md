@@ -127,6 +127,8 @@ requests, logs exclude credentials.
 
 Planned slice: [uploader and file/media list](files-media-plan.md) (FB-0063).
 
+Implemented slice: [long-running jobs](workspaces.md#jobs) (FB-0253). Job actions answer at once. A revoked right fails a job before its body runs, and a token makes a repeated start answer the same job. Each read is ACL-checked. Async import/export on it and observability remain open.
+
 <a id="m7--teljesítmény-csomagkiadás-és-második-fogyasztó"></a>
 
 ## M7 — Performance, package distribution and second consumer

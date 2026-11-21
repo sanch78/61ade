@@ -11914,3 +11914,104 @@ object. Typecheck, build and demo asset preparation passed.
   row, once it exists, applies to provider lists through the same `ListView`.
   The consumer replaces its interim grids and `Adatok` windows in its own
   session.
+
+<a id="fb-0253"></a>
+
+## FB-0253 — Long-running jobs: job actions, JobQueue and the job window
+
+- **Date.** 2026-11-20.
+- **Report.** A consumer runs multi-step server operations: minutes long, with
+  deferred steps, cancellation and recovery after a lost reply. `TaskQueue`
+  (`blade_tasks`) runs after the response but has no progress, log, heartbeat,
+  cancel or reattach, so the consumer built its own process window and
+  polling. Any admin that starts a long server operation needs the same.
+- **Owner decision.** Approved as a general, additive, opt-in capability
+  (2026-11-20):
+  - an action option starts a job and answers its id;
+  - a `JobSource` lets a consumer keep its own engine;
+  - a default runner uses the framework's own storage;
+  - the standard job window and an embeddable component;
+  - the default runner runs after the response, resumable from saved
+    progress, and from the consumer's own scheduled task; 61ade adds no
+    scheduler.
+- **Implementation.**
+  - **Server:**
+    - `Action` takes `job` (`true` or a `JobSource`) and `heartbeat`;
+      `Executor::execute` takes the client `token`.
+    - `Blade\Jobs\JobQueue` is the `blade_jobs` table (`install()`): an
+      idempotent start inside the action's transaction, an atomic claim per
+      runner, resumption from a checkpoint (three attempts), late-cancel and
+      lost-claim rules, and housekeeping.
+    - `Job` is the body's reporter: stage, progress, step, log, `cancelled`,
+      `beat` and `checkpoint`. `JobSource` is the engine contract.
+    - `Jobs` serves the ACL-checked `__job` reads: status, find, running and
+      cancel.
+    - Job metadata goes into the view actions. `JobQueue` is not
+      `TaskQueue`, which is unchanged.
+  - **Client:** `app.jobs` (start with token, recovery by token, open,
+    status, cancel, running), `components.JobView` and the job window. One
+    poll loop per job backs off and pauses while the page is hidden. There is
+    a leave guard, reattach after a reload and the `job:*` events. List,
+    record, tree and `RecordForm` job actions start through `app.jobs`; no
+    toast for a started job.
+  - **Feature demo:** `Szolgáltatásjelentés` → `Régióellenőrzés`.
+- **Contract.** [Jobs](workspaces.md#jobs) (server),
+  [app.jobs and JobView](toolkit.md#jobs) (client), the
+  [toolkit changes](toolkit.md#changes), [security model](security-model.md),
+  [usage](usage.md#warning-and-confirmation-dialogs), [demos](demos.md),
+  [focused checks](development.md#focused-task-groups),
+  [product direction](product-direction.md) and the
+  [M6 plan](development-plan.md#m6--fájlok-exportimport-jobok-és-megfigyelhetőség).
+- **Migration (additive).** Actions without `job` and `TaskQueue` users are
+  unchanged. A consumer that declares a `job: true` action adds
+  `JobQueue::install($db)` to its setup. A CLI runner calls
+  `$workspace->jobs->run($workspace, $identities)` from the consumer's own
+  scheduled task. A consumer with its own engine implements `JobSource` and
+  passes it as `job`.
+- **Verification.** On the managed demo, against the final candidate
+  (typecheck, build and demo asset preparation passed):
+  - **PHP:** `jobs.php` covers:
+    - starts, token idempotency and refusals (another action or target, a
+      malformed token, ACL, validation);
+    - reads and their ACL, including `acl_id`, an API channel and its scope;
+    - a run with steps, log and result, and the log cursor;
+    - resumption from a checkpoint and the three-attempt limit;
+    - cancel of a queued and a running job, and a late cancel;
+    - a runner that lost its claim;
+    - failures, a revoked right, a disabled account and an open transaction;
+    - a `JobSource` and its invalid status, and the declarations.
+
+    `access`, `contracts`, `toolkit`, `i18n`, `lists`, `provider-lists`,
+    `tree-navigation`, `record-forms`, `files`, `tenancy`, `delegation`,
+    `permissions`, `api-keys`, `stored-file`, `admin` and `configuration`
+    passed.
+  - **Browser:** `jobs.spec.cjs` passed (3 cases): progress, steps, elapsed
+    time, log and result with `job:*` events; `Megszakítás`; a lost start
+    answer recovered by its token; the `beforeunload` guard and the reopened
+    job after a reload.
+    - Before the final fixes, ten specs passed 82 cases: `workspace`,
+      `toolkit-list`, `list-presentation`, `dialogs`, `modal-windows`,
+      `toolkit-components`, `record-forms`, `provider-list`, `browser` and
+      `uploader`.
+    - After them, `jobs`, `record-forms`, `registry`, `modal-windows` and
+      `workspace` passed 30 cases.
+    - `toolkit-components.mjs` fails at its known Layout-cell mount check, as
+      before (FB-0250).
+  - **Review:** an independent review found 12 defects, all fixed and covered:
+    - the run rechecked every job as `ui`;
+    - the status ACL ignored `acl_id`;
+    - nothing guarded against a runner that lost its claim;
+    - `TEXT` was too small for logs on MySQL;
+    - a body's open transaction was silently rolled back;
+    - the time limit applied to the CLI;
+    - the account was not rechecked;
+    - a late cancel overrode a finished result;
+    - a token could be reused across targets and tenants;
+    - the cancel journal outcome was always success;
+    - a simultaneous duplicate start answered 409 on MySQL;
+    - tree and `RecordForm` job actions started silently.
+
+  Not covered: MySQL itself (SQLite only), a real CLI runner process, the job
+  window at 390 px, and real screen readers.
+- **Status.** Implemented and verified on the managed demo. The consumer
+  replaces its own process window and polling in its own session.
