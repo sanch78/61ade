@@ -415,6 +415,151 @@ window. There is no change token; a costly source caches its rows itself.
   record view;
 - cards and the `Szűrés` dialog on a phone.
 
+<a id="jobs"></a>
+
+## Jobs (long-running actions)
+
+An action that runs for minutes, in steps, reporting as it goes, is a **job
+action** ([FB-0253](feedback.md#fb-0253)). It declares `job:` and answers
+`{job: {id, resource, action}}` at once. The browser then follows the job in
+the framework job window ([app.jobs and JobView](toolkit.md#jobs)): stage,
+progress, steps, log, elapsed time, heartbeat warning, result or error, and
+`Megszakítás`.
+
+```php
+use Blade\Feature\{Action, Context, Field};
+use Blade\Jobs\{Job, JobQueue};
+
+JobQueue::install($db); // setup, once (idempotent): the blade_jobs table
+
+$registry->add(new Action('hosts', 'rebuild', 'Újraépítés', [new Field('depth', 'Mélység', 'number')],
+    static function (Context $ctx, array $target, array $values, Job $job): ?array {
+        $steps = $hosts->plan($target['row'], (int) $values['depth']);
+        $from = ($job->checkpoint()['done'] ?? 0) + 1;              // resumes after a dead runner
+        foreach (array_slice($steps, $from - 1, null, true) as $i => $step) {
+            if ($job->cancelled()) { $job->log('Megszakítva.', 'warning'); return null; }
+            $job->step($i + 1, count($steps)); $job->stage($step->title); $job->progress(100 * $i / count($steps));
+            $step->run();
+            $job->log($step->title.': kész');
+            $job->checkpoint(['done' => $i + 1]);
+        }
+        return ['reveal' => ['label' => 'Újraépítés', 'value' => 'Kész']];
+    }, resolve: fn($c, $id) => $hostResource->target($c, $id), write: true, job: true, heartbeat: 30));
+$registry->appendViewActions('hosts', ['rebuild']);
+```
+
+**Declaration.**
+
+- `job: true` runs the handler on 61ade's `JobQueue`. A
+  `Blade\Jobs\JobSource` is the consumer's own engine, whose tables, runner
+  and step model stay its own: the executor calls its `start()` instead of
+  the handler.
+- `heartbeat` (5–3600 s, default 30) is the silence after which the job
+  window warns.
+- A job action is a single JSON action, so not `get`, `upload`, `bulk`,
+  `collection` or an edit handler. With `job: true` it has no secret or
+  password field, because its inputs are stored.
+- The start is an ordinary action: channel, tenant, resolver, object and field
+  ACL, validation, the confirmation and the journal entry all apply. The job
+  row (`job: true`) is written in the action's transaction, atomic with its
+  journal entry.
+- The view metadata marks the action `job: {heartbeat}`, so a list's command
+  or form starts it through `app.jobs`.
+
+**Idempotent start.** The request carries a client token (`token`, 16–64 of
+`A-Za-z0-9_-`; `app.jobs.start` sends a fresh one).
+- The same actor and token answer the same job, also when two such starts run
+  at once.
+- The token of another action, target or tenant is refused (409).
+- Without a token (an API client) every start is a new job.
+
+**The body** (`job: true`) is the handler `fn(Context, array $target, array
+$values, Job $job)`, run without a transaction. It commits or rolls back its own
+transactions; a body that leaves one open fails. Its `Job` reports are written
+at once on the same connection, so a report inside the body's open transaction
+shows only when that transaction commits. Each report counts as a heartbeat:
+- `stage(text)`, `progress(percent|null)`, `step(index, count)`;
+- `log(text, level)`: `info`, `warning` or `error`, the last 500 lines kept;
+- `beat()`;
+- `cancelled()`: check it between steps;
+- `checkpoint(?array)`: the resume point.
+
+It returns an action result (`reveal` and so on) or null. A body that answers
+a result is `done`, even after a late cancel; a body that stops without one
+after a cancel is `cancelled`. A `Failure`'s message becomes the job's error;
+any other exception gives `A feladat nem sikerült.` and the server log.
+
+Before the body runs, these are checked again:
+- the account (`IdentityProvider::find`; a disabled one fails the job);
+- tenant membership;
+- the start's channel and API scopes;
+- the action's ACL on its target.
+
+A right revoked since the start fails the job.
+
+**Runner.**
+- The body runs after the response of the request that started it: the
+  session closes, `fastcgi_finish_request`, then the job. Its time limit is
+  600 s where the host allows; the demo host caps it at 300 s.
+- A status poll also runs a queued or stalled job that nobody runs.
+- A host without `fastcgi_finish_request` runs no job in a web request. Such
+  a host, and longer jobs, need a CLI runner: the consumer calls
+  `$workspace->jobs->run($workspace, $identities)` from its own scheduled task
+  (its tick task). The CLI runner sets no time limit; 61ade adds no scheduler.
+- Each runner claims one job at a time, atomically.
+- A running job whose heartbeat stopped for `max(120, heartbeat × 4)` s is
+  claimed again from its checkpoint. After three attempts it fails
+  (`A feladat megszakadt.`). A body therefore reports or calls `beat()` at
+  least that often. Once another runner has taken a job over, the old
+  runner's reports and its finish change nothing, and its `cancelled()`
+  answers true.
+- A run deletes finished rows after 7 days, and queued rows nobody ran
+  for 7 days.
+- `job_done`, `job_failed`, `job_cancelled` and `job_cancel` are journaled.
+  The cancel entry is `rejected` when nothing was cancelled.
+- On MySQL the log, result, inputs and checkpoint are `MEDIUMTEXT`.
+
+**Reads (`__job`).** `values.operation`:
+- `status` (`action`, `id`, `after`: the log from that line);
+- `find` (`action`, `token`): a lost start;
+- `running`: the actor's queued and running jobs, for reattaching;
+- `cancel` (`action`, `id`).
+
+Each read is checked like an action: the job action must be offered on the
+channel (an API key needs its scope). A status or cancel also needs the
+actor's permission for that action on the object its start was checked on:
+the resolver's `acl_id` or the target, with its owner. Anything else answers
+404, as an unknown job does. `JobQueue` shows an actor only their own jobs in
+the same tenant. A `JobSource` status may name that object (`target`,
+`owner`), which is then checked the same way, deny included. Without it, the
+source alone decides which of its jobs an actor sees. The framework checks
+every status (state, percent, step, log lines) as a developer contract.
+
+**Status** (`JobStatus`):
+- `{id, resource, action, state, stage?, percent?, step?, log, logNext}`;
+- `created`, `started`, `heartbeat` and `finished` (ISO 8601 UTC);
+- `result?` and `error?`;
+- `cancel`: whether it can still be stopped;
+- `heartbeatAfter`.
+
+A queued job's cancel ends it at once; a running one stops at its next
+`cancelled()`.
+
+**Migration** (additive). Actions without `job` and `TaskQueue` users are
+unchanged. A consumer that declares a `job: true` action runs
+`JobQueue::install($db)` in its setup, as it does `TaskQueue::install()`. A
+consumer with its own engine implements `JobSource` and keeps its tables.
+
+**Checks.**
+- `php8.4 tests/shell/jobs.php`: start and idempotency, refusals, reads and
+  their ACL, run, log cursor, resume from a checkpoint, the three-attempt
+  limit, cancel queued and running, failures, a revoked right, a `JobSource`
+  and declarations.
+- `tests/shell/jobs.spec.cjs` (feature demo `Szolgáltatásjelentés` →
+  `Régióellenőrzés`): progress, steps, log and result with `job:*` events;
+  `Megszakítás`; a lost start answer recovered by its token; the leave guard
+  and the reopened window after a reload.
+
 <a id="élő-adat-konfigurálása-és-futtatása"></a>
 
 ## Live-data configuration and execution

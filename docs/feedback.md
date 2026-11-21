@@ -1031,3 +1031,7 @@
 <a id="fb-0252"></a>
 
 ## FB-0252 — Lists over rows from PHP handlers (provider lists)
+
+<a id="fb-0253"></a>
+
+## FB-0253 — Long-running jobs: job actions, JobQueue and the job window

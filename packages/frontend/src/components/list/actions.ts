@@ -43,6 +43,8 @@ export function confirmed(action:Pick<ActionDefinition,"confirm"|"submitLabel">,
 }
 /** The non-blocking success toast of an action, or its one-time reveal/secret. */
 export function resultNotice(result:any):void{
+  // A started job reports in its own window (docs/toolkit.md#jobs), not in a toast.
+  if(result?.job)return;
   if(result?.reveal){message({text:result.reveal.label+": "+result.reveal.value+(result.reveal.note?"\n\n"+result.reveal.note:""),css:"blade-toast",expire:10000});return;}
   if(result?.secret){message({text:t("Egyszer megjelenő API-token")+": "+result.secret,css:"blade-toast",expire:10000});return;}
   // A delete that cleared references (usage providers) says which and how many.

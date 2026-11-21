@@ -8,6 +8,8 @@ require_once __DIR__.'/former-names.php';
 // Feature demo: business tables, sign-in variants and the explicit first-administrator step.
 $db = blade_demo_db('features');
 Blade\Access\Schema::install($db);
+// Long-running jobs of job actions (docs/workspaces.md#jobs): the framework's own job table.
+Blade\Jobs\JobQueue::install($db);
 $db->exec('CREATE TABLE IF NOT EXISTS notes(id INTEGER PRIMARY KEY AUTOINCREMENT,owner_id TEXT,title TEXT)');
 if (!$db->query('SELECT COUNT(*) FROM notes')->fetchColumn()) $db->exec("INSERT INTO notes(owner_id,title) VALUES ('1','Demo note')");
 $db->exec("CREATE TABLE IF NOT EXISTS demo_tasks(id INTEGER PRIMARY KEY AUTOINCREMENT,owner_id TEXT,title TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'new',contact TEXT NOT NULL DEFAULT '',labels TEXT NOT NULL DEFAULT '',archived INTEGER NOT NULL DEFAULT 0,description TEXT NOT NULL DEFAULT '')");
@@ -246,7 +248,7 @@ blade_demo_contacts_setup($db);
 $rules[] = ['1', 'demo_contacts', ['list', 'get', 'create', 'update', 'delete']];
 $rules[] = [(string) $reader, 'demo_contacts', ['list', 'get']];
 // Provider list (service-report.php): rows computed in PHP; reading for both, the re-check for the demo account.
-$rules[] = ['1', 'demo_service_report', ['list', 'get', 'recheck']];
+$rules[] = ['1', 'demo_service_report', ['list', 'get', 'recheck', 'audit']];
 $rules[] = [(string) $reader, 'demo_service_report', ['list', 'get']];
 // Conditional form sections (modules/notifications.json, FB-0240): notification rules whose text sections follow the
 // switch and whose delivery sections follow the delivery choice; the weekly summary is switched off and keeps its text.

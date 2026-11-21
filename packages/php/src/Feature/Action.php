@@ -20,9 +20,15 @@ final readonly class Action
      * Accordion fills its region (needs an accordion $formSections).
      * $commandLabel: optional list command caption (also its form window title), translated like $label. Null keeps
      * the built-in create/update captions and otherwise $label; the submit label and execution are unchanged.
+     * $job (docs/workspaces.md#jobs): the action starts a long-running job and answers `{job: {id, resource, action}}`.
+     * `true` runs the handler `fn(Context, array $target, array $values, Job $job)` on 61ade's JobQueue (its inputs are
+     * stored, so no secret or password field); a JobSource is the consumer's own engine, whose start() the executor
+     * calls instead of the handler. $heartbeat: seconds without a report after which the job window warns (5–3600).
      */
-    public function __construct(public string $resource, public string $name, public string $label, public array $fields, public \Closure $handler, public ?\Closure $resolve = null, public bool $write = false, public bool $collection = false, public array $channels = ['ui','api'], public ?ListReader $listSource = null, public ?\Closure $formValues = null, public ?\Closure $editHandler = null, public ?string $icon = null, public bool $bulk = false, public ?array $confirm = null, public int|UploadPolicy|null $upload = null, public bool $get = false, public array $display = [], public string $formSections = 'panels', public bool $flushSections = false, public ?string $commandLabel = null)
+    public function __construct(public string $resource, public string $name, public string $label, public array $fields, public \Closure $handler, public ?\Closure $resolve = null, public bool $write = false, public bool $collection = false, public array $channels = ['ui','api'], public ?ListReader $listSource = null, public ?\Closure $formValues = null, public ?\Closure $editHandler = null, public ?string $icon = null, public bool $bulk = false, public ?array $confirm = null, public int|UploadPolicy|null $upload = null, public bool $get = false, public array $display = [], public string $formSections = 'panels', public bool $flushSections = false, public ?string $commandLabel = null, public bool|\Blade\Jobs\JobSource $job = false, public int $heartbeat = 30)
     {
+        if ($job !== false && ($get || $upload !== null || $bulk || $collection || $editHandler !== null || ($job === true && array_filter($fields, static fn($field) => $field->secret || $field->type === 'password')))) throw new \InvalidArgumentException('A job action is a single, JSON action without secret inputs: '.$resource.'.'.$name);
+        if ($heartbeat < 5 || $heartbeat > 3600) throw new \InvalidArgumentException('A job heartbeat is 5 to 3600 seconds.');
         if ($commandLabel !== null && trim($commandLabel) === '') throw new \InvalidArgumentException('A command label must not be empty.');
         if ($flushSections && $formSections === 'panels') throw new \InvalidArgumentException('Flush sections need accordion form sections.');
         if (!in_array($formSections, self::FORM_SECTIONS, true)) throw new \InvalidArgumentException('Invalid form sections: '.$formSections);

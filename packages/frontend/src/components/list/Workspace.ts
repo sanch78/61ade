@@ -28,6 +28,7 @@ import { CellStatus } from "../CellStatus";
 import { ListActions, type ActionHost } from "./actions";
 import type { FieldDefinition, Region, ViewDefinition, WorkspaceHooks, WorkspaceScope } from "./types";
 import { narrow } from "../../Viewport";
+import { jobs } from "../job/Jobs";
 
 /** The history-state key of a list page left through a `page` navigation (Workspace.openPage). */
 const RETURN="blade.list.return";
@@ -521,7 +522,12 @@ export class Workspace implements ActionHost {
     if(this.disposed||!this.setFilter(field,value))return;
     this.keepFilters();await this.load();
   }
-  call(action:string,id:string|null=null,values:Record<string,unknown>={},signal?:AbortSignal):Promise<any>{return this.request(this.view.resource,action,id,values,signal);}
+  call(action:string,id:string|null=null,values:Record<string,unknown>={},signal?:AbortSignal):Promise<any>{
+    // A job action (docs/toolkit.md#jobs) starts its job with a token and opens the job window; its answer is `{job}`.
+    const definition=this.view.actions.find(a=>a.name===action);
+    if(definition?.job&&this.view.resource)return jobs.start(this.view.resource,action,{id,values,signal,title:definition.label}).then(job=>({job}));
+    return this.request(this.view.resource,action,id,values,signal);
+  }
   /** The JSON channel; another resource is the file manager of a `file` field (picker, upload target). */
   private request(resource:string,action:string,id:string|null=null,values:Record<string,unknown>={},signal?:AbortSignal):Promise<any>{return server.call(resource,action,{id,values,signal});}
   async error(e:unknown):Promise<void>{if(!this.disposed)await acknowledge({title:t("Hiba"),severity:"danger",message:errorText(e,this.view.actions.flatMap(a=>a.fields))});}

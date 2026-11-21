@@ -54,7 +54,7 @@ final class ViewMetadata
     /** `usages: true` on a delete with registered UsageProviders (the client previews first); `upload`: the policy metadata of an UploadPolicy action. */
     public function extras(Action $action): array
     {
-        return [...($action->name==='delete'&&$this->registry->usageProviders($action->resource)?['usages'=>true]:[]),...($action->upload instanceof UploadPolicy?['upload'=>$action->upload->metadata()]:[])];
+        return [...($action->name==='delete'&&$this->registry->usageProviders($action->resource)?['usages'=>true]:[]),...($action->upload instanceof UploadPolicy?['upload'=>$action->upload->metadata()]:[]),...($action->job!==false?['job'=>['heartbeat'=>$action->heartbeat]]:[])];
     }
     /** Confirmation metadata of $action (labels translated; message and title by `Translator::presentation`). */
     public static function confirm(Action $action): ?array

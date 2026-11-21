@@ -6,9 +6,12 @@ declare(strict_types=1);
  * every read, not an SQL table. The closure gives every row; 61ade filters, sorts, windows, counts and observes them like
  * an SQL list, and the report's generation time reaches the list as its notice. The states change every minute, so the
  * live list refreshes on its own. The `Újraellenőrzés` record action shows a consumer action on a provider row.
+ * `Régióellenőrzés` is a long-running job (docs/workspaces.md#jobs) on 61ade's JobQueue: one step per service of the
+ * row's region, about 1.5 s each, with log lines, a checkpoint per step and `Megszakítás`.
  */
 
 use Blade\Feature\{Action, Context, Field, ProviderResource, View, Workspace};
+use Blade\Jobs\Job;
 
 /** The report's rows at $minute: 36 services in four regions, state and latency derived from the minute. */
 function blade_demo_service_rows(int $minute): array
@@ -47,7 +50,25 @@ function blade_demo_service_report_register(Workspace $workspace): void
     // A consumer action on a provider row: the target comes from the provider (ProviderResource::target).
     $workspace->registry->add(new Action('demo_service_report', 'recheck', 'Újraellenőrzés', [], static fn(Context $ctx, array $target): array => ['reveal' => ['label' => 'Újraellenőrzés', 'value' => $target['row']['name'].' ('.$target['row']['region'].'): '.($target['row']['state'] === 'ok' ? 'működik' : 'továbbra is hibás'), 'note' => 'Szimulált ellenőrzés.']],
         resolve: static fn(Context $ctx, ?string $id): array => $report->target($ctx, $id), icon: 'bi bi-arrow-repeat'));
-    $workspace->registry->appendViewActions('demo_service_report', ['recheck']);
+    // A long-running job on a provider row (docs/workspaces.md#jobs): runs after the response, reports each step.
+    $workspace->registry->add(new Action('demo_service_report', 'audit', 'Régióellenőrzés', [], static function (Context $ctx, array $target, array $values, Job $job): ?array {
+        $region = $target['row']['region'];
+        $services = array_values(array_filter(blade_demo_service_rows(intdiv(time(), 60)), static fn($row) => $row['region'] === $region));
+        $from = ($job->checkpoint()['done'] ?? 0) + 1;
+        $job->log("A(z) $region régió ellenőrzése: ".count($services).' szolgáltatás.');
+        for ($i = $from; $i <= count($services); $i++) {
+            if ($job->cancelled()) { $job->log('Az ellenőrzés megszakítva.', 'warning'); return null; }
+            $service = $services[$i - 1];
+            $job->step($i, count($services)); $job->stage('Ellenőrzés: '.$service['name']); $job->progress(($i - 1) * 100 / count($services));
+            usleep(1_500_000);
+            $job->log($service['name'].': '.['ok' => 'működik', 'degraded' => 'lassú', 'down' => 'leállt'][$service['state']], $service['state'] === 'ok' ? 'info' : ($service['state'] === 'down' ? 'error' : 'warning'));
+            $job->checkpoint(['done' => $i]);
+        }
+        $job->progress(100);
+        $faulty = count(array_filter($services, static fn($row) => $row['state'] !== 'ok'));
+        return ['reveal' => ['label' => 'Régióellenőrzés', 'value' => "$region: ".($faulty ? "$faulty hibás szolgáltatás" : 'minden szolgáltatás működik'), 'note' => 'Szimulált ellenőrzés.']];
+    }, resolve: static fn(Context $ctx, ?string $id): array => $report->target($ctx, $id), icon: 'bi bi-list-check', job: true, heartbeat: 10));
+    $workspace->registry->appendViewActions('demo_service_report', ['recheck', 'audit']);
     // A record view of a provider row (the module's kind demo.service-page): double-click or Enter opens it; `Adatok` stays.
     $workspace->registry->addView(new View('demo.service-page', 'demo.service-page', 'Szolgáltatáslap', 'demo_service_report', record: 'demo_service_report', actions: ['get'], recordTitle: 'name', locationBackTarget: 'demo_service_report', icon: 'bi bi-hdd-network'));
 }
