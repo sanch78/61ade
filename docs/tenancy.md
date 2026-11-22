@@ -127,7 +127,10 @@ gets 409, and a table that holds a repeated key anyway serves no list or record
 of that resource (a generic 500, with a developer error in the log). A partial
 unique index does not count. On MySQL only a real unique index also stops two
 simultaneous creates of one key. With related storage the key cannot be renamed
-(409), and the related row follows the key as the database stored it.
+(409), and the related row follows the key as the database stored it. The
+related key column must compare at least as strictly as a text key, so a numeric
+or case-insensitive related key over a case-sensitive text key is refused with
+a developer error. An empty key that would be stored as `NULL` is refused (400).
 
 ACL rules are global, so a rule with scope `id` or a delegation link names a key
 in every tenant the actor belongs to. It never reaches a tenant the actor is not
@@ -162,6 +165,8 @@ tenant_singleton: true}`.
 - A tenant without a row reads the field defaults, and a read creates nothing.
   The first `update` creates the row and stores those defaults with the edited
   values. Of two simultaneous first saves the later one gets 409 and reloads.
+  On MySQL this can also happen between different tenants, because a read of a
+  missing row locks its index gap. No data is lost, and the save works on retry.
 - Without an active tenant it is refused (403), like every scoped resource.
 - `computed` is safe; its values are empty until the row exists.
 - The ACL object is the tenant's key, so a rule with scope `id` names the tenant

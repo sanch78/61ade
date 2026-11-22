@@ -85,7 +85,8 @@ final class SqlResource
         if (($sharedTenant !== null && ($tenantColumn === null || !preg_match('/^[a-zA-Z0-9_.:-]{0,100}$/D', $sharedTenant))) || ($sharedRoles && $sharedTenant === null)
             || !array_is_list($sharedRoles) || count($sharedRoles) > 20 || count(array_unique($sharedRoles)) !== count($sharedRoles)
             || array_filter($sharedRoles, static fn($role) => !is_string($role) || !preg_match('/^[a-z][a-z0-9_]*$/D', $role))) throw new \InvalidArgumentException('Invalid shared tenant declaration.');
-        if ($tenantColumn !== null && (in_array($tenantColumn,[...($tenantSingleton?[]:[$key]),$ownerColumn,...array_keys($defaults),...array_map(static fn($f)=>$f->name,$fields)],true) || in_array($tenantColumn,array_merge(...$unique ?: [[]]),true))) throw new \InvalidArgumentException('The tenant column is set by the server only.');
+        // SQL column names ignore case, so another spelling of the tenant column is the same column.
+        if ($tenantColumn !== null && (in_array(strtolower($tenantColumn),array_map('strtolower',array_filter([...($tenantSingleton?[]:[$key]),$ownerColumn,...array_keys($defaults),...array_map(static fn($f)=>$f->name,$fields),...array_merge(...$unique ?: [[]])],'is_string')),true))) throw new \InvalidArgumentException('The tenant column is set by the server only.');
         if ($tenantSingleton && ($tenantColumn === null || $key !== $tenantColumn || $selfOnly || $ownerColumn !== null || $sharedTenant !== null || $order !== null || $delegation !== null || $related || $counts || $unique || $createOnly || $where !== '1=1'
             || array_filter($fields, static fn($f) => $f->validation['unique'] ?? false))) throw new \InvalidArgumentException('Invalid tenant singleton: '.$resource);
         foreach ([$table,$key,...array_keys($defaults),...array_map(static fn($f)=>$f->name,$fields),...($ownerColumn?[$ownerColumn]:[]),...($tenantColumn!==null?[$tenantColumn]:[])] as $column) if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/D',$column)) throw new \InvalidArgumentException('Invalid SQL identifier');
@@ -94,6 +95,8 @@ final class SqlResource
     private bool $archiveColumns=false;
     /** Whether the database keeps the key unique (keyIndexed()), read once on the connection in use. */
     private ?bool $keyUnique=null;
+    /** Whether every related key compares at least as strictly as the key (relatedKeysExact()), read once. */
+    private ?bool $relatedExact=null;
     private function archive(): bool { return $this->deletePolicy==='archive'; }
     /** The tenant realm of $ctx (Registry::realm(): `read` values, `write` value); null when unscoped; fails closed. */
     private function realm(Context $ctx): ?array
@@ -152,13 +155,45 @@ final class SqlResource
         foreach($db->query("SHOW INDEX FROM `{$this->table}` WHERE Non_unique = 0")->fetchAll(\PDO::FETCH_ASSOC) as $part)$indexes[$part['Key_name']][]=$part['Column_name'];
         return in_array([$this->key],$indexes,true);
     }
+    /** A key column's comparison: numeric (canonical values) or text under a collation; null when it cannot be read. */
+    private static function keyColumn(\PDO $db, string $table, string $column): ?array
+    {
+        if($db->getAttribute(\PDO::ATTR_DRIVER_NAME)==='mysql'){
+            $q=$db->prepare('SELECT DATA_TYPE, COLLATION_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?');$q->execute([$table,$column]);
+            $found=$q->fetch(\PDO::FETCH_NUM);
+            return $found?['numeric'=>in_array(strtolower((string)$found[0]),['tinyint','smallint','mediumint','int','bigint','decimal','float','double'],true),'collation'=>strtolower((string)$found[1])]:null;
+        }
+        foreach($db->query("PRAGMA table_info($table)")->fetchAll(\PDO::FETCH_ASSOC) as $found){
+            if(strcasecmp((string)$found['name'],$column)!==0)continue;
+            $sql=(string)$db->query("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ".$db->quote($table))->fetchColumn();
+            preg_match('/(?:^|[(,\s"`\[])'.preg_quote($column,'/').'["`\]]?\s[^,]*?\bCOLLATE\s+"?(\w+)/i',$sql,$collation);
+            return ['numeric'=>(bool)preg_match('/INT|REAL|FLOA|DOUB|NUM|DEC/i',(string)$found['type']),'collation'=>strtolower($collation[1]??'binary')];
+        }
+        return null;
+    }
+    /** A related key that compares more loosely than a text key ('ABC' = 'abc', '007' = 7) would join two tenants' records. */
+    private function relatedKeysExact(\PDO $db): bool
+    {
+        if(!in_array($db->getAttribute(\PDO::ATTR_DRIVER_NAME),['sqlite','mysql'],true))return true;
+        $base=self::keyColumn($db,$this->table,$this->key);
+        if($base===null)return false;
+        if($base['numeric'])return true;
+        foreach($this->related as $storage){
+            $column=self::keyColumn($db,$storage->table,$storage->key);
+            if($column===null||$column['numeric']||($column['collation']!==$base['collation']&&$column['collation']!=='binary'&&!str_ends_with($column['collation'],'_bin')))return false;
+        }
+        return true;
+    }
     /**
-     * Fails closed: a key-bound resource whose table holds a repeated key serves no list or record. After a write
-     * ($written) the same finding is a 409, so the executor's rollback undoes a key the database generated.
+     * Fails closed: a key-bound resource whose table holds a repeated key, or whose related key compares more loosely,
+     * serves no list or record. After a write ($written) a repeated key is a 409, so the executor's rollback undoes a key
+     * the database generated.
      */
     private function keyReady(Context $ctx, bool $written = false): void
     {
-        if(!$this->keyBound()||($this->keyUnique??=$this->keyIndexed($ctx->db)))return;
+        if(!$this->keyBound())return;
+        if($this->related&&!($this->relatedExact??=$this->relatedKeysExact($ctx->db)))throw new \LogicException("The related key of {$this->resource} must compare as strictly as its key, which must be unique across tenants.");
+        if($this->keyUnique??=$this->keyIndexed($ctx->db))return;
         if($ctx->db->query("SELECT 1 FROM {$this->table} GROUP BY {$this->key} HAVING COUNT(*) > 1 LIMIT 1")->fetchColumn()===false)return;
         if($written)throw new Failure('Ilyen bejegyzés már létezik.',409);
         throw new \LogicException("The key of {$this->resource} must be unique across tenants: it has related, delegation or shared storage.");
@@ -273,14 +308,10 @@ final class SqlResource
     {
         if($id!=='self')throw new Failure('Nem található objektum.',404);
         $tenant=$this->realm($ctx)['write'];
-        // The ACL object is the tenant's key, as in the list; `self` is only the address. A missing row takes no lock, so
-        // on MySQL the first saves of different tenants share no gap lock.
-        $q=$ctx->db->prepare("SELECT * FROM {$this->table} WHERE {$this->key} = ?");
+        // The ACL object is the tenant's key, as in the list; `self` is only the address. On MySQL the locking read comes
+        // first: a plain read would fix the snapshot before a lock wait, and what the save reads next would be stale.
+        $q=$ctx->db->prepare("SELECT * FROM {$this->table} WHERE {$this->key} = ?".($ctx->db->getAttribute(\PDO::ATTR_DRIVER_NAME)==='mysql'?' FOR UPDATE':''));
         $q->execute([$tenant]);$row=$q->fetch(\PDO::FETCH_ASSOC);
-        if($row&&$ctx->db->getAttribute(\PDO::ATTR_DRIVER_NAME)==='mysql'){
-            $q=$ctx->db->prepare("SELECT * FROM {$this->table} WHERE {$this->key} = ? FOR UPDATE");
-            $q->execute([$tenant]);$row=$q->fetch(\PDO::FETCH_ASSOC);
-        }
         if(!$row)return ['id'=>'self','acl_id'=>(string)$tenant,'owner'=>null,'new'=>true,'row'=>[...array_column(array_map(static fn($f)=>['name'=>$f->name,'value'=>$f->defaultValue],$this->fields),'value','name'),...$this->defaults,$this->key=>$tenant]];
         if($this->computed){
             $q=$ctx->db->prepare('SELECT '.implode(', ',array_map(static fn($name,$sql)=>"CAST(($sql) AS CHAR) AS `$name`",array_keys($this->computed),$this->computed))." FROM {$this->table} blade_base WHERE blade_base.{$this->key} = ?");
@@ -461,9 +492,16 @@ final class SqlResource
             $id=$target?'self':(($values[$this->key]??'')!==''?$values[$this->key]:$ctx->db->lastInsertId());
             if(!$target&&$this->keyBound()){
                 $this->keyReady($ctx,true);
-                // Related rows follow the key as stored ('007' in an integer key is 7), found within this tenant.
+                // A nullable key without a value stores NULL: no record could be opened by it.
+                $given=($values[$this->key]??'')!=='';
+                if(!$given&&$ctx->db->query("SELECT 1 FROM {$this->table} WHERE {$this->key} IS NULL LIMIT 1")->fetchColumn()!==false)throw new Failure('Hiányzó objektum.',400);
+                // Related rows follow the key as stored ('007' in an integer key is 7), found within this tenant. A generated
+                // key is found by its rowid on SQLite; on MySQL lastInsertId() is 0 unless the key is AUTO_INCREMENT.
                 if($this->related){
-                    $q=$ctx->db->prepare("SELECT {$this->key} FROM {$this->table} WHERE {$this->key} = ? AND {$this->tenantColumn} = ?");$q->execute([$id,$tenant]);
+                    $sqlite=$ctx->db->getAttribute(\PDO::ATTR_DRIVER_NAME)==='sqlite';
+                    if(!$given&&!$sqlite&&(string)$id==='0')throw new \LogicException("The new key of {$this->resource} cannot be read back within its tenant.");
+                    $column=!$given&&$sqlite?'rowid':$this->key;
+                    $q=$ctx->db->prepare("SELECT {$this->key} FROM {$this->table} WHERE $column = ? AND {$this->tenantColumn} = ?");$q->execute([$id,$tenant]);
                     $id=$q->fetchColumn();
                     if($id===false||$id===null)throw new \LogicException("The new key of {$this->resource} cannot be read back within its tenant.");
                 }

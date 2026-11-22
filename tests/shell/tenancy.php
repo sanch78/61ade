@@ -414,6 +414,14 @@ $kdb->exec("CREATE TABLE defkeys (id TEXT NOT NULL DEFAULT 'main', tenant_id TEX
 foreach(['list','create'] as $action)$kgrant->execute(['defkeys',$action]);
 fails(fn()=>$run($kb,'defkeys','create',null,['title'=>'Béta']),409,'Key-bound: a database-default key another tenant holds is refused');
 check((int)$kdb->query('SELECT COUNT(*) FROM defkeys')->fetchColumn()===1&&count($run($ka,'defkeys','list','',['limit'=>10])['items'])===1,'Key-bound: the refused write is rolled back and the resource keeps working');
+foreach(['loose_rel'=>'record_id TEXT COLLATE NOCASE PRIMARY KEY','int_rel'=>'record_id INTEGER PRIMARY KEY'] as $table=>$column){
+    $kdb->exec("CREATE TABLE $table ($column, extra TEXT)");
+    try{(new SqlResource('loose_'.$table,'codes','id',[new Field('title','Cím'),new Field('extra','Más')],related:[new Blade\Feature\RelatedStorage($table,'record_id',['extra'=>'extra'])],tenantColumn:'tenant_id'))->target($in($ka),'main');throw new RuntimeException('A looser related key accepted: '.$table);}
+    catch(LogicException $e){check(str_contains($e->getMessage(),'compare as strictly'),'Key-bound: a related key that compares more loosely is refused: '.$table);}
+}
+$kdb->exec("INSERT INTO codes VALUES ('2','$kb','kettes')");$kdb->exec("INSERT OR REPLACE INTO pair_extra VALUES ('2','EREDETI')");
+fails(fn()=>$run($kb,'coded','create',null,['id'=>'','title'=>'Üres','extra'=>'FELÜLÍR']),400,'Key-bound: an empty text key is refused');
+check($kdb->query("SELECT extra FROM pair_extra WHERE pair_id='2'")->fetchColumn()==='EREDETI'&&(int)$kdb->query('SELECT COUNT(*) FROM codes WHERE id IS NULL')->fetchColumn()===0,'Key-bound: the refused empty key leaves the related row and stores nothing');
 try{(new SqlResource('shared_pairs','pairs','id',[new Field('title','Cím')],tenantColumn:'tenant_id',sharedTenant:''))->target($in($kb),'x');throw new RuntimeException('Shared rows over a repeated key accepted');}catch(LogicException $e){check(str_contains($e->getMessage(),'unique across tenants'),'Key-bound: shared rows need a unique key');}
 
 $view=$kw->registry->viewById('site');
@@ -459,6 +467,7 @@ foreach([
     'shared rows'=>fn()=>new SqlResource('s','site','tenant_id',[new Field('title','T')],tenantColumn:'tenant_id',sharedTenant:'',tenantSingleton:true),
     'unique field'=>fn()=>new SqlResource('s','site','tenant_id',[new Field('title','T',validation:['unique'=>true])],tenantColumn:'tenant_id',tenantSingleton:true),
     'where'=>fn()=>new SqlResource('s','site','tenant_id',[new Field('title','T')],where:'1=0',tenantColumn:'tenant_id',tenantSingleton:true),
+    'the tenant column in another case'=>fn()=>new SqlResource('s','site','id',[new Field('tenant_id','T')],tenantColumn:'TENANT_ID'),
     'the tenant column as a key without the singleton'=>fn()=>new SqlResource('s','site','tenant_id',[new Field('title','T')],tenantColumn:'tenant_id'),
 ] as $label=>$invalid){try{$invalid();throw new RuntimeException('Tenant singleton accepted: '.$label);}catch(InvalidArgumentException){}}
 unset($kdb,$kw,$pairs,$archived,$site,$kgrant,$in,$run,$stored,$seed,$loose,$money);
