@@ -863,8 +863,8 @@ This applies at every depth and to desktop controls near the right edge too
 ([CommandBar](toolkit.md#commandbar)).
 No consumer configuration; rebuild/prepare assets.
 
-Toolkit popup menus inset row highlights from the frame and keep room for
-short details such as times beside long labels.
+Native toolbar submenus and toolkit popup menus share inset row highlights.
+Toolkit popups keep room for short details such as times beside long labels.
 See [popup menus](toolkit.md#popup-menu).
 
 A collapsed desktop `Menü` is followed by the open feature's sibling menu items

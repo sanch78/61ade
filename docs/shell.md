@@ -1222,6 +1222,10 @@ return. The same rule applies to deeper levels and desktop right-edge controls.
 Escape closes the popup and returns focus to its opener. This also applies
 before sign-in.
 
+Native popup submenus, including the tenant selector, share their row inset,
+corner radius and theme hover and focus treatment with toolkit popup menus.
+See [FB-0262](feedback.md#fb-0262) and [popup menus](toolkit.md#popup-menu).
+
 Idle controls have no background, gradient, rounding or shadow. Hover tints
 all enabled elements with 8 % of `--dhx-color-primary`; an open popup uses
 14 %. Keyboard focus has an inset outline. Blade/Blade Night retain the row's

@@ -124,7 +124,7 @@
 /* The navigation row keeps Blade chrome; its flat controls share the shell's geometry and state colours. */
 [data-blade-theme|="blade"] .blade-navigation-row { background-image: var(--blade-chrome); }
 
-[data-blade-theme|="blade"] .dhx_menu--popup-menu .dhx_menu-button:is(:hover, :focus-visible):not(:disabled) {
+[data-blade-theme|="blade"] ul.dhx_menu[role="menu"] > .dhx_menu-item > .dhx_menu-button:is(:hover, :focus-visible):not(:disabled) {
   background-image: var(--blade-pill);
   box-shadow: inset 0 0 0 1px var(--blade-pill-ring), 0 1px 3px var(--blade-pill-glow);
 }
