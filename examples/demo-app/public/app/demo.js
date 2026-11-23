@@ -96,7 +96,7 @@ function viewer(app, host, view) {
       tree: phone ? { rows: [{ id: "player", height: kind === "audio" ? 380 : Math.max(220, Math.round(innerHeight * 0.4)), resizable: true }, { ...details, minHeight: 120 }] } : { cols: [{ id: "player", minWidth: 240, resizable: true }, { ...details, width: 380, minWidth: 240 }] }
     });
     layout.mount(root);
-    const left = new app.dhx.Layout(null, { type: "none", rows: [{ id: "commands", height: 48 }, { id: "stage" }] });
+    const left = new app.dhx.Layout(null, { type: "none", rows: [{ id: "commands", height: app.ui.headerRowHeight }, { id: "stage" }] });
     layout.attach("player", left);
     player = void 0;
     frame = void 0;
@@ -1482,7 +1482,7 @@ function page(app, host, view) {
       empty.textContent = t("A jegyzetek nem \xE9rhet\u0151k el.");
       layout.attach("notes", empty);
     }
-    const box = new app.dhx.Layout(null, { type: "none", rows: [{ id: "commands", height: 48 }, { id: "stage" }, { id: "footer", height: 48 }] });
+    const box = new app.dhx.Layout(null, { type: "none", rows: [{ id: "commands", height: app.ui.headerRowHeight }, { id: "stage" }, { id: "footer", height: app.ui.headerRowHeight }] });
     layout.attach("sketch", box);
     const tools = new app.components.CommandBar({ label: t("V\xE1zlat"), signal, items: [
       {
@@ -1727,7 +1727,7 @@ var workbench = (app) => {
         return days <= 0 ? clock3.format(at) : days < 7 ? relative.format(-days, "day") : date.format(at);
       };
       let draft = list[0].id, model, effort = "";
-      const layout = new app.dhx.Layout(document.createElement("div"), { type: "none", rows: [{ id: "head", height: 48 }, { id: "body" }, { id: "attachments", height: "content" }, { id: "composer", height: 48 }] });
+      const layout = new app.dhx.Layout(document.createElement("div"), { type: "none", rows: [{ id: "head", height: app.ui.headerRowHeight }, { id: "body" }, { id: "attachments", height: "content" }, { id: "composer", height: 48 }] });
       const stored = app.viewDefinition("demo_attachments")?.actions.flatMap((a) => a.fields ?? []).find((f) => f.file && "upload" in f.file)?.file;
       const policy = stored && "upload" in stored && stored.canUpload ? stored.policy : null;
       const files = policy ? new app.components.Attachments({
@@ -1836,7 +1836,7 @@ function sheet(app, host, view) {
   host.setTitle(`${view.title}: ${String(host.record.row.title ?? host.record.id)}`);
   const controller = new AbortController(), signal = controller.signal;
   host.signal.addEventListener("abort", () => controller.abort(), { once: true });
-  const layout = new app.dhx.Layout(null, { type: "none", rows: [{ id: "commands", height: 48 }, { id: "details" }] });
+  const layout = new app.dhx.Layout(null, { type: "none", rows: [{ id: "commands", height: app.ui.headerRowHeight }, { id: "details" }] });
   host.attach(layout);
   const bar = new app.components.CommandBar({ signal, items: [{ id: "back", label: t("Vissza a list\xE1hoz"), icon: "bi bi-arrow-left" }] });
   bar.on("click", ({ id }) => {

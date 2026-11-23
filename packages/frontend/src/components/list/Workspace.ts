@@ -1,3 +1,4 @@
+import { HEADER_ROW_HEIGHT } from "../../HeaderRow";
 import { locale, t } from "../../I18n";
 import { ResponsiveToolbar } from "../../ResponsiveToolbar";
 import { fitWindow, formLayout } from "../../WindowSizing";
@@ -130,7 +131,7 @@ export class Workspace implements ActionHost {
       ...(node.id==="grid"&&!inner?{headerIcon:"blade-list-count",css:"blade-list-panel"}:{}),
       ...(node.rows?{rows:node.rows.map(region)}:{}),...(node.cols?{cols:node.cols.map(region)}:{})});
     this.layout=new Layout(host,{type:inner?"none":"space",css:scope?.compact?"blade-subview":inner?"blade-feature-fill":undefined,...(view.singleton
-      ?{rows:[{id:"body",header:view.title,rows:[{id:"commands",height:48,css:"blade-command-row"},{id:"detail"}]}]}
+      ?{rows:[{id:"body",header:view.title,rows:[{id:"commands",height:HEADER_ROW_HEIGHT,css:"blade-command-row"},{id:"detail"}]}]}
       :region(inner?view.layout.tree:this.preferences.layoutTree(view.layout.tree)))});
     if(!view.singleton&&!inner)this.preferences.bindLayout(this.layout,view.layout.tree);
     collapseMotion(this.layout);
@@ -145,7 +146,7 @@ export class Workspace implements ActionHost {
     else{
       // A declared search (`view.search`) gets its own native Toolbar input: the command bar may collapse into a menu.
       const search=!!view.search?.fields?.length;
-      this.content=new Layout(document.createElement("div"),{type:"none",css:"blade-grid-content",rows:[scope?.compact?{id:"commands",height:0,hidden:true}:scope?.shared?{id:"commands",height:0,hidden:true}:search?{height:48,css:"blade-command-row",cols:[{id:"search",width:Math.min(280,Math.max(150,Math.round(innerWidth*.4))),css:"blade-search-cell"},{id:"commands"}]}:{id:"commands",height:48,css:"blade-command-row"},{id:"notice",height:"content",hidden:true,css:"blade-list-notice-row"},{id:"data"}]});
+      this.content=new Layout(document.createElement("div"),{type:"none",css:"blade-grid-content",rows:[scope?.compact?{id:"commands",height:0,hidden:true}:scope?.shared?{id:"commands",height:0,hidden:true}:search?{height:HEADER_ROW_HEIGHT,css:"blade-command-row",cols:[{id:"search",width:Math.min(280,Math.max(150,Math.round(innerWidth*.4))),css:"blade-search-cell"},{id:"commands"}]}:{id:"commands",height:HEADER_ROW_HEIGHT,css:"blade-command-row"},{id:"notice",height:"content",hidden:true,css:"blade-list-notice-row"},{id:"data"}]});
       this.content.getCell("commands").attach(this.commands);
       if(search)this.search=new ListSearch(this.content.getCell("search"),()=>void this.load());
       const dataHost=document.createElement("div");

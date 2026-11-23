@@ -1,3 +1,4 @@
+import { HEADER_ROW_HEIGHT } from "./HeaderRow";
 import { locale, t } from "./I18n";
 import { Form, Layout, Toolbar, Window, awaitRedraw, message } from "@dhtmlx/suite";
 import { ResponsiveGrid } from "./ResponsiveGrid";
@@ -445,7 +446,7 @@ export class FilePicker{
     const label=t("Fájl kiválasztása: {field}",{field:title});
     this.win=new Window({css:"blade-content-window blade-file-picker-window",title:escape(label),ariaLabel:label,width:Math.min(880,innerWidth-24),height:Math.min(640,innerHeight-24),modal:true,closable:true,resizable:true});
     const layout=new Layout(document.createElement("div"),{type:"none",css:"blade-file-picker",rows:[
-      {height:48,css:"blade-command-row blade-file-find",cols:[{id:"search",css:"blade-search-cell"},{id:"find",width:Math.min(260,Math.max(160,Math.round(innerWidth*.25)))}]},
+      {height:HEADER_ROW_HEIGHT,css:"blade-command-row blade-file-find",cols:[{id:"search",css:"blade-search-cell"},{id:"find",width:Math.min(260,Math.max(160,Math.round(innerWidth*.25)))}]},
       {id:"body",css:"blade-file-picker__body"},
       {id:"actions",height:"content",css:"blade-file-picker__actions"},
     ]});

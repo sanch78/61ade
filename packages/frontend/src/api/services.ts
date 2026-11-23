@@ -13,6 +13,7 @@ import { UiPreferences, type WindowGeometry } from "../UiPreferences";
 import { account } from "../AccountPreferences";
 import type { AppWindow, I18n, Identity, Live, Mountable, Preferences, PreferenceStore, Theme, Ui, Uploads, WindowOptions } from "./types";
 import { narrow, onViewport } from "../Viewport";
+import { HEADER_ROW_HEIGHT } from "../HeaderRow";
 
 /**
  * Thin toolkit services over the existing shell modules (toolkit K-F2). They add no behaviour of their own: the
@@ -365,6 +366,7 @@ export function openWindow(options: WindowOptions & { css?: string }, user = "")
 }
 
 export const ui: Ui = {
+  headerRowHeight: HEADER_ROW_HEIGHT,
   dialog: options => showDialog(options),
   choice: options => requestChoice(options),
   toast(text, severity = "neutral") {

@@ -146,9 +146,11 @@ often as needed; a cell that showed markup takes a component too
 
 A page or tab with its own commands attaches a `type: "none"` Layout with a
 `CommandBar` row above the content, full width immediately below the tab
-header. Content padding and scrolling stay below the bar; a list keeps its
-own record commands ([page and tab command rows](toolkit.md#page-command-bars),
-[FB-0213](feedback.md#fb-0213)).
+header. Use `app.ui.headerRowHeight` for the Layout row so it matches the
+48 px tab header. A plain element mount gets the standard height from the
+bar. Content padding and scrolling stay below the bar. A list keeps its own
+record commands. See [page and tab command rows](toolkit.md#page-command-bars)
+and [FB-0213](feedback.md#fb-0213).
 
 A panel following a list's active record uses `list.on("target", ({view, row,
 rows}) => …)` and `list.target()`: these include selected expanded rows and

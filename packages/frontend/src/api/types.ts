@@ -331,6 +331,8 @@ export interface AppWindow {
 
 /** Dialogs, toasts, windows and cell content (over `MessageDialog.ts`, Suite `message` and `WindowSizing.ts`). */
 export interface Ui {
+  /** Standard tab and command row height in CSS pixels, for Layout cells. */
+  readonly headerRowHeight: number;
   /** Modal alert/confirm; resolves `true` for OK/Confirm, `false` for Cancel/Escape. */
   dialog(options: DialogOptions): Promise<boolean>;
   /** Multiple-choice dialog; resolves the chosen value or `null`. */

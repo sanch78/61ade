@@ -50,7 +50,7 @@ const workbench: ApplicationModule = app => {
       const ago = (at: number) => { const days = daysAgo(at); return days <= 0 ? clock.format(at) : days < 7 ? relative.format(-days, "day") : date.format(at); };
       let draft = list[0].id, model: Model | undefined, effort = "";
 
-      const layout = new app.dhx.Layout(document.createElement("div"), { type: "none", rows: [{ id: "head", height: 48 }, { id: "body" }, { id: "attachments", height: "content" }, { id: "composer", height: 48 }] } as any);
+      const layout = new app.dhx.Layout(document.createElement("div"), { type: "none", rows: [{ id: "head", height: app.ui.headerRowHeight }, { id: "body" }, { id: "attachments", height: "content" }, { id: "composer", height: 48 }] } as any);
       // Attachments go to the stored-file upload action of the attachments demo (pending uploads, expired by the project).
       const stored = app.viewDefinition("demo_attachments")?.actions.flatMap(a => a.fields ?? []).find(f => f.file && "upload" in f.file)?.file;
       const policy = stored && "upload" in stored && stored.canUpload ? stored.policy : null;

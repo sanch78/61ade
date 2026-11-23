@@ -148,10 +148,10 @@ tree as decoration for a flat list.
   cell (`Tabs.attach` or `PageLayout.attach` for a tab). The command row fills
   the width and meets the tab header without an outer inset or gap; the
   native toolbar keeps its own button inset, divider and shadow.
-- Give the command row its own Layout row of the standard height
-  (`--blade-command-bar-height`, 48 px; a bar mounted into a plain element
-  gets it by itself) and put the content in the remaining row. Never set a
-  bar height of a project's own. Any content padding, framed panel
+- Give the command row its own Layout row with `height: app.ui.headerRowHeight`
+  (48 px, also the tab header height). A bar mounted into a plain element
+  gets the standard height by itself. Put the content in the remaining row.
+  Any content padding, framed panel
   layout or scrolling belongs below the bar. Do not wrap the whole pair in
   a padded element or another `space`/one-region `PageLayout` just to host
   the commands, and do not move the bar into place with CSS.

@@ -178,7 +178,7 @@ each member with one example.
 | `apiVersion` | `1` ([O11](#resolved-decisions)); a value of `app` only, `admin.d.ts` declares just its type `ApiVersion` | — |
 | `dhx` | The Suite namespace the shell uses (one instance, Standard edition) | `@dhtmlx/suite` import of the bundle |
 | `server` | Action calls, raw responses, `__form`, GET URLs | six private `fetch` transports, `ActionUrl.ts` |
-| `ui` | `dialog`, `choice`, `toast`, `window`, `attach` ([cell content](#cell-content)), `menu` ([popup menu](#popup-menu)) | `MessageDialog.ts`, Suite `message`, `WindowSizing.ts`, Suite `ContextMenu` |
+| `ui` | `dialog`, `choice`, `toast`, `window`, `attach` ([cell content](#cell-content)), `menu` ([popup menu](#popup-menu)), `headerRowHeight` ([standard header row](#page-command-bars)) | `MessageDialog.ts`, Suite `message`, `WindowSizing.ts`, Suite `ContextMenu`, `HeaderRow.ts` |
 | `uploads` | `open`, `reopen` of the shared uploader | `Uploader.ts` `uploads` |
 | `i18n` | `t`, `locale`, `languages` | `I18n.ts` |
 | `theme` | `current`, `skin`, `onChange(listener, {signal})` | AdminShell theme/skin handling |
@@ -2124,11 +2124,11 @@ tabs.on("change", ({ id }) => {
   labelled by its tab, and only the open tab is in the page's tab order. Tab
   buttons get the theme's inset focus ring.
 - Presentation (every skin, from the Suite and skin variables): the tab row
-  is the panel's header (37 px, the header surface, Blade chrome and title
-  type, its divider); tabs start at the panel's edge with dividers between
-  them and labels on the content's 20 px inset; the open tab has the panel's
-  surface and an accent top edge and no divider below it, so it opens into its
-  content like a folder. The divider continues across the unused width beside
+  is the panel's header. It uses the standard 48 px header row height, the
+  header surface, Blade chrome and title type. Tabs start at the panel's edge
+  with dividers between them and labels on the content's 20 px inset. The
+  open tab has the panel's surface and an accent top edge and opens directly
+  into its content like a folder. The divider continues across the unused width beside
   the tabs, matching the line below inactive tabs. The header fills at least
   the row width while retaining Suite's overflow scrolling. Suite's sliding
   underline is not used. The DOM ids Suite derives from tab
@@ -3384,7 +3384,7 @@ host's signal aborts; components get its `signal`, and the Layout's
 cells first ([record view example](#example-record-view)):
 
 ```ts
-const layout = new app.dhx.Layout(null, { type: "none", rows: [{ id: "commands", height: 48 }, { type: "line", cols: [{ id: "stage" }, { id: "details", width: 380 }] }] });
+const layout = new app.dhx.Layout(null, { type: "none", rows: [{ id: "commands", height: app.ui.headerRowHeight }, { type: "line", cols: [{ id: "stage" }, { id: "details", width: 380 }] }] });
 host.attach(layout);                                  // the new content replaces the old one first
 previous?.abort();                                    // then the previous build is released
 new app.components.RecordDetails({ view: list, record: row, signal }).mount(layout.getCell("details"));
@@ -3396,10 +3396,14 @@ signal.addEventListener("abort", () => layout.destructor(), { once: true });
 
 ### Page and tab command rows
 
-A composed page or tab's own commands use `CommandBar` in the first, 48 px
-row of a `type: "none"` Layout attached directly to the host cell. In a tab,
-the bar spans the panel immediately below the tab header. The content fills
-the remaining row; its padding, panel frames and scrolling stay in that row.
+A composed page or tab's own commands use `CommandBar` in the first row of a
+`type: "none"` Layout attached directly to the host cell. Size that row using
+`app.ui.headerRowHeight`. This read-only value is 48 CSS px for framework
+tab headers and standard command rows in every skin and viewport. Plain
+element mounts of `CommandBar` use the same value through
+`--blade-command-bar-height`. In a tab, the bar spans the panel immediately
+below the tab header. The content fills the remaining row and owns its padding,
+panel frames and scrolling.
 The toolbar supplies its own button inset, divider and shadow. Reusable
 presentation rules are in the
 [61ade-ui skill](../.agents/skills/61ade-ui/SKILL.md#command-bars-in-pages-and-tabs)
@@ -3410,7 +3414,7 @@ the record's view and data, and `signal` is the build's signal:
 
 ```ts
 const body = new app.dhx.Layout(null, { type: "none", rows: [
-  { id: "commands", height: 48 },
+  { id: "commands", height: app.ui.headerRowHeight },
   { id: "content" }
 ] });
 tabs.attach("details", body);
@@ -3446,7 +3450,7 @@ the tab's region and the element to the box's cell (the
 [task page's](demos.md#d7-task-page) `Vázlat` tab):
 
 ```ts
-const box = new app.dhx.Layout(null, { type: "none", rows: [{ id: "commands", height: 48 }, { id: "stage" }, { id: "footer", height: 48 }] });
+const box = new app.dhx.Layout(null, { type: "none", rows: [{ id: "commands", height: app.ui.headerRowHeight }, { id: "stage" }, { id: "footer", height: app.ui.headerRowHeight }] });
 page.attach("sketch", box);                                         // a tab region of a PageLayout
 new app.components.CommandBar({ label: t("Vázlat"), signal, items }).mount(box.getCell("commands"));
 app.ui.attach(box.getCell("stage"), canvas, { signal });            // edge to edge, kept across redraws
@@ -3979,6 +3983,7 @@ Results per phase are recorded in [FB-0081](feedback.md#fb-0081); the plan's
 | M115 | An open `app.ui.window` follows the 768 px breakpoint and keeps its content ([long-lived windows](#long-lived-windows)) | [FB-0260](feedback.md#fb-0260) | info: a project's own reopen on `viewport:change` can go |
 | M116 | A MySQL deadlock (SQLSTATE 40001) in any action answers 409 instead of 500 ([tenant singleton](tenancy.md#tenant-singleton)) | [FB-0258](feedback.md#fb-0258) | info: a project's own 40001 handling can go |
 | M117 | A signed-in user's settings [follow the account](user-preferences-plan.md): new table `blade_user_preferences`, `__preferences`, bootstrap `preferences`. Browser values go up once, fill-only. For one entry the last write wins, and a change that never reached the server is lost when the page closes | [FB-0259](feedback.md#fb-0259) | run `Schema::install`, else the application stays browser-local; a spec that reads `blade-ui:` keys or expects a fresh browser to have default settings must isolate its account |
+| M118 | [Standard header row](#page-command-bars): `app.ui.headerRowHeight` is 48 CSS px. `Tabs` and standard command rows use it | [FB-0263](feedback.md#fb-0263) | info: tab headers grow from 37 px to 48 px. A project command row can use the exported height in its Layout declaration |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the

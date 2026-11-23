@@ -1,3 +1,4 @@
+import { HEADER_ROW_HEIGHT } from "../../HeaderRow";
 import { Layout } from "@dhtmlx/suite";
 import { jobs } from "../job/Jobs";
 import { ResponsiveToolbar } from "../../ResponsiveToolbar";
@@ -40,7 +41,7 @@ export class TreeNavigation {
     this.layout=new Layout(host,{type:"space",...this.preferences.layoutTree(tree)} as any);
     this.preferences.bindLayout(this.layout,tree);
     collapseMotion(this.layout);
-    this.nodes=new Layout(document.createElement("div"),{type:"none",rows:[{id:"commands",height:48,css:"blade-command-row"},{id:"nodes",css:"blade-tree-cell"}]});
+    this.nodes=new Layout(document.createElement("div"),{type:"none",rows:[{id:"commands",height:HEADER_ROW_HEIGHT,css:"blade-command-row"},{id:"nodes",css:"blade-tree-cell"}]});
     // The list's command bar: the actions collapse into `Műveletek` when the panel is narrow.
     this.toolbar=new ResponsiveToolbar(undefined,{data:this.actions().map(action=>({id:action.name,value:escape(action.label),icon:actionIcon(action)}))});
     this.toolbar.events.on("click",(id:string|number)=>{const action=this.actions().find(action=>action.name===String(id));if(action)void this.run(action);});

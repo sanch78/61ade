@@ -5,7 +5,7 @@
 .demo-player { display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0; }
 .demo-player__stage { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 120px; }
 .demo-player__screen { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; background: #000; }
-.demo-player__commands { flex: 0 0 48px; height: 48px; }
+.demo-player__commands { flex: 0 0 var(--blade-command-bar-height); height: var(--blade-command-bar-height); }
 .demo-player .demo-playlist-strip { flex: 0 0 104px; height: 104px; }
 
 /* One layer per item; the entering one starts in its "from" state, the leaving one is released after the transition. */

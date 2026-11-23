@@ -20,7 +20,7 @@ function sheet(app: Application, host: ViewHost, view: ViewDefinition<SheetOptio
   host.setTitle(`${view.title}: ${String(host.record.row.title ?? host.record.id)}`);
   const controller = new AbortController(), signal = controller.signal;
   host.signal.addEventListener("abort", () => controller.abort(), { once: true });
-  const layout = new app.dhx.Layout(null, { type: "none", rows: [{ id: "commands", height: 48 }, { id: "details" }] });
+  const layout = new app.dhx.Layout(null, { type: "none", rows: [{ id: "commands", height: app.ui.headerRowHeight }, { id: "details" }] });
   host.attach(layout);
   const bar = new app.components.CommandBar({ signal, items: [{ id: "back", label: t("Vissza a listához"), icon: "bi bi-arrow-left" }] });
   bar.on("click", ({ id }) => { if (id === "back" && !app.navigate({ view: listId })) host.close(); });

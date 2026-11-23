@@ -84,7 +84,7 @@ function viewer(app: Application, host: ViewHost, view: ViewDefinition<ViewerOpt
         : { cols: [{ id: "player", minWidth: 240, resizable: true }, { ...details, width: 380, minWidth: 240 }] } });
     // The command row belongs to the left-hand player region, beside the collapsible metadata region.
     layout.mount(root);
-    const left = new app.dhx.Layout(null, { type: "none", rows: [{ id: "commands", height: 48 }, { id: "stage" }] });
+    const left = new app.dhx.Layout(null, { type: "none", rows: [{ id: "commands", height: app.ui.headerRowHeight }, { id: "stage" }] });
     layout.attach("player", left);
     player = undefined;
     frame = undefined;

@@ -251,7 +251,7 @@ function page(app: Application, host: ViewHost, view: ViewDefinition<PageOptions
     }
     // `Vázlat`: the record-view recipe inside a tab: a borderless box Layout of a bar, the canvas and a bottom bar.
     // The canvas goes into the box's stage cell edge to edge (no card or inset) and leaves it when the build aborts.
-    const box = new app.dhx.Layout(null, { type: "none", rows: [{ id: "commands", height: 48 }, { id: "stage" }, { id: "footer", height: 48 }] });
+    const box = new app.dhx.Layout(null, { type: "none", rows: [{ id: "commands", height: app.ui.headerRowHeight }, { id: "stage" }, { id: "footer", height: app.ui.headerRowHeight }] });
     layout.attach("sketch", box);
     const tools = new app.components.CommandBar({ label: t("Vázlat"), signal, items: [
       { type: "segmented", id: "color", label: t("Szín"), value: sketch.pen.color,
