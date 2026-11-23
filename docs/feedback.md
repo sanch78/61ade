@@ -1083,3 +1083,7 @@
 <a id="fb-0265"></a>
 
 ## FB-0265 — Forced password-change instruction as a paragraph
+
+<a id="fb-0266"></a>
+
+## FB-0266 — Loading feedback before a record page mounts

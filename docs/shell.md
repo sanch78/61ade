@@ -1186,8 +1186,10 @@ a duplicate throws unless `{replace: true}`.
   instance's `destroy()` runs exactly once; `view:opened` and `view:closed`
   follow. `attach` takes a Suite widget, a component or a plain element (kept
   in a `.blade-view-slot`). A kind that throws shows the shared error dialog
-  and leaves an empty workspace (or closes its window). The live channel asks
-  the open instances' `editing()` before a protocol reload.
+  and leaves an empty workspace (or closes its window). While a record page's
+  row is resolved before its host exists, the workspace shows the
+  [loading indicator](toolkit.md#loading-and-empty-states). The live channel
+  asks the open instances' `editing()` before a protocol reload.
 - **Theme:** `app.theme` reports the applied base theme and skin and calls
   `onChange` listeners after each switch.
 

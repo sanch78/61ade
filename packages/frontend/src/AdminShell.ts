@@ -14,6 +14,7 @@ import { configureWindowSizing } from "./WindowSizing";
 import { attachContent, nonModalOpen, openWindow, themeApplied, workspaceBox } from "./api/services";
 import type { AppWindow, LocationSegment, NavigationTarget, Row, ViewDefinition, ViewHost, ViewInstance, ViewOpenMode } from "./api/types";
 import { createApplication, loadModules, type Kernel } from "./app/Application";
+import { CellStatus } from "./components/CellStatus";
 import { TreeCache } from "./components/list/TreeCache";
 import { parseRoute, routeHash } from "./app/routes";
 import { loadSignInModules, signInApplication, signInThemeApplied } from "./SignIn";
@@ -147,6 +148,13 @@ export class AdminShell {
   private page?: Mounted;
   private windows=new Set<Mounted>();
   private navigation=0;
+  /** The workspace's loading indicator while a page navigation resolves its record, until the target view takes over. */
+  private opening?: CellStatus;
+  /** Ends the indicator for $navigation, unless a later navigation has taken it over. */
+  private settle(navigation:number):void{
+    if(navigation!==this.navigation)return;
+    this.opening?.destroy();this.opening=undefined;
+  }
   /** The location bar below the menu row (application pages only) and the document's own title. */
   private locationBar?: LocationBar;
   private applicationTitle=document.title;
@@ -751,7 +759,7 @@ export class AdminShell {
   /** The empty workspace (unknown or unoffered address, `host.close()` of a page). */
   private clear():void{
     this.renderMenu();
-    ++this.navigation;
+    this.settle(++this.navigation);
     this.layout.getCell("workspace").detach();
     this.unmountAll();
     this.locate();
@@ -857,15 +865,26 @@ export class AdminShell {
   /**
    * Opens a view through its registered kind. A page replaces the workspace (`push`: a history entry, as a menu click);
    * a window (`open: "window"`) keeps the page and the address. A record view's row is resolved first through the
-   * record resource's `get`; its failure shows the error dialog and keeps the current view.
+   * record resource's `get`, for a page under the workspace's loading indicator; its failure shows the error dialog and
+   * keeps the current view.
    */
   private async openView(view:ViewDefinition,options:{record?:string;filters?:Record<string,string>;open?:ViewOpenMode;push?:boolean}={}):Promise<void>{
     const open=options.open??view.open??"page",kind=this.kernel!.kinds.get(view.kind)!;
     const navigation=open==="page"?++this.navigation:this.navigation;
+    if(open==="page"){
+      if(view.record&&options.record!==undefined){
+        (this.opening??=new CellStatus(this.layout.getCell("workspace"))).busy(true);
+        // The address may already be another history entry (Back): the bar's Back button follows it.
+        this.locate();
+      }else this.settle(navigation);
+    }
     let record:ViewHost["record"];
     if(view.record&&options.record!==undefined){
       try{record={resource:view.record,id:options.record,row:await server.call<Row>(view.record,"get",{id:options.record})};}
-      catch(error){if(!this.listeners.signal.aborted&&navigation===this.navigation)await this.failed(error);return;}
+      catch(error){
+        if(!this.listeners.signal.aborted&&navigation===this.navigation){if(open==="page")this.settle(navigation);await this.failed(error);}
+        return;
+      }
       if(this.listeners.signal.aborted||navigation!==this.navigation)return;
     }
     if(open==="window"){void this.mount(view,kind,"window",record,options.filters??{});return;}
@@ -879,11 +898,15 @@ export class AdminShell {
     this.unmountAll();
     await awaitRedraw();
     if(navigation!==this.navigation || this.listeners.signal.aborted)return;
-    await this.mount(view,kind,"page",record,options.filters??{});
+    await this.mount(view,kind,"page",record,options.filters??{},navigation);
   }
 
-  /** Creates the view's `ViewHost` and instance; a throwing kind shows the error dialog and leaves nothing mounted. */
-  private async mount(view:ViewDefinition,kind:{create:(host:ViewHost,view:ViewDefinition)=>ViewInstance|Promise<ViewInstance>},open:ViewOpenMode,record:ViewHost["record"],filters:Record<string,string>):Promise<void>{
+  /**
+   * Creates the view's `ViewHost` and instance; a throwing kind shows the error dialog and leaves nothing mounted.
+   * A page of $navigation takes over from the loading indicator at its first `attach`, at the latest when created.
+   */
+  private async mount(view:ViewDefinition,kind:{create:(host:ViewHost,view:ViewDefinition)=>ViewInstance|Promise<ViewInstance>},open:ViewOpenMode,record:ViewHost["record"],filters:Record<string,string>,navigation?:number):Promise<void>{
+    const settle=()=>{if(navigation!==undefined)this.settle(navigation);};
     const controller=new AbortController(),signal=controller.signal;
     const mounted:Mounted={view,record:record?.id,open,controller};
     // A record page's own level: the record's declared title field, else the view's title.
@@ -900,6 +923,7 @@ export class AdminShell {
       attach:(content:Parameters<ViewHost["attach"]>[0])=>{
         if(signal.aborted)return;
         if(mounted.window){mounted.window.attach(content);return;}
+        settle();
         const cell=this.layout.getCell("workspace");
         if(!view.desktopOnly){attachContent(cell,content,signal);return;}
         if(!mounted.wrapper){mounted.wrapper=new DesktopOnly(view.title);attachContent(mounted.wrapper.cell,content,signal);cell.attach(mounted.wrapper.layout);}
@@ -923,8 +947,10 @@ export class AdminShell {
       const instance=await kind.create(host,view);
       if(signal.aborted){instance.destroy();return;}
       mounted.instance=instance;
+      settle();
     }catch(error){
       if(signal.aborted)return;
+      settle();
       if(mounted.window)mounted.window.close();else{this.layout.getCell("workspace").detach();this.unmount(mounted);this.locate();}
       await this.failed(error);
       return;
@@ -1419,6 +1445,7 @@ export class AdminShell {
     this.authListeners.abort();
     window.removeEventListener("resize", this.resize);
     closeDialogs();
+    this.settle(this.navigation);
     this.unmountAll();
     this.treeCache.saveForReload();
     this.treeCache.invalidate(undefined,"ended");

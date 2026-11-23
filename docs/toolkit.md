@@ -2367,10 +2367,19 @@ job.on("done", () => {
   shows the indicator until the data arrives (after a failed load
   `Az adatok nem érhetők el.` under the error dialog). A page does not build
   its own overlay or hint element for any of these states.
+- **A record page before it mounts** ([FB-0266](feedback.md#fb-0266)): while
+  the shell resolves the record of a page navigation (address, history or
+  `app.navigate`), the workspace shows the same indicator after the same
+  300 ms, over the previous page if there is one. The menu, location bar and
+  Back stay usable. The view takes over at its first `attach`, at the latest
+  when `create` resolves. A failed `get` keeps the previous view and shows the
+  error dialog, and a later navigation replaces the wait. Every record view
+  kind inherits this; a record view opened in a window keeps the current page
+  without it.
 - Limits: a Suite widget attached directly and destroyed without
   `cell.detach()` still holds its region, as does the slot of an element
   attached with a signal that was aborted (`app.ui.attach`); mount the next
-  content or use a component. The view host itself, a singleton
+  content or use a component. A mounted view host, a singleton
   list's form and a `Tree` have no indicator of this kind (the tree keeps its
   own empty text and `aria-busy`). A `Tree` reports no event when its start ends without a
   selection (roots failed to load or none), so a page cannot mark regions
@@ -3994,6 +4003,7 @@ Results per phase are recorded in [FB-0081](feedback.md#fb-0081); the plan's
 | M117 | A signed-in user's settings [follow the account](user-preferences-plan.md): new table `blade_user_preferences`, `__preferences`, bootstrap `preferences`. Browser values go up once, fill-only. For one entry the last write wins, and a change that never reached the server is lost when the page closes | [FB-0259](feedback.md#fb-0259) | run `Schema::install`, else the application stays browser-local; a spec that reads `blade-ui:` keys or expects a fresh browser to have default settings must isolate its account |
 | M118 | [Standard header row](#page-command-bars): `app.ui.headerRowHeight` is 48 CSS px. `Tabs` and standard command rows use it | [FB-0263](feedback.md#fb-0263) | info: tab headers grow from 37 px to 48 px. A project command row can use the exported height in its Layout declaration |
 | M119 | [Shared header row](#page-command-bars): 44 CSS px for tabs, command rows, main navigation and windows. `--blade-header-row-height` sets the application default. `TabsOptions.headerHeight`, `WindowOptions.headerHeight` and `CommandBarOptions.height` are additive | [FB-0264](feedback.md#fb-0264) | info: explicit project Layout heights can follow the standard using `app.ui.headerRowHeight` |
+| M120 | [A record page before it mounts](#loading-and-empty-states): the workspace shows the loading indicator while the shell resolves the record of a page navigation. No API or declaration change | [FB-0266](feedback.md#fb-0266) | info: record pages show it with no project change |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the
