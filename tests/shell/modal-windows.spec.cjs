@@ -167,6 +167,47 @@ test('phone: a non-modal window stays between the menu row and the lower bar, a 
  expect(errors).toEqual([]);
 });
 
+// FB-0260: a window open across 768 px changes form and keeps its content, its desktop box and its maximized state.
+test('crossing 768 px: an open window changes form, keeps its content and returns to its desktop box',async({page})=>{
+ const errors=[];page.on('pageerror',error=>errors.push(error.stack||error.message));
+ await fixture(page);
+ const settled=locator=>locator.evaluate(element=>Promise.all(element.getAnimations().map(animation=>animation.finished)));
+ const rect=async locator=>{await settled(locator);const b=await locator.boundingBox();return [b.x,b.y,b.width,b.height].map(Math.round);};
+ const area=async()=>{const b=await page.locator('.blade-workspace').boundingBox();return [b.x,b.y,b.width,b.height].map(Math.round);};
+ const resize=async(width,height)=>{await page.setViewportSize({width,height});await expect.poll(()=>page.evaluate(()=>innerWidth)).toBe(width);};
+ await page.evaluate(()=>{
+  const open=(title,modal)=>{const win=window.__bladeApp.ui.window({title,modal,width:420,height:320,fit:false,maximizable:true});const input=document.createElement('input');input.setAttribute('aria-label',title+' mező');win.attach(input);return win;};
+  window.__float=open('Lebegő',false);
+ });
+ const float=dialog(page,'Lebegő'),field=page.getByRole('textbox',{name:'Lebegő mező'}),zoom=float.getByRole('button',{name:'Ablak maximalizálása'});
+ await expect(float).toBeVisible();await field.fill('megmarad');await expect(zoom).toBeVisible();
+ const start=await rect(float);
+ await resize(390,844);
+ await expect.poll(()=>rect(float)).toEqual(await area());
+ await expect(zoom).toHaveCount(0);await expect(field).toHaveValue('megmarad');
+ await expect(float.locator('[class*="dhx_window-resizer"]').first()).toBeHidden();
+ await resize(1366,800);
+ await expect.poll(()=>rect(float)).toEqual(start);
+ await expect(zoom).toBeVisible();await expect(field).toHaveValue('megmarad');
+ await zoom.click();await expect.poll(()=>rect(float)).toEqual(await area());
+ await resize(390,844);await expect.poll(()=>rect(float)).toEqual(await area());
+ await resize(1366,800);await expect.poll(()=>rect(float)).toEqual(await area());
+ await expect(float.getByRole('button',{name:'Ablak visszaállítása'})).toBeVisible();
+ await float.getByRole('button',{name:'Ablak visszaállítása'}).click();await expect.poll(()=>rect(float)).toEqual(start);
+ await page.evaluate(()=>window.__float.close());await expect(float).toHaveCount(0);
+ await resize(390,844);
+ await page.evaluate(()=>{const win=window.__modal=window.__bladeApp.ui.window({title:'Modális váltás',modal:true,width:420,height:320,fit:false});const input=document.createElement('input');input.setAttribute('aria-label','Modális mező');win.attach(input);});
+ const top=dialog(page,'Modális váltás'),modalField=page.getByRole('textbox',{name:'Modális mező'});
+ await expect(top).toBeVisible();await modalField.fill('marad');
+ await expect.poll(()=>rect(top)).toEqual([0,0,390,844]);
+ await resize(1366,800);
+ await expect.poll(async()=>{const r=await rect(top);return [r[2],r[3]];}).toEqual([420,320]);
+ await expect(modalField).toHaveValue('marad');
+ await resize(390,844);await expect.poll(()=>rect(top)).toEqual([0,0,390,844]);
+ await page.evaluate(()=>window.__modal.close());await expect(top).toHaveCount(0);
+ expect(errors).toEqual([]);
+});
+
 for(const withGuide of [true,false])test(`escape: a project popup inside a modal window takes the first Escape (${withGuide?'with':'without'} a non-modal window)`,async({page})=>{
  await fixture(page);
  if(withGuide)await openWindow(page,'Háttér',false);

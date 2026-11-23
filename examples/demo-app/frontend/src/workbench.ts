@@ -30,7 +30,8 @@ const workbench: ApplicationModule = app => {
   // Synthetic drafts, relative to the window's opening: three today, six in the last week, the rest older (enough to scroll).
   const drafts = (now: number) => Array.from({ length: 18 }, (_, index) => ({
     id: `draft-${index + 1}`, name: t("Vázlat {n}", { n: index + 1 }),
-    at: now - (index < 3 ? (index + 1) * 2 * HOUR : index < 9 ? (index - 1) * DAY : (index + 6) * DAY),
+    // The first three are today's at any hour of the day.
+    at: index < 3 ? Math.max(new Date(now).setHours(0, 0, 0, 0), now - (index + 1) * 2 * HOUR) : now - (index < 9 ? (index - 1) * DAY : (index + 6) * DAY),
   }));
 
   app.commands.register("demo.workbench", {

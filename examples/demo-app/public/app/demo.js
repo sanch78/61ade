@@ -1701,7 +1701,8 @@ var workbench = (app) => {
   const drafts = (now) => Array.from({ length: 18 }, (_, index) => ({
     id: `draft-${index + 1}`,
     name: t("V\xE1zlat {n}", { n: index + 1 }),
-    at: now - (index < 3 ? (index + 1) * 2 * HOUR : index < 9 ? (index - 1) * DAY : (index + 6) * DAY)
+    // The first three are today's at any hour of the day.
+    at: index < 3 ? Math.max(new Date(now).setHours(0, 0, 0, 0), now - (index + 1) * 2 * HOUR) : now - (index < 9 ? (index - 1) * DAY : (index + 6) * DAY)
   }));
   app.commands.register("demo.workbench", {
     placement: "menu",

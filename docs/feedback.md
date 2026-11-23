@@ -1059,3 +1059,7 @@
 <a id="fb-0259"></a>
 
 ## FB-0259 — Server-side user preferences
+
+<a id="fb-0260"></a>
+
+## FB-0260 — An open window follows the 768 px breakpoint

@@ -470,5 +470,8 @@ foreach([
     'the tenant column in another case'=>fn()=>new SqlResource('s','site','id',[new Field('tenant_id','T')],tenantColumn:'TENANT_ID'),
     'the tenant column as a key without the singleton'=>fn()=>new SqlResource('s','site','tenant_id',[new Field('title','T')],tenantColumn:'tenant_id'),
 ] as $label=>$invalid){try{$invalid();throw new RuntimeException('Tenant singleton accepted: '.$label);}catch(InvalidArgumentException){}}
+$kw->registry->add(new Blade\Feature\Action('pairs','deadlocked','Holtpont',[],static function():never{throw new class extends PDOException{public function __construct(){$this->code='40001';}};}));
+$kgrant->execute(['pairs','deadlocked']);
+fails(fn()=>$run($ka,'pairs','deadlocked','x'),409,'A MySQL deadlock in any action answers 409, not 500');
 unset($kdb,$kw,$pairs,$archived,$site,$kgrant,$in,$run,$stored,$seed,$loose,$money);
 echo "tenancy: ok\n";

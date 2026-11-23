@@ -167,6 +167,8 @@ tenant_singleton: true}`.
   values. Of two simultaneous first saves the later one gets 409 and reloads.
   On MySQL this can also happen between different tenants, because a read of a
   missing row locks its index gap. No data is lost, and the save works on retry.
+  The executor answers such a deadlock with 409 for every action, a project's own
+  `update` included.
 - Without an active tenant it is refused (403), like every scoped resource.
 - `computed` is safe; its values are empty until the row exists.
 - The ACL object is the tenant's key, so a rule with scope `id` names the tenant

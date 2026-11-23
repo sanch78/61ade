@@ -11,7 +11,7 @@ import { prepareCell } from "../components/Lifecycle";
 import { popupMenu } from "../PopupMenu";
 import { UiPreferences, type WindowGeometry } from "../UiPreferences";
 import type { AppWindow, I18n, Identity, Live, Mountable, Preferences, PreferenceStore, Theme, Ui, Uploads, WindowOptions } from "./types";
-import { narrow } from "../Viewport";
+import { narrow, onViewport } from "../Viewport";
 
 /**
  * Thin toolkit services over the existing shell modules (toolkit K-F2). They add no behaviour of their own: the
@@ -180,8 +180,8 @@ const nonModal = new Set<AppWindow>();
 export function nonModalOpen(except?: AppWindow): boolean { return [...nonModal].some(win => win !== except); }
 
 /**
- * A framework document window (`Ui.window`, record views with `open: "window"`); full screen below 768 px. `user`
- * keys a remembered window (`id`) like the other UI preferences.
+ * A framework document window (`Ui.window`, record views with `open: "window"`); below 768 px a modal one is full screen
+ * and a non-modal one fills the workspace, also when the viewport crosses 768 px while it is open. `user` keys a remembered window (`id`) like the other UI preferences.
  */
 export function openWindow(options: WindowOptions & { css?: string }, user = ""): AppWindow {
   // Without its own `maxHeight` a fitted window stops at the application's default (`fitWindow`, FB-0225).
@@ -195,23 +195,27 @@ export function openWindow(options: WindowOptions & { css?: string }, user = "")
   if (id !== undefined && (typeof id !== "string" || !NAME.test(id))) throw new TypeError("61ade: window `id` is the preference key ([a-z][a-z0-9_.-]*).");
   if (typeof maximizable !== "boolean") throw new TypeError("61ade: window `maximizable` is a boolean.");
   if (typeof closable !== "boolean") throw new TypeError("61ade: window `closable` is a boolean.");
-  const mobile = narrow(), controller = new AbortController();
-  // A remembered window (FB-0199) opens where it was left, clamped to the viewport; a phone's full-screen window has
-  // no geometry of its own. The `window:` prefix cannot be a view id, so it never meets a list's preferences.
-  const remembered = id !== undefined && !mobile ? new UiPreferences(user, "window:" + id) : undefined;
+  const modal = options.modal ?? true, controller = new AbortController();
+  // The window follows the 768 px breakpoint while it is open and keeps its content (FB-0260).
+  let mobile = narrow();
+  // A remembered window (FB-0199) opens where it was left, clamped to the viewport; a phone's window has no geometry of
+  // its own. The `window:` prefix cannot be a view id, so it never meets a list's preferences.
+  const remembered = id !== undefined ? new UiPreferences(user, "window:" + id) : undefined;
   // A desktop non-modal window stays inside the workspace (below the menu row, above the lower bar).
-  const floating = !mobile && !(options.modal ?? true), area = () => floating ? floatArea() : undefined;
+  const area = () => !mobile && !modal ? floatArea() : undefined;
   // On a phone it fills that area, so the menu row and the lower bar stay usable (FB-0257); a modal window is full screen.
-  const docked = mobile && !(options.modal ?? true), dock = docked ? workspaceBox() : undefined;
-  const saved = remembered?.window(), start = saved && clampBox(saved, area());
+  const phoneBox = () => modal ? { left: 0, top: 0, width: innerWidth, height: innerHeight } : workspaceBox();
+  const openSize = () => ({ width: Math.min(options.width ?? 720, innerWidth - 24), height: Math.min(options.height ?? 560, innerHeight - 24) });
+  const saved = mobile ? undefined : remembered?.window(), start = saved && clampBox(saved, area()), first = mobile ? phoneBox() : start;
   const win = new Window({ css: options.css ?? "blade-content-window", title: escape(options.title), ariaLabel: full(options.title),
-    width: mobile ? dock?.width ?? innerWidth : start?.width ?? Math.min(options.width ?? 720, innerWidth - 24), height: mobile ? dock?.height ?? innerHeight : start?.height ?? Math.min(options.height ?? 560, innerHeight - 24),
-    modal: options.modal ?? true, closable, resizable: !mobile && (options.resizable ?? true), movable: !mobile });
+    width: first?.width ?? openSize().width, height: first?.height ?? openSize().height,
+    modal, closable, resizable: options.resizable ?? true, movable: !mobile });
   let closed = false;
   const finish = () => { if (closed) return; closed = true; controller.abort(); void awaitRedraw().then(() => win.destructor()); };
   win.events.on("afterHide", finish);
   // A remembered size is the user's: the window no longer fits its content.
-  const fit = options.fit !== false && !mobile && !saved;
+  let sized = !!saved;
+  const fits = () => options.fit !== false && !mobile && !sized;
   // Suite's `Window.attach` and `attachHTML` fill this cell; content goes to it directly, so it can be emptied
   // (`detach`) between HTML and a widget.
   const cell = (win as unknown as { _layout: Layout })._layout.getCell("content");
@@ -238,25 +242,24 @@ export function openWindow(options: WindowOptions & { css?: string }, user = "")
     attach(content) {
       if (closed) return;
       attachContent(cell, content, controller.signal);
-      if (fit && (content instanceof HTMLElement || !(content instanceof Layout || ("destroy" in content && "layout" in content)))) void fitWindow(win, maxHeight);
+      if (fits() && (content instanceof HTMLElement || !(content instanceof Layout || ("destroy" in content && "layout" in content)))) void fitWindow(win, maxHeight);
     },
     setTitle(text) { if (!closed) showTitle(String(text)); },
     // A window that does not fit (`fit: false`, a full-screen phone window) keeps its size, also when its content asks.
-    fit: () => closed || !fit ? Promise.resolve() : fitWindow(win, maxHeight),
+    fit: () => closed || !fits() ? Promise.resolve() : fitWindow(win, maxHeight),
     close() { if (closed) return; if (win.isVisible()) win.hide(); else finish(); },
     get maximized() { return maximized; },
     maximize(next) { toggle(next === true); },
   };
   // Maximize/restore (FB-0199): the maximized window fills the workspace, so the menu row stays reachable; the restored
   // box is kept (and remembered) while it is maximized. Phones have no button: their window is full screen.
-  const zoomable = maximizable && !mobile;
   let maximized = false, restored: WindowGeometry | undefined;
   const box = () => ({ ...win.getPosition(), ...win.getSize() });
-  const remember = () => { if (remembered && !closed) remembered.setWindow({ ...(maximized ? restored! : box()), maximized }); };
+  const remember = () => { if (remembered && !closed && !mobile) remembered.setWindow({ ...(maximized ? restored! : box()), maximized }); };
   const fill = () => { const area = workspaceBox(); win.setSize(area.width, area.height); win.setPosition(area.left, area.top); };
   const label = () => t(maximized ? "Ablak visszaállítása" : "Ablak maximalizálása");
   const toggle = (next: boolean) => {
-    if (!zoomable || closed || next === maximized) return;
+    if (!maximizable || mobile || closed || next === maximized) return;
     if (next) restored = { ...box(), maximized: false };
     maximized = next;
     if (next) fill(); else { const back = clampBox(restored!, area()); win.setSize(back.width, back.height); win.setPosition(back.left, back.top); }
@@ -265,9 +268,10 @@ export function openWindow(options: WindowOptions & { css?: string }, user = "")
     win.header?.data.update("blade-maximize", { icon: next ? "bi bi-arrows-angle-contract" : "bi bi-arrows-angle-expand", tooltip: label() });
     remember();
   };
-  if (zoomable) {
+  const zoomButton = () => { if (maximizable && !win.header?.data.exists("blade-maximize")) win.header?.data.add({ id: "blade-maximize", type: "button", view: "link", size: "medium", color: "secondary", circle: true, icon: "bi bi-arrows-angle-expand", tooltip: label() }, win.header.data.getIndex("close")); };
+  if (maximizable) {
     const header = win.header;
-    header?.data.add({ id: "blade-maximize", type: "button", view: "link", size: "medium", color: "secondary", circle: true, icon: "bi bi-arrows-angle-expand", tooltip: label() }, header.data.getIndex("close"));
+    if (!mobile) zoomButton();
     header?.events.on("click", (item: string | number) => { if (item === "blade-maximize") toggle(!maximized); });
     win.events.on("headerDoubleClick", () => toggle(!maximized));
     addEventListener("resize", () => { if (maximized) fill(); }, { signal: controller.signal });
@@ -288,14 +292,46 @@ export function openWindow(options: WindowOptions & { css?: string }, user = "")
     if (next.left !== now.left || next.top !== now.top) win.setPosition(next.left, next.top);
     return next.left !== now.left || next.top !== now.top || next.width !== now.width;
   };
-  if (floating || docked) {
-    const signal = controller.signal, space = document.querySelector(".blade-workspace"), follow = docked ? fill : keep;
-    addEventListener("resize", () => follow(), { signal });
+  const fillPhone = () => { if (closed || !win.isVisible()) return; const next = phoneBox(); win.setSize(next.width, next.height); win.setPosition(next.left, next.top); };
+  // A `resize` can arrive before the media query's change: the crossing first, so the desktop box is kept unclamped.
+  const follow = () => { if (narrow() !== mobile) cross(narrow()); if (mobile) fillPhone(); else if (!modal) keep(); };
+  addEventListener("resize", follow, { signal: controller.signal });
+  if (!modal) {
+    const signal = controller.signal, space = document.querySelector(".blade-workspace");
     // A drag past the top edge scrolls the (overflow-hidden) body and with it the menu row away: put it back first.
-    if (floating) document.addEventListener("mouseup", () => requestAnimationFrame(() => { document.body.scrollTop = document.body.scrollLeft = 0; if (keep()) remember(); }), { signal, capture: true });
-    if (space) { const observer = new ResizeObserver(() => follow()); observer.observe(space); signal.addEventListener("abort", () => observer.disconnect(), { once: true }); }
+    document.addEventListener("mouseup", () => requestAnimationFrame(() => { if (mobile) return; document.body.scrollTop = document.body.scrollLeft = 0; if (keep()) remember(); }), { signal, capture: true });
+    if (space) { const observer = new ResizeObserver(follow); observer.observe(space); signal.addEventListener("abort", () => observer.disconnect(), { once: true }); }
   }
-  if (!(options.modal ?? true)) {
+  // Across 768 px the window changes form and keeps its content: the desktop box and a maximized state come back.
+  let desktop: WindowGeometry | undefined, resume = false;
+  const cross = (next: boolean) => {
+    if (closed || next === mobile) return;
+    if (next) {
+      resume = maximized;
+      desktop = maximized ? restored : { ...box(), maximized: false };
+      maximized = false;
+      dialog()?.classList.remove("blade-window--maximized");
+      mobile = true;
+      win.config.movable = false;
+      if (win.header?.data.exists("blade-maximize")) win.header.data.remove("blade-maximize");
+      dialog()?.classList.add("blade-window--phone");
+      fillPhone();
+      return;
+    }
+    mobile = false;
+    win.config.movable = true;
+    dialog()?.classList.remove("blade-window--phone");
+    zoomButton();
+    const stored = desktop ? undefined : remembered?.window();
+    if (stored) { sized = true; resume = !!stored.maximized; }
+    const size = openSize(), back = clampBox(desktop ?? stored ?? { ...size, left: (innerWidth - size.width) / 2, top: (innerHeight - size.height) / 2 }, area());
+    win.setSize(back.width, back.height);
+    win.setPosition(back.left, back.top);
+    if (resume) toggle(true);
+    else if (!desktop && fits()) void fitWindow(win, maxHeight);
+  };
+  onViewport(cross, controller.signal);
+  if (!modal) {
     nonModal.add(api);
     controller.signal.addEventListener("abort", () => nonModal.delete(api), { once: true });
   }
@@ -308,10 +344,10 @@ export function openWindow(options: WindowOptions & { css?: string }, user = "")
     const dialog = win.getContainer()?.closest<HTMLElement>('[role="dialog"]');
     if (dialog && document.activeElement && dialog.contains(document.activeElement)) { event.preventDefault(); api.close(); }
   }, { signal: controller.signal });
-  const opening = start ?? dock;
-  if (opening) win.show(opening.left, opening.top); else win.show();
+  if (first) win.show(first.left, first.top); else win.show();
+  if (mobile) dialog()?.classList.add("blade-window--phone");
   if (saved?.maximized) toggle(true);
-  if (floating) keep();
+  if (!mobile && !modal) keep();
   if (shaped) {
     showTitle(title);
     const observer = new ResizeObserver(tooltip), box = dialog();

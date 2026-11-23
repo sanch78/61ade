@@ -333,7 +333,10 @@ fit. A project no longer watches the menu row to move its window. Modal windows
 keep the viewport with a 12 px margin. Below 768 px a non-modal window fills
 the workspace, so the menu row and the lower bar stay usable also under a
 `closable: false` window, and it follows the workspace when it changes; a modal
-window stays full screen ([FB-0257](feedback.md#fb-0257)). Content that grows a fitted window past the workspace is corrected at the next resize. A project that needs to know the page's view
+window stays full screen ([FB-0257](feedback.md#fb-0257)). An open window follows
+the 768 px breakpoint and keeps its content: it takes the phone form below it and
+returns to its desktop box, maximized state included, above it, so a project
+does not reopen it on `viewport:change` ([FB-0260](feedback.md#fb-0260)). Content that grows a fitted window past the workspace is corrected at the next resize. A project that needs to know the page's view
 listens to `view:opened` / `view:closed`; a [menu command](shell.md#menu-commands)
 is the usual way to open such a window from every view
 ([FB-0199](feedback.md#fb-0199)). While a non-modal window is open, a view
@@ -3968,6 +3971,8 @@ Results per phase are recorded in [FB-0081](feedback.md#fb-0081); the plan's
 | M112 | [`Attachments.add`](#attachments) draws the chip at once, before the uploader's first report | [FB-0256](feedback.md#fb-0256) | info: a project's own placeholder for a starting upload can go |
 | M113 | Below 768 px a non-modal `app.ui.window` fills the workspace instead of the screen ([long-lived windows](#long-lived-windows)); a modal window stays full screen | [FB-0257](feedback.md#fb-0257) | info: a spec that expects a full-screen non-modal window on a phone finds it between the menu row and the lower bar; a project's own phone workaround can go |
 | M114 | Tenant-scoped `SqlResource` statements stay on the row's tenant when a key repeats across tenants; [tenant singleton](tenancy.md#tenant-singleton) (`tenantSingleton`, JSON `tenant_singleton`) | [FB-0258](feedback.md#fb-0258) | if used: a tenant-scoped resource with related or delegation storage or shared rows needs a key unique across tenants (best a one-column primary key or unique index); if its table holds a repeated key, it answers 500 until that is fixed; a hand-written per-tenant `self` view can become a tenant singleton keyed by its tenant column. info: `HTTPS` empty or `OFF` now counts as plain HTTP for cookies |
+| M115 | An open `app.ui.window` follows the 768 px breakpoint and keeps its content ([long-lived windows](#long-lived-windows)) | [FB-0260](feedback.md#fb-0260) | info: a project's own reopen on `viewport:change` can go |
+| M116 | A MySQL deadlock (SQLSTATE 40001) in any action answers 409 instead of 500 ([tenant singleton](tenancy.md#tenant-singleton)) | [FB-0258](feedback.md#fb-0258) | info: a project's own 40001 handling can go |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the

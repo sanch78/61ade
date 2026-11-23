@@ -686,8 +686,8 @@ body,
    (a modal one blocks the row anyway). */
 .dhx_menu.blade-shell-popup { z-index: calc(var(--dhx-z-index-overlay-total) + 100); }
 /* A maximized window (`WindowOptions.maximizable`) is neither moved nor resized until it is restored. */
-.blade-window--maximized :is(.dhx_window-resizer, [class*="dhx_window-resizer"]) { display: none; }
-.blade-window--maximized .dhx_window-header { cursor: default; }
+:is(.blade-window--maximized, .blade-window--phone) :is(.dhx_window-resizer, [class*="dhx_window-resizer"]) { display: none; }
+:is(.blade-window--maximized, .blade-window--phone) .dhx_window-header { cursor: default; }
 .blade-visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 /* Centered menu rows must explicitly stretch native separators to show the rule. */

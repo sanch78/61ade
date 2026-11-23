@@ -237,6 +237,8 @@ final class Executor
             // Developer errors (a misconfigured definition) reach the server log; the caller sees the generic 500.
             if ($error instanceof \LogicException) error_log('61ade: '.$resource.'.'.$name.': '.$error->getMessage());
             if ($error instanceof \PDOException && str_starts_with((string)$error->getCode(),'23')) throw new Failure('Az adat már létezik, vagy hivatkozási feltételt sért.',409);
+            // A MySQL deadlock rolled the transaction back: the caller reloads and tries again (FB-0258).
+            if ($error instanceof \PDOException && (string)$error->getCode()==='40001') throw new Failure('Az adat közben módosult. Nyisd meg újra.',409);
             throw new Failure('A művelet nem hajtható végre.',500);
         }
     }
