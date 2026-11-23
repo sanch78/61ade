@@ -270,10 +270,15 @@ body,
 
 /* Cells, not the scrolling content, own toolbar dimensions and stacking. */
 .blade-command-row { overflow: hidden; position: relative; z-index: 1; }
-/* The standard command-row height; a CommandBar mounted into an element without
-   its own height takes it, a Layout cell, window or view keeps deciding. */
-:root { --blade-header-row-height: var(--blade-header-row-size); --blade-command-bar-height: var(--blade-header-row-size); }
-.blade-command-bar { display: flex; flex-direction: column; min-height: var(--blade-command-bar-height); }
+/* The command-bar token mirrors the resolved shared header height, with a per-bar mount override. */
+:root { --blade-header-row-height: 44px; --blade-command-bar-height: var(--blade-header-row-size); }
+/* This host is used for a plain element mount. In a Layout cell, the toolbar fills the cell instead. */
+.blade-command-bar {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  height: var(--blade-command-bar-height) !important; /* The common component mount sets an inline height of 100%. */
+}
 .blade-command-bar > .dhx_layout { flex: 1 1 auto; min-height: 0; }
 .blade-navigation-row .dhx_menu-nav { height: 100%; box-sizing: border-box; padding-top: 0; padding-bottom: 0; align-items: center; }
 /* An icon-only CommandBar button: the label stays as hidden text (accessible name; shown again in the collapsed menu). */

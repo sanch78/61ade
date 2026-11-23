@@ -64,7 +64,7 @@ export class CommandBar extends Component<CommandBarEvents> implements CommandBa
     this.layout=new Layout(this.host,{type:"none",rows:[{id:"commands",css:"blade-command-row"+(options.placement==="bottom"?" blade-command-row--bottom":"")}]});
     this.bar=new ResponsiveToolbar(undefined,{data},{id:"blade-command-menu"+this.prefix,value:t("Műveletek"),icon:"bi bi-grid",narrow:!icons});
     this.toolbar=this.bar;
-    // Mounted into a plain element, the bar takes the standard panel-header height (a Layout cell decides itself).
+    // The plain-element host takes the shared or explicit height. An attached Layout fills its cell.
     this.host.classList.add("blade-command-bar");
     const root=this.bar.getRootNode() as HTMLElement;
     this.name();

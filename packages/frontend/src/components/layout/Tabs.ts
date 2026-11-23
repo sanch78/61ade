@@ -78,7 +78,7 @@ export class Tabs extends Component<TabsEvents> implements TabsApi{
     if(key)this.preferences=new UiPreferences(context.user,key);
     const remembered=this.preferences?.tab();
     const active=options.active??(remembered&&enabled.includes(remembered)?remembered:enabled[0]);
-    const height=headerRowHeight(options.headerHeight);
+    const height=options.headerHeight===undefined?"var(--blade-header-row-size)":headerRowHeight(options.headerHeight);
     this.layout=new Layout(this.host,{type:"none",css:"blade-tabs",rows:[{id:this.prefix+"row",height,css:"blade-tabs__row"},
       {css:"blade-tabs__panels",rows:this.tabs.map(tab=>({id:this.cellId(tab.id),css:this.panelCss(tab.id===active)}))}]} as any);
     this.tabbar=new Tabbar(null,{mode:"top",noContent:true,tabHeight:height,activeView:this.cellId(active),

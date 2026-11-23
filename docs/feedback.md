@@ -1087,3 +1087,7 @@
 <a id="fb-0266"></a>
 
 ## FB-0266 — Loading feedback before a record page mounts
+
+<a id="fb-0267"></a>
+
+## FB-0267 — Match the rendered command and tab bar heights

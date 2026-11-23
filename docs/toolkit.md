@@ -3419,6 +3419,8 @@ row and `--blade-window-header-height` to style window headers.
 `app.ui.window` and `app.components.Tabs` accept `headerHeight` to
 size individual headers. Set `CommandBarOptions.height` for a plain
 element mount or the Layout cell's `height` for a mounted command row.
+A plain element mount uses the shared height even when the host has extra
+vertical space. The command row's height includes its divider.
 In a tab, the bar spans the panel immediately below the tab header.
 The content fills the remaining row and owns its padding,
 panel frames and scrolling.
