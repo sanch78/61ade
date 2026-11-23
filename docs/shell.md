@@ -794,6 +794,10 @@ the sign-in form or its flows:
 3. **Extension:** [sign-in modules](#sign-in-modules), project ES modules with a
    restricted API and two slots in the window.
 
+The forced password-change window shows its instruction as a plain paragraph
+in its own row above the form ([FB-0265](feedback.md#fb-0265)). It uses the
+notice typography, wraps at narrow widths and is neither a field nor a tab stop.
+
 ```php
 use Blade\Shell\{ApplicationDefinition, Logo, SignIn, SignInLink};
 

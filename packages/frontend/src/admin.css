@@ -527,7 +527,9 @@ body,
 .blade-auth-logo .blade-logo { display: flex; justify-content: center; height: auto; padding: 16px 16px 0; }
 .blade-auth-logo .blade-logo__image { height: var(--blade-sign-in-logo-height, 48px); max-width: 100%; }
 /* Declared notice and links below the form (docs/shell.md#sign-in-content), and the sign-in modules' slots. */
-.blade-sign-in-info { padding: 0 20px 16px; color: var(--dhx-font-color-secondary); font-size: var(--dhx-font-size-small); line-height: 1.5; }
+.blade-sign-in-info, .blade-auth-instruction { color: var(--dhx-font-color-secondary); font-size: var(--dhx-font-size-small); line-height: 1.5; }
+.blade-sign-in-info { padding: 0 20px 16px; }
+.blade-auth-instruction { margin: 0; padding: 20px 20px 0; }
 .blade-sign-in__notice { margin: 0; white-space: pre-line; overflow-wrap: anywhere; }
 .blade-sign-in__notice + .blade-sign-in__links { margin-top: 8px; }
 .blade-sign-in__links ul { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; padding: 0; list-style: none; }

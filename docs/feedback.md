@@ -1079,3 +1079,7 @@
 <a id="fb-0264"></a>
 
 ## FB-0264 — Reduce the standard header row to 44 px
+
+<a id="fb-0265"></a>
+
+## FB-0265 — Forced password-change instruction as a paragraph

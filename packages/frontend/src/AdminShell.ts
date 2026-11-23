@@ -1053,7 +1053,7 @@ export class AdminShell {
       value:config.locale,data:Object.keys(config.languages).map(id=>({id,value:config.languages[id]})),
       template:(item:{id:string;value:string})=>`<span class="blade-language-option"><span class="${flag(item.id)}"></span>${escape(item.value)}</span>`}];
   }
-  private attachLoginForm(form:Form):void{
+  private attachLoginForm(form:Form,instruction?:string):void{
     const closeHref=this.definition.signIn?.closeHref;
     if(closeHref&&!this.definition.confirmation&&!this.definition.passwordChange){
       const win=this.loginWindow!;
@@ -1078,11 +1078,12 @@ export class AdminShell {
       if(value&&Object.hasOwn(this.definition.i18n?.languages??{},value)&&value!==this.definition.i18n?.locale)this.post("language",{locale:value});
     });
     const logo=this.windowLogo?this.logoHtml():"",info=this.signInInfo(),modules=this.definition.signInModules??[];
-    if(!logo&&!info&&!modules.length){this.loginWindow!.attach(form);return;}
-    // A native in-window Layout: logo, header slot, the form, notice and links, footer slot.
+    if(!logo&&!instruction&&!info&&!modules.length){this.loginWindow!.attach(form);return;}
+    // A native in-window Layout: logo, header slot, instruction, the form, notice and links, footer slot.
     const layout=new Layout(undefined,{type:"none",rows:[
       ...(logo?[{id:"logo",height:"content",css:"blade-auth-logo",html:logo}]:[]),
       ...(modules.length?[{id:"header",height:"content"}]:[]),
+      ...(instruction?[{id:"instruction",height:"content",html:`<p class="blade-auth-instruction">${escape(instruction)}</p>`}]:[]),
       {id:"form"},
       ...(info?[{id:"info",height:"content",html:info}]:[]),
       ...(modules.length?[{id:"footer",height:"content"}]:[]),
@@ -1352,7 +1353,6 @@ export class AdminShell {
       padding: 20,
       rows: [
         ...this.languageItem("top"),
-        { type: "text", name: "info", value: t("Az első belépéshez új jelszót kell megadnod (12–128 karakter).") },
         { type: "input", inputType: "password", name: "new_password", label: t("Új jelszó"), labelPosition: "top", required: true, maxlength: 128,
           validation: length, errorMessage: t("Az új jelszó 12–128 karakter legyen.") },
         { type: "input", inputType: "password", name: "confirm_password", label: t("Új jelszó ismét"), labelPosition: "top", required: true, maxlength: 128,
@@ -1378,7 +1378,7 @@ export class AdminShell {
       form.setValue({ [event.target.name]: event.target.value });
       submit();
     }, { capture: true, signal });
-    this.attachLoginForm(form);
+    this.attachLoginForm(form, t("Az első belépéshez új jelszót kell megadnod (12–128 karakter)."));
     this.resize();
     requestAnimationFrame(() => {
       if(signal.aborted)return;
