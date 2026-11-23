@@ -161,8 +161,8 @@ tree as decoration for a flat list.
   tree of only `{ inner }` below the bar), not a nested `app.dhx.Layout`: its
   regions are ordinary page regions with kept sizes, the double-click
   restore and lines with a hit area
-  ([inner layout](../../../docs/toolkit.md#pagelayout-inner)). The vertical
-  line has a stronger edge along a header band. An inner
+  ([inner layout](../../../docs/toolkit.md#pagelayout-inner)). A subtle
+  tint fades into header bands beside a vertical line. An inner
   region that needs a title or an entry count declares `header` and `count`
   (a frameless title row with a count badge, kept current with
   `PageLayout.header`); do not draw a heading row inside the region

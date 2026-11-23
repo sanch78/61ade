@@ -1095,3 +1095,7 @@
 <a id="fb-0268"></a>
 
 ## FB-0268 — A stronger divider where inner layout columns meet a header
+
+<a id="fb-0269"></a>
+
+## FB-0269 — Shade the header surface beside the one-pixel divider

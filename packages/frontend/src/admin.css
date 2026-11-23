@@ -50,11 +50,11 @@ body,
 /* A PageLayout's inner layout (`inner`, FB-0222): Suite's line resizer is 0 px across and only its dots take the drag by default.
    Its handle spans the line with 8 px across it, centred on the cell border before it. Only line layouts: the framed
    panels and a list's space or wide layout inside a region keep their own grips. */
-/* Reinforce the inner divider along the painted header edges, independently of the header and drag-handle sizes. */
+/* Shade the heading surfaces next to an inner divider, keeping Suite's one-pixel rule. */
 :where(.blade-page-layout.dhx_layout-line, .blade-page-layout .dhx_layout-line).dhx_layout-columns > .dhx_layout-cell {
-  --blade-inner-divider: color-mix(in srgb, var(--dhx-border-color) 50%, var(--dhx-font-color-secondary));
-  --blade-inner-header-start: var(--blade-inner-divider);
-  --blade-inner-header-end: var(--blade-inner-divider);
+  --blade-inner-header-shade: color-mix(in srgb, var(--dhx-font-color-secondary) 18%, transparent);
+  --blade-inner-header-start: var(--blade-inner-header-shade);
+  --blade-inner-header-end: var(--blade-inner-header-shade);
 }
 :where(.blade-page-layout.dhx_layout-line, .blade-page-layout .dhx_layout-line).dhx_layout-columns > .dhx_layout-cell:first-of-type {
   --blade-inner-header-start: transparent;
@@ -72,9 +72,12 @@ body,
   position: absolute;
   z-index: 2;
   inset: 0;
-  border-inline: 1px solid var(--blade-inner-header-start);
-  border-inline-end-color: var(--blade-inner-header-end);
+  background: linear-gradient(var(--blade-inner-header-direction, 90deg),
+    var(--blade-inner-header-start), transparent 12px, transparent calc(100% - 12px), var(--blade-inner-header-end));
   pointer-events: none;
+}
+:where(.blade-page-layout.dhx_layout-line, .blade-page-layout .dhx_layout-line).dhx_layout-columns:dir(rtl) {
+  --blade-inner-header-direction: 270deg;
 }
 :is(.blade-page-layout.dhx_layout-line, .blade-page-layout .dhx_layout-line) > .dhx_layout-resizer--x > .dhx_layout-resizer__icon { right: auto; left: -4.5px; width: 8px; }
 :is(.blade-page-layout.dhx_layout-line, .blade-page-layout .dhx_layout-line) > .dhx_layout-resizer--y > .dhx_layout-resizer__icon { bottom: auto; top: -4.5px; height: 8px; }
