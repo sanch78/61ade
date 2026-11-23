@@ -1931,11 +1931,13 @@ application-level map `application.guides` (`{"<view id>": "<text>"}`).
   a JSON list instead of an object, or guides without a workspace throw at
   definition time.
 - **Once per user and view:** the shell records the guide as soon as it opens.
-  The mark is kept in `localStorage` for the application path, user ID and view
-  ID (`blade-guide:2:[path, user, view id]`). It survives reloads, new tabs,
-  sign-out and browser restarts in the same browser profile with storage
-  enabled. A separate profile or clearing site data starts afresh. Public
-  access uses the guest identity within that browser profile. Existing marks
+  For a signed-in user the mark follows the account
+  ([user preferences](user-preferences-plan.md), entry `guide:<view id>`), so
+  a new browser does not show the guide again. Its browser form is
+  `blade-guide:2:[path, user, view id]` in `localStorage`, which is what a guest
+  or an application without the account store uses: it survives reloads, new
+  tabs, sign-out and browser restarts in the same profile, and clearing site
+  data starts afresh. Existing marks
   in an open tab's former session storage are carried forward. Leaving the
   view closes its guide. [FB-0243](feedback.md#fb-0243)
 - **Not over a work window:** while a non-modal window is open — a project's

@@ -10,6 +10,7 @@ import { signalOf, tieTo } from "./Events";
 import { prepareCell } from "../components/Lifecycle";
 import { popupMenu } from "../PopupMenu";
 import { UiPreferences, type WindowGeometry } from "../UiPreferences";
+import { account } from "../AccountPreferences";
 import type { AppWindow, I18n, Identity, Live, Mountable, Preferences, PreferenceStore, Theme, Ui, Uploads, WindowOptions } from "./types";
 import { narrow, onViewport } from "../Viewport";
 
@@ -39,20 +40,24 @@ export function themeApplied(base: string, skin: string | null): void {
 }
 
 /**
- * `Application.preferences`: one localStorage entry per scope, `blade-ui:1:[path, user, "scope:<name>"]`, beside the
- * list views' `blade-ui:1:[path, user, <view id>]` entries (the `scope:` prefix cannot be a view id).
+ * `Application.preferences`: one entry per scope, `scope:<name>`, in the account store with a local mirror at
+ * `blade-ui:1:[path, user, "scope:<name>"]`, beside the list views' entries (the prefix cannot be a view id).
  */
 export function preferences(user: string): Preferences {
   return {
     scope(name: string): PreferenceStore {
       if (typeof name !== "string" || !NAME.test(name) || !name.includes(".")) throw new TypeError(`61ade: preference scope "${String(name)}" needs a project prefix with a dot.`);
       const key = "blade-ui:1:" + JSON.stringify([location.pathname, user, "scope:" + name]);
+      const entry = "scope:" + name;
       const read = (): Record<string, unknown> => {
-        try { const value = JSON.parse(localStorage.getItem(key) ?? "{}"); return value && typeof value === "object" && !Array.isArray(value) ? value : {}; }
-        catch { return {}; }
+        try {
+          const value = account.value<unknown>(entry, () => JSON.parse(localStorage.getItem(key) ?? "{}"));
+          return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+        } catch { return {}; }
       };
       const write = (state: Record<string, unknown>) => {
-        try { if (Object.keys(state).length) localStorage.setItem(key, JSON.stringify(state)); else localStorage.removeItem(key); } catch {}
+        const filled = Object.keys(state).length > 0;
+        try { if (filled) localStorage.setItem(key, JSON.stringify(state)); else localStorage.removeItem(key); account.write(entry, filled ? state : undefined); } catch {}
       };
       return {
         get: <T>(field: string) => { const state = read(); return Object.hasOwn(state, field) ? state[field] as T : undefined; },

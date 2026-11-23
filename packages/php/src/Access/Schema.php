@@ -10,6 +10,8 @@ final class Schema
         $auto = $db->getAttribute(\PDO::ATTR_DRIVER_NAME) === 'mysql' ? 'BIGINT PRIMARY KEY AUTO_INCREMENT' : 'INTEGER PRIMARY KEY AUTOINCREMENT';
         // MySQL 8 accepts a TEXT default only as an expression; SQLite ADD COLUMN rejects expression defaults.
         $emptyJson = $db->getAttribute(\PDO::ATTR_DRIVER_NAME) === 'mysql' ? "('{}')" : "'{}'";
+        // A preference document reaches 256 KiB (MySQL TEXT holds 64); its key compares byte for byte (a _bin collation pads spaces).
+        [$preferenceActor, $preferenceDocument] = $db->getAttribute(\PDO::ATTR_DRIVER_NAME) === 'mysql' ? ['VARBINARY(400)', 'MEDIUMTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin'] : ['VARCHAR(100)', 'TEXT'];
         foreach ([
             "CREATE TABLE IF NOT EXISTS blade_roles (id $auto, name VARCHAR(100) NOT NULL UNIQUE, role_key VARCHAR(100) UNIQUE)",
             "CREATE TABLE IF NOT EXISTS blade_memberships (id $auto, actor_id VARCHAR(100) NOT NULL, role_id BIGINT NOT NULL, UNIQUE(actor_id, role_id))",
@@ -22,12 +24,14 @@ final class Schema
             "CREATE TABLE IF NOT EXISTS blade_login_challenges (id VARCHAR(64) PRIMARY KEY, actor_id VARCHAR(100) NOT NULL, code_hash VARCHAR(64) NOT NULL, binding_hash VARCHAR(64) NOT NULL, email_hash VARCHAR(64) NOT NULL, credential_version INTEGER NOT NULL, remember_login INTEGER NOT NULL DEFAULT 0, created_at BIGINT NOT NULL, expires_at BIGINT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, consumed INTEGER NOT NULL DEFAULT 0)",
             "CREATE TABLE IF NOT EXISTS blade_account_state (actor_id VARCHAR(100) PRIMARY KEY, disabled INTEGER NOT NULL DEFAULT 0, must_change_password INTEGER NOT NULL DEFAULT 0, temporary_expires_at BIGINT NOT NULL DEFAULT 0, oauth_allowed INTEGER NOT NULL DEFAULT 0, locale VARCHAR(16) NOT NULL DEFAULT '')",
             "CREATE TABLE IF NOT EXISTS blade_remembered_logins (selector VARCHAR(32) PRIMARY KEY, actor_id VARCHAR(100) NOT NULL, secret_hash VARCHAR(64) NOT NULL, credential_version INTEGER NOT NULL, expires_at BIGINT NOT NULL)",
+            "CREATE TABLE IF NOT EXISTS blade_user_preferences (actor_id $preferenceActor PRIMARY KEY, document $preferenceDocument NOT NULL, revision INTEGER NOT NULL DEFAULT 1, generation INTEGER NOT NULL DEFAULT 0, updated_at VARCHAR(32) NOT NULL)",
         ] as $sql) $db->exec($sql.($db->getAttribute(\PDO::ATTR_DRIVER_NAME)==='mysql'?' ENGINE=InnoDB':''));
         // Additive upgrades of tables created by earlier releases; existing values stay untouched.
         foreach ([
             ['blade_account_state', 'oauth_allowed', 'INTEGER NOT NULL DEFAULT 0'],
             ['blade_account_state', 'locale', "VARCHAR(16) NOT NULL DEFAULT ''"],
             ['blade_audit', 'detail', "TEXT NOT NULL DEFAULT $emptyJson"],
+            ['blade_user_preferences', 'generation', 'INTEGER NOT NULL DEFAULT 0'],
         ] as [$table, $column, $definition]) {
             if (!in_array($column, self::columns($db, $table), true)) $db->exec("ALTER TABLE $table ADD COLUMN $column $definition");
         }

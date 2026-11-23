@@ -1,162 +1,202 @@
-# Server-side user preferences: proposal
+# Server-side user preferences
 
-**Status: proposed, not implemented** ([FB-0259](feedback.md#fb-0259)). No code,
-table or public contract in this document exists yet. Implementation starts
-only after the owner approves it and answers the
-[open decisions](#open-decisions).
+**Status: implemented** ([FB-0259](feedback.md#fb-0259)). This is the record of
+the design the owner approved on 2026-11-23. The file keeps its name so existing
+links stay valid.
 
 ## Goal
 
-Settings that a signed-in user makes today stay in one browser. The owner
-decided on 2026-11-03, and confirmed on 2026-11-21, that they follow the
-account as one JSON document per user: theme, skin, list columns, sorting,
-panel sizes, filters, `app.preferences` and `SettingsForm` values saved under
-a key. This replaces the earlier limit "no per-user server-side preference"
-and the "never a server write" clause of
-[FB-0151](feedback.md#fb-0151--a-settings-form-without-a-record-action) once
-it is implemented. The form values themselves still have no record action.
+The settings of a signed-in user follow the account as one JSON document per
+user. This replaces the earlier limit "no per-user server-side preference" and
+the "never a server write" clause of
+[FB-0151](feedback.md#fb-0151--a-settings-form-without-a-record-action). The
+form values themselves still have no record action.
 
-## What exists today
+## What is stored where
 
-All entries are in `localStorage`. The `blade-ui:1:` key is
-`JSON.stringify([pathname, user, resource])`.
-
-| Item | Key or resource | Proposal |
+| Item | Entry | Where |
 | --- | --- | --- |
-| Theme, skin | `blade-theme`, `blade-skin` | Account, with a local mirror for first paint |
-| List mode, sort, visible columns, filters | `<view>` | Account |
-| Column widths, list and page panels | `<view>`, `<view>@tree`, `<id>`, `<id>:narrow` | Account, per [device class](#device-classes) |
+| Theme, skin | `@theme`, `@skin` | Account, for every application path, with the `blade-theme` and `blade-skin` mirror for the first paint and the sign-in page |
+| List mode, sort, visible columns | `<view>` | Account |
+| Column widths, panel sizes, collapsed panels | `<view>\|wide`, `<view>\|narrow` | Account, per [device class](#device-classes) |
+| Filter values, tree expansion and selection | `<key>\|t:<tenant>` with an active tenant, else `<key>` | Account, per [tenant](#tenants) |
 | Tabs, accordion sections | component key | Account |
 | `app.preferences` | `scope:<name>` | Account |
 | `SettingsForm` | `settings:<key>` | Account |
-| Tree expansion and selection | `<id>` | Account, capped ([decision 2](#open-decisions)) |
-| Window geometry | `window:<id>` | Local ([decision 2](#open-decisions)) |
-| Guide seen | `blade-guide:2:` | Account ([decision 2](#open-decisions)) |
-| Upload resume | `blade-uploads:<user>` | **Stays local**: bound to the PHP session and the file in this browser |
-| Tree reload handoff, reload, sign-out and splash guards | `sessionStorage` | **Stays local**: per-tab guards |
+| Guide seen | `guide:<view>` | Account |
+| Window geometry | `blade-ui:1:[path, user, "window:<id>"]` | **Browser**: meaningful for one screen; the server refuses a `window:` key |
+| Upload resume | `blade-uploads:<user>` | **Browser**: bound to the PHP session and the file in this browser |
+| Tree reload handoff, reload, sign-out and splash guards | `sessionStorage` | **Browser**: per-tab guards |
 
-Three facts constrain the design:
+There is no opt-out: every application with a workspace uses the account store.
+Without a workspace, on the sign-in page, for a public guest (who shares one
+actor id) and on a database that has not run `Schema::install`, the store is
+browser-local as before.
 
-- Every read is synchronous, from component constructors up to the public
-  `PreferenceStore.get`, and the theme is applied before the layout exists.
-- The JSON action path accepts at most 64 KiB per request, while the tree
-  entry can reach about 20 KB and the `SettingsForm` and `app.preferences`
-  stores have no size limit.
-- The public guest shares one actor id, so a guest must not get a server
-  document.
+## Contract and its tradeoffs
+
+These are presentation preferences, so the design stays simple:
+
+- **For one entry the last write wins**, across tabs and devices. An older tab
+  that saves after a newer change on another device replaces it.
+- **A change that never reached the server is lost when the page closes.** There
+  is no replay on a later page. A new page takes the server document as the truth.
 
 ## Storage
 
-One new framework table, created by the explicit `Schema::install` like the
-other `blade_*` tables and never as a side effect of a request:
+One framework table, created by the explicit `Schema::install` and never by a
+request:
 
 ```sql
 CREATE TABLE IF NOT EXISTS blade_user_preferences (
     actor_id   VARCHAR(100) PRIMARY KEY,
     document   TEXT NOT NULL,
     revision   INTEGER NOT NULL DEFAULT 1,
+    generation INTEGER NOT NULL DEFAULT 0,
     updated_at VARCHAR(32) NOT NULL
 );
 ```
 
-The document is versioned, and entries are separated by application path, so
-that several applications on one database do not mix:
+On MySQL `document` is `MEDIUMTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin`,
+because `TEXT` holds only 64 KiB. `actor_id` is `VARBINARY(400)`: a `_bin`
+collation still ignores trailing spaces, so it would join `alice` and `alice `
+in one row.
+
+The document is one flat map, least recently changed first. A written entry moves
+to the end, and a removal deletes it. Account-wide keys stand alone; the others
+are `<application path><TAB><key>`:
 
 ```json
 {
     "v": 1,
-    "theme": "blade",
-    "apps": {
-        "/admin/": {
-            "demo_contacts": { "sort": { "field": "name", "direction": "asc" } },
-            "scope:demo.player": { "volume": 40 }
-        }
+    "entries": {
+        "@theme": "blade",
+        "/admin/\tscope:demo.player": { "volume": 40 },
+        "/admin/\tdemo_contacts": { "sort": { "field": "name", "direction": "asc" } }
     }
 }
 ```
 
-Filter values and tree state of a tenant-scoped view are stored under the
-tenant id inside the entry. They are record ids and search values that mean
-nothing in another tenant, and today they silently carry across a switch.
+The stored text is **ASCII JSON**: non-ASCII characters stay `\uXXXX` escapes, so
+the document survives a `charset=utf8` connection. The application path is the
+part of the request URI before `?`, for both the bootstrap and a save, so a client
+never names it. A document this release cannot read (another version, a malformed
+map) is neither served nor overwritten: the page stays browser-local, a save
+answers 503, and the reset control stays available, because only the user's own
+reset may replace it. A damaged key inside a readable document is skipped.
 
-## API compatibility
+## Runtime
 
-The public API does not change.
+- The bootstrap of a signed-in, non-guest page carries `preferences`: `entries`
+  of the account, this path and the **active tenant only**, and the row's
+  `generation`. Every existing synchronous read is served from that memory copy;
+  the public API does not change.
+- A write updates memory at once. `__preferences` sends the changed entries after
+  one second of quiet, **one save at a time**. A change during a save goes in the
+  next one, and an entry is clean only while it still holds the sent text.
+- When the page is hidden, a `keepalive` request sends the in-flight and queued
+  entries with their newest values.
+- A patch is `{generation, set?, remove?, fill?}` or `{reset: true}`. The server
+  merges it in a transaction, so two tabs or devices that change different entries
+  both keep their change.
+- A failed save is retried **only while the page is open**, with a backoff of up
+  to 30 s, at most 8 times per page and not while the tab is hidden, so an abandoned
+  tab does not keep its session alive. It shows no error.
+- The browser's `blade-ui:1:` entries are a **read fallback only** (no table,
+  guest, before migration, the sign-in page's theme), never a queue.
+- A patch the server refuses is split until the entry refused alone is dropped
+  with a console warning; the other entries are saved. After a 401 or 403 the
+  page stops saving.
+- `__preferences` takes the actor from the session only: no id parameter, CSRF
+  required, `ui` channel only, no API key, no guest, no audit row per change.
+- The theme is applied from the bootstrap before the layout exists, then
+  mirrored for the sign-in page.
 
-- The bootstrap of a signed-in, non-guest page carries the document. Every
-  existing synchronous read is served from that in-memory copy, so no read
-  waits for the network and the theme does not flash.
-- `UiPreferences` and `app.preferences` keep their signatures. A write updates
-  memory and a local mirror at once. A framework-owned `__preferences` action
-  sends the changed entries after one second of quiet, and on `pagehide`.
-- A write is a patch (`set` and `remove` by entry), merged by the server in a
-  transaction. Two tabs or devices that change different entries both keep
-  their change; for one entry the last write wins.
-- A failed save stays in the mirror and is retried; it never shows an error,
-  matching the current "storage failures are swallowed" contract.
-- `__preferences` takes the actor from the session only, has no id parameter,
-  requires CSRF, is `ui` channel only, and writes no audit row per change.
-- Without a workspace, on the sign-in page and for a guest, the store remains
-  browser-local as today.
+### Reset generation
 
-The types and guides that promise browser-local behavior change with the
-implementation (`api/types.ts` `PreferenceStore`, `docs/shell.md`,
-`docs/usage.md`, `docs/workspaces.md`, `docs/toolkit.md`).
+Each row has one integer `generation`. Reset raises it, empties the document and
+keeps the row (or inserts one). The bootstrap carries it, and every patch, `fill`
+included, sends the page's value. On a mismatch the server applies nothing and
+answers 409; that page drops its unsaved entries and saves nothing more for its
+lifetime. Migration is skipped when the bootstrap generation is above 0, so a
+device that never migrated cannot refill the account after a reset.
+
+<a id="tenants"></a>
+
+### Tenants
+
+Filter values and tree state are record ids and search values that mean nothing
+in another tenant. While a tenant is active they are kept per tenant id. A
+browser does not know which resources a project scoped, so this holds for every
+view of a page with an active tenant, including a global view. The bootstrap
+carries only the active tenant's entries. Old browser filter values and tree ids
+carry no tenant, so in an application with tenancy they are never read or
+migrated, whether or not a tenant is active.
+
+<a id="device-classes"></a>
+
+### Device classes
+
+A pixel size from a desktop is wrong on a phone. Column widths, panel sizes and
+the collapsed state of panels are stored under `wide` or `narrow`, split at the
+768 px breakpoint (`Viewport.ts`). Everything else is shared between devices.
+Only a part that changed is written. A view open across the breakpoint reloads
+the current class's sizes before it changes one, so one class's sizes never move
+into the other.
 
 ## Migration from browser values
 
 1. On the first signed-in load in a browser, the client reads this user's
-   `blade-ui:1:`, theme, skin and guide entries through the existing readers.
-2. It sends them as a **fill-only** patch: the server stores an entry only if
-   the document does not have it, so a second device never overwrites the
-   first device's settings.
-3. A local marker per user stops the step from repeating. The old entries stay
-   for one release as a fallback, then a later release removes them.
+   `blade-ui:1:` and guide entries of this path, and the theme and skin if this
+   user owns them. `blade-theme-owner:<name>` records the owner when a theme is
+   stored. A value from before that record has no known owner, so it is not
+   uploaded; it keeps showing in this browser until the user chooses a theme.
+2. It sends what the document lacks as a **fill-only** patch: the server keeps
+   what it already has, so a second device never overwrites the first.
+3. The `blade-prefs-migrated:1:[path, user]` marker stops the repeat. It is set
+   only when every entry is saved or refused alone. Until then a missing entry
+   reads from the browser. The old entries stay for now.
+4. With a bootstrap generation above 0 the account has been reset, so nothing is
+   uploaded or read from the old entries.
 
-Values that fail today's validators are dropped. No server migration script
-is needed, because nothing exists on the server before the first load.
-
-<a id="device-classes"></a>
-
-## Device classes
-
-A pixel size from a desktop is wrong on a phone. Column widths and panel sizes
-are stored under `wide` or `narrow`, split at the existing 768 px boundary that
-`PageLayout` already uses. Everything else is shared between devices.
+The existing readers still validate every value when it is used. No server
+migration script is needed.
 
 ## Limits
 
+The server enforces these on every patch. Entry and document sizes are measured on
+the stored ASCII JSON, so a non-ASCII character counts as its `\uXXXX` escape. The
+client sends the same ASCII text, so the patch size is measured on those bytes too.
+
 | Limit | Value | On excess |
 | --- | --- | --- |
-| Patch | 60 KiB | The client splits it |
-| One entry | 32 KiB | Stays local only, with a developer warning |
+| Patch | 60 KiB | The client splits it; the server answers 413 |
+| One entry | 32 KiB | Kept for this page with a developer warning, not saved; the server answers 413 |
 | Whole document | 256 KiB | The least recently changed entries are dropped |
 | Entries | 1000 | As above |
-| Saves | one per second per tab | Coalesced |
+| Saves | one at a time, after a second of quiet | Coalesced |
+| Save attempts | 8 per page after a failure | Stops until the next change or page |
 
 Preferences stay presentation data: no secrets, permission data or business
 state. Filter values may contain personal search terms, so the document falls
-under the data's backup and erasure handling, and a user needs a "reset my
-settings" action in the framework's profile menu.
+under the data's backup and erasure handling.
 
-## Rollout
+## Reset
 
-1. Table, `__preferences` action, bootstrap field, PHP tests.
-2. `UiPreferences` and `app.preferences` over the in-memory document, with
-   `tests/shell/ui-preferences.mjs` and `preferences.spec.cjs` extended.
-3. Browser migration, theme mirror and reset action.
-4. Guides and a migration row. A consumer has nothing to change unless its
-   specs read `blade-ui:` keys directly.
+**Beállításaim visszaállítása** (Reset my settings) is in the theme selector.
+An application without one, such as one with a single skin, shows it under a
+`Beállítások` control. It waits for a save in flight, empties the user's whole
+document for every application path and raises the
+[generation](#reset-generation), so a tab or device still open cannot bring old
+values back. It removes this browser's copies of the user's settings, including
+window geometry, then reloads. It asks first, because it cannot be undone and
+reaches every device. Upload resume stays.
 
-<a id="open-decisions"></a>
+## Testing
 
-## Open decisions
-
-1. **Device classes.** Recommended: column widths and panel sizes are stored
-   separately for `wide` and `narrow`.
-2. **Items not named in the owner's list.** Recommended: list mode, tabs,
-   accordion sections and guide marks follow the account; tree state follows
-   it up to the entry limit; window geometry stays local, because it is
-   meaningful for one screen only.
-3. **Opt-out.** Recommended: none. Every application with a workspace uses
-   the account store, so there is one behavior to test.
+The demo accounts are shared, so `tools/playwright-test.cjs` keeps a spec's
+settings in its browser context unless the spec sets `accountPreferences`
+(`test.use` or `browser.newContext`). The checks are `php8.4
+tests/shell/preferences.php` (with `BLADE_TEST_MYSQL_SOCKET` naming a private
+MySQL server it also checks that server), `node tests/shell/ui-preferences.mjs` and the shell
+`preferences.spec.cjs`.

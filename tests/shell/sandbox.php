@@ -36,7 +36,13 @@ try {
     check($blobs !== [] && stat($blobs[0])['nlink'] >= 2, 'Open: file-store blobs shared with the seed by hard links');
     unlink($blobs[0]);
     check(is_file($shared.'/sandbox-seed/'.substr($blobs[0], strlen($first) + 1)), 'Open: a copy deleting a blob keeps the seed\'s');
-    check(blade_demo_sandbox_size($first) < 1048576, 'Quota: shared blobs do not count');
+    // A hard-linked blob adds nothing, however large; the copy's own databases grow with the demo.
+    $counted = blade_demo_sandbox_size($first);
+    file_put_contents($shared.'/sandbox-seed/quota-blob', str_repeat('x', 2097152));
+    link($shared.'/sandbox-seed/quota-blob', $first.'/quota-blob');
+    check(blade_demo_sandbox_size($first) === $counted, 'Quota: shared blobs do not count');
+    unlink($first.'/quota-blob');
+    unlink($shared.'/sandbox-seed/quota-blob');
     $db = new PDO('sqlite:'.$first.'/features.sqlite');
     $db->exec("UPDATE demo_tasks SET title = 'Visitor change' WHERE id = 1");
     $db = null;

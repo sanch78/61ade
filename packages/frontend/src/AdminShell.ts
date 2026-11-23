@@ -8,7 +8,8 @@ import { Form, Layout, Menu, Toolbar, Window, setTheme, awaitRedraw } from "@dht
 import { acknowledge, closeDialogs, showDialog } from "./MessageDialog";
 import { ResponsiveToolbar } from "./ResponsiveToolbar";
 import { uploads, type UploadIndicator } from "./Uploader";
-import { configureServer, server } from "./api/Server";
+import { configureServer, savePreferences, server } from "./api/Server";
+import { account } from "./AccountPreferences";
 import { configureWindowSizing } from "./WindowSizing";
 import { attachContent, nonModalOpen, openWindow, themeApplied, workspaceBox } from "./api/services";
 import type { AppWindow, LocationSegment, NavigationTarget, Row, ViewDefinition, ViewHost, ViewInstance, ViewOpenMode } from "./api/types";
@@ -95,6 +96,8 @@ export type ShellDefinition = {
   /** Application pages, only when switched on: the location bar's Back button and level icons by default (docs/shell.md#location-bar-back). */
   locationBack?: true;
   locationIcons?: true;
+  /** A signed-in user's settings of this application path; absent: the page stays browser-local. */
+  preferences?: { entries: Record<string, unknown>; generation?: number; unreadable?: boolean };
 };
 const escape = (text: string) =>
   text.replace(
@@ -112,6 +115,8 @@ const DEPTH="bladeDepth";
 const SIGNED_OUT="blade-signed-out";
 /** Browser marks of the guides already shown to each user (AdminShell.guideKey). */
 const GUIDE_PREFIX="blade-guide:2:";
+/** The "reset my settings" entry of the settings controls. */
+const RESET_PREFERENCES="blade-reset-preferences";
 /** At most this many parent levels of a record page (`ViewDefinition.parent`, docs/shell.md#location-bar). */
 const PARENTS=4;
 
@@ -463,13 +468,16 @@ export class AdminShell {
     this.treeCache=new TreeCache(definition.authenticated?definition.treeSnapshotContext:undefined);
     configureServer(definition.csrf || "", this.applicationPage ? () => this.sessionEnded() : undefined,
       (resource,reload) => this.treeCache.invalidate(resource,reload?"changed":"denied"));
-    let theme=choices[0].id;
-    try { const saved=localStorage.getItem(storage); if(choices.some(choice=>choice.id===saved))theme=saved!; } catch {}
+    // Before the theme: the account's choice is applied before the layout exists, and mirrored for the sign-in page.
+    if(definition.preferences&&definition.authenticated)account.configure({...definition.preferences,user:definition.userId??"",tenant:definition.tenant?.current??null,tenancy:!!definition.tenant,send:savePreferences});
+    const accountTheme=skins.length?"@skin":"@theme",saved=account.theme(accountTheme,storage);
+    const theme=choices.some(choice=>choice.id===saved)?saved!:choices[0].id;
     apply(theme);
     if (definition.protocol !== 1)
       throw new Error(t("Nem kompatibilis 61ade felületverzió."));
     const tenant=definition.tenant,currentTenant=tenant?.choices.find(choice=>choice.id===tenant.current),language=definition.i18n;
     const signInControl=definition.guest || (definition.publicAccess && definition.oauthOnly);
+    const resetItem={id:RESET_PREFERENCES,value:t("Beállításaim visszaállítása"),icon:"bi bi-arrow-counterclockwise"};
     const controlItems:object[]=[
       ...(this.tenantSelector?[{id:"blade-tenant",value:escape(currentTenant?.name??t("Tenant")),icon:"bi bi-grid",tooltip:t("Tenant váltása"),
         items:tenant!.choices.map(choice=>({id:"tenant:"+choice.id,value:escape(choice.name),...(choice.id===tenant!.current?{icon:"bi bi-check-lg"}:{})}))}]:[]),
@@ -477,7 +485,8 @@ export class AdminShell {
       ...(language?.selector?[{id:"blade-language",value:escape(language.languages[language.locale]),icon:languageIcon(language,language.locale),tooltip:t("Nyelv"),
         items:Object.keys(language.languages).map(id=>({id:"language:"+id,value:escape(language.languages[id]),icon:languageIcon(language,id)}))}]:[]),
       ...(choices.length>1?[{id:"theme-choice",value:choices.find(choice=>choice.id===theme)!.label,
-        items:choices.map(choice=>({id:"theme:"+choice.id,value:choice.label}))}]:[]),
+        items:[...choices.map(choice=>({id:"theme:"+choice.id,value:choice.label})),...(account.resettable?[{type:"separator"},resetItem]:[])]}]:[]),
+      ...(account.resettable&&choices.length<2?[{id:"blade-settings",value:t("Beállítások"),icon:"bi bi-gear",items:[resetItem]}]:[]),
     ];
     this.layout = new Layout(root, {
       type: "line",
@@ -551,6 +560,7 @@ export class AdminShell {
       controls.events.on("click",(id:string|number)=>{
         const key=String(id);
         if(key==="blade-guide"&&this.page)this.showGuide(this.page);
+        if(key===RESET_PREFERENCES)void this.resetPreferences();
         if(key.startsWith("language:"))this.post("language",{locale:key.slice(9)});
         if(key.startsWith("tenant:")&&key.slice(7)!==tenant?.current)this.post("tenant",{tenant:key.slice(7)});
         if(!key.startsWith("theme:"))return;
@@ -558,7 +568,7 @@ export class AdminShell {
         if(!choice)return;
         apply(choice.id);
         controls.data.update("theme-choice",{value:choice.label});
-        try{localStorage.setItem(storage,choice.id);}catch{}
+        account.chooseTheme(accountTheme,storage,choice.id);
         void awaitRedraw().then(()=>{if(!this.listeners.signal.aborted)this.renderMenu();});
         void this.fitLogin();
       });
@@ -935,9 +945,15 @@ export class AdminShell {
     if(this.guides){if(this.guide)this.controls?.enable("blade-guide");else this.controls?.disable("blade-guide");}
     this.renderMenu();
   }
-  /** A guide opens by itself once per application path, user and view in this browser profile. */
+  /** A guide opens by itself once per application path, user and view (the account's mark, else this browser's). */
   private guideKey(view:ViewDefinition):string{return GUIDE_PREFIX+JSON.stringify([location.pathname,this.definition.userId??"",view.id]);}
-  private guideShown(view:ViewDefinition):boolean{try{return localStorage.getItem(this.guideKey(view))==="1";}catch{return false;}}
+  private guideShown(view:ViewDefinition):boolean{return !!account.value<unknown>("guide:"+view.id,()=>{try{return localStorage.getItem(this.guideKey(view))==="1"||undefined;}catch{return undefined;}});}
+  /** Clears the account's settings everywhere after a confirmation (it cannot be undone), then starts the page afresh. */
+  private async resetPreferences():Promise<void>{
+    const title=t("Beállításaim visszaállítása");
+    if(!await showDialog({mode:"confirm",severity:"warning",title,confirmLabel:t("Visszaállítás"),initialFocus:"cancel",message:t("A mentett nézetbeállításaid minden eszközödön törlődnek. Ez nem vonható vissza.")})||this.listeners.signal.aborted)return;
+    try{await account.reset();location.reload();}catch{void this.failed(new Error(t("Sikertelen művelet.")));}
+  }
   private guideWindow?:AppWindow;
   /** The page view's guide (`guide`) in a non-modal window at the lower right of the workspace; it closes with the view. */
   private showGuide(mounted:Mounted):void{
@@ -956,6 +972,7 @@ export class AdminShell {
     }
     win.attach(body);
     try{localStorage.setItem(this.guideKey(view),"1");}catch{}
+    account.write("guide:"+view.id,1);
     win.signal.addEventListener("abort",()=>{if(this.guideWindow===win)this.guideWindow=undefined;},{once:true});
   }
 
@@ -1405,6 +1422,7 @@ export class AdminShell {
     this.treeCache.saveForReload();
     this.treeCache.invalidate(undefined,"ended");
     this.channel?.close();
+    account.leave();
     this.loginWindow?.destructor();
     this.controlSize?.disconnect();
     this.controls?.disposeResponsive();

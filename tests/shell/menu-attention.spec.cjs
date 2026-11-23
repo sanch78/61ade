@@ -23,6 +23,11 @@ test.afterAll(()=>{
  php(`$db->exec("DELETE FROM demo_approvals WHERE title LIKE '${prefix}%'");$q=$db->prepare("UPDATE demo_approvals SET status='pending' WHERE id=?");foreach(${JSON.stringify(seeded)} as $id)$q->execute([$id]);$q=$db->prepare("UPDATE demo_changes SET seen=0 WHERE id=?");foreach(${JSON.stringify(unseenChanges)} as $id)$q->execute([$id]);`);
 });
 
+// `Szolgáltatásjelentés` in the same branch counts a simulated report that changes every minute: it is left out here.
+test.beforeEach(({page})=>page.addInitScript(()=>{
+ const parse=JSON.parse;
+ JSON.parse=function(text,reviver){const value=parse(text,reviver);if(value?.protocol===1)for(const view of value.views??[])if(view.id==='demo_service_report')delete view.attention;return value;};
+}));
 const nav=page=>page.locator('.blade-navigation-row .dhx_menu-nav');
 /** The badge of a top-level menu entry (aria-hidden: the name of a branch and of `Menü` stays). */
 const badge=(page,id)=>nav(page).locator(`[data-dhx-id="${id}"] .blade-menu-count`);

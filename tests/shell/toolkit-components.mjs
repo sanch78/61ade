@@ -52,7 +52,7 @@ const aborted=new AbortController();aborted.abort();new Probe({signal:aborted.si
 assert.throws(()=>new Probe({signal:{}}),TypeError);
 
 // Layout cell: the root Layout is attached and detached again on destroy.
-const cell={widget:null,attach(widget){this.widget=widget;},attachHTML(){},getWidget(){return this.widget;},detach(){this.widget=null;}};
+const cell={config:{},widget:null,attach(widget){this.widget=widget;},attachHTML(){},getWidget(){return this.widget;},detach(){this.widget=null;}};
 const inCell=new Probe();inCell.mount(cell);assert.equal(cell.widget.id,'root');inCell.destroy();assert.equal(cell.widget,null);
 
 // AppWindow/ViewHost: attached through `attach`; its signal destroys; an explicit destroy empties it.
@@ -81,7 +81,7 @@ class ListProbe extends ListBase{
 }
 assert.throws(()=>new ListProbe({signal:'x'}),TypeError);
 assert.throws(()=>new ListProbe().on('x','nope'),TypeError,'a handler must be a function');
-const listSeen=[],inList=new ListProbe(),listCell={widget:null,attach(widget){this.widget=widget;},getWidget(){return this.widget;},detach(){this.widget=null;}};
+const listSeen=[],inList=new ListProbe(),listCell={config:{},widget:null,attach(widget){this.widget=widget;},getWidget(){return this.widget;},detach(){this.widget=null;}};
 inList.on('x',payload=>listSeen.push(payload));inList.fire(1);inList.mount(listCell);inList.fire(2);
 assert.throws(()=>inList.mount(listCell),/already mounted/);
 inList.destroy();inList.destroy();assert.equal(disposed,1);assert.equal(listCell.widget,null,'the cell is detached');inList.fire(3);assert.deepEqual(listSeen,[2]);

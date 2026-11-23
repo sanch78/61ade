@@ -180,6 +180,9 @@ final class Application
                 }
                 if ($groupIcons) $bootstrap['menuGroupIcons'] = $groupIcons;
                 $bootstrap['csrf'] = $csrf;
+                // A signed-in user's settings of this application path; without the table the page stays browser-local.
+                if ($identity && ($path = \Blade\Preferences\UserPreferences::path((string) ($_SERVER['REQUEST_URI'] ?? ''))) !== null
+                    && ($preferences = $workspace->preferences->bootstrap($identity->id, $path, $tenant)) !== null) $bootstrap['preferences'] = $preferences;
                 if ($identity && ($context = $this->treeSnapshotContext($workspace, $bootstrap['views'], $identity, $tenant, $csrf)) !== null) {
                     $bootstrap['treeSnapshotContext'] = $context;
                 }

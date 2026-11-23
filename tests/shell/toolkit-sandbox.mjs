@@ -197,7 +197,7 @@ try{
  const quiet=new SandboxFrame({maxCodeBytes:1}),quietEvents=[],before2=reports.length;quiet.on('error',payload=>quietEvents.push(payload));
  await assert.rejects(quiet.load('12'),{code:'size'});assert.equal(quietEvents.length,0,'no component event before mount');assert.equal(reports.length,before2+1,'sandbox:error still reports');
  assert.throws(()=>quiet.on('error','nope'),TypeError);assert.throws(()=>new SandboxFrame({signal:{}}),TypeError);
- const cell={widget:null,attach(widget){this.widget=widget;},getWidget(){return this.widget;},detach(){this.widget=null;}};
+ const cell={config:{},widget:null,attach(widget){this.widget=widget;},getWidget(){return this.widget;},detach(){this.widget=null;}};
  quiet.mount(cell);assert.equal(cell.widget,quiet.layout);assert.throws(()=>quiet.mount(new FakeElement('div')),/already mounted/);
  await assert.rejects(quiet.load('12'),{code:'size'});assert.equal(quietEvents.length,1,'mounted: the event arrives');
  quiet.destroy();assert.equal(cell.widget,null,'destroy detaches the cell');assert.throws(()=>quiet.mount(cell),/destroyed/);

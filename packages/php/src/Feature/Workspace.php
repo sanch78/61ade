@@ -21,9 +21,11 @@ final class Workspace
     public readonly \Blade\Jobs\Jobs $jobReads;
     /** Optional multi-tenancy ($tenancy: true); null keeps the application single-realm with no tenant checks at all. */
     public readonly ?\Blade\Tenancy\Tenancy $tenancy;
+    /** The signed-in users' settings documents (`__preferences`, docs/user-preferences-plan.md). */
+    public readonly \Blade\Preferences\UserPreferences $preferences;
     public function __construct(public readonly Registry $registry,public readonly \PDO $db,bool $tenancy=false)
     {
-        $this->tenancy=$tenancy?new \Blade\Tenancy\Tenancy($db):null;
+        $this->tenancy=$tenancy?new \Blade\Tenancy\Tenancy($db):null;$this->preferences=new \Blade\Preferences\UserPreferences($db);
         $this->acl=new Acl($db,$registry->delegation(...));$this->journal=new Journal($db);$this->jobs=new \Blade\Jobs\JobQueue($db);$this->jobReads=new \Blade\Jobs\Jobs($registry,$this->jobs);$this->executor=new Executor($registry,$db,$this->journal,$this->jobs);$this->tasks=new TaskQueue($db);$this->transfers=new Transfers($registry,$this->executor,$this->journal);
     }
     public function version(string $actor): int
@@ -244,6 +246,17 @@ final class Workspace
             if(!is_array($data) || !is_string($data['resource']??null)||!is_string($data['action']??null)||!is_array($data['values']??[]))throw new Failure('Hibás műveletkérés.');
             $id=$data['id']??null;if($id!==null&&!is_string($id))throw new Failure('Hibás azonosító.');
             $sessionId=session_id();session_write_close();
+            if($data['action']==='__preferences'){
+                // The session's own document: no id, no API key, no guest and no audit row per change.
+                $handled=true;
+                if($channel!=='ui'||!$actor->authenticated)throw new Failure('Nem érhető el.',403);
+                if($multipart||$id!==null||$data['resource']!=='')throw new Failure('Hibás műveletkérés.');
+                if(strlen($raw)>\Blade\Preferences\UserPreferences::PATCH_BYTES)throw new Failure('Túl nagy kérés.',413);
+                $path=\Blade\Preferences\UserPreferences::path((string)($_SERVER['REQUEST_URI']??''));
+                try{$patch=json_decode($raw,false,64,JSON_THROW_ON_ERROR)->values??null;}catch(\JsonException){throw new Failure('Érvénytelen JSON.');}
+                if($path===null)throw new Failure('Hibás műveletkérés.');
+                echo json_encode(['ok'=>true,'data'=>$this->preferences->patch($actor->id,$path,$patch)],JSON_THROW_ON_ERROR);exit;
+            }
             $uploads=[];
             if($multipart){
                 if($data['action']==='__upload'){

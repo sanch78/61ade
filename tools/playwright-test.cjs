@@ -14,14 +14,22 @@ const developerCookies = () => {
     try { value = require('node:fs').readFileSync(file, 'utf8').trim(); } catch (error) { if (error.code === 'ENOENT') return []; throw error; }
     return value && process.env.BLADE_DEMO_URL ? [{ name: 'blade_demo_developer', value, url: process.env.BLADE_DEMO_URL, httpOnly: true, secure: true, sameSite: 'Lax' }] : [];
 };
+// The demo accounts are shared, so a spec stays browser-local unless it asks for the account store (`accountPreferences`):
+// its page reads a bootstrap without `preferences`, as on a database that has not installed the table.
+const localPreferences = () => {
+    const parse = JSON.parse;
+    JSON.parse = function (text, reviver) { const value = parse(text, reviver); if (value?.protocol === 1) delete value.preferences; return value; };
+};
 const test = playwright.test.extend({
+    accountPreferences: [false, { option: true }],
     browser: [async ({ browser }, use) => {
         const newContext = browser.newContext.bind(browser);
-        browser.newContext = async options => { const context = await newContext(options); await context.addCookies(developerCookies()); return context; };
+        browser.newContext = async ({ accountPreferences = false, ...options } = {}) => { const context = await newContext(options); await context.addCookies(developerCookies()); if (!accountPreferences) await context.addInitScript(localPreferences); return context; };
         await use(browser);
     }, { scope: 'worker' }],
-    context: async ({ context }, use) => {
+    context: async ({ context, accountPreferences }, use) => {
         await context.addCookies(developerCookies());
+        if (!accountPreferences) await context.addInitScript(localPreferences);
         await use(context);
     },
     page: async ({ page }, use) => {

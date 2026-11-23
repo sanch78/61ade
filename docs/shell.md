@@ -517,8 +517,10 @@ The right-hand DHTMLX Toolbar selector offers 61ade's own pair, Blade
 (`blade`) and Blade Night (`blade-night`), and the Suite themes `Világos`
 (`light`) and `Éjjeli` (`dark`). Without a saved valid choice, Blade is used;
 existing valid choices persist, a removed one (such as the former `skyblue`)
-falls back to Blade. `blade-theme` in localStorage is a browser preference,
-not authorization/profile data.
+falls back to Blade. A signed-in user's choice follows the account
+([user preferences](user-preferences-plan.md)) and is applied before the layout
+exists; `blade-theme` in localStorage is its mirror for the sign-in page. It is
+a presentation preference, not authorization data.
 
 These are two inheritance families: Blade (`blade`/`blade-night`) and Generic
 (`light`/`dark`). Generic is a family name, not another `setTheme` or
@@ -670,8 +672,8 @@ return new ApplicationDefinition(
 - With skins the factory themes are not offered. One skin is applied with
   `setTheme` and the theme selector is hidden; several skins fill the selector
   with only those skins.
-- The choice among several skins is stored in `blade-skin` in localStorage; an
-  unknown value falls back to the first skin. `blade-theme` is never written
+- The choice among several skins follows the account (entry `@skin`) with
+  `blade-skin` in localStorage as its mirror; an unknown value falls back to the first skin. `blade-theme` is never written
   while skins apply, so a user who loses the skins (for example after a role
   change) gets the previous factory theme back, and the sign-in page keeps it.
 - Presentation only: a skin grants or limits nothing. Endpoint policy, ACL and
@@ -1077,8 +1079,10 @@ data.
   address change. A page navigation closes such windows.
 
 No consumer JavaScript or extra configuration is required. Bootstrap `userId`
-is the authenticated identity. Versioned `blade-ui:1:` localStorage keys
-separate pathname, user ID and view id (`[path, user, <view id>]`; a sub-view
+is the authenticated identity. A signed-in user's settings follow the account
+([user preferences](user-preferences-plan.md)); window geometry and the entries
+of a guest or an application without a workspace stay in the browser. Versioned
+`blade-ui:1:` localStorage keys, a read fallback for those cases, separate pathname, user ID and view id (`[path, user, <view id>]`; a sub-view
 preview adds `@<field>`). A view whose id equals its resource keeps the keys of
 earlier releases, so there is no key migration; a renamed view starts with
 defaults. A module's `app.preferences.scope("<project>.<name>")` store is one
@@ -1099,9 +1103,9 @@ size limits apply, and a saved filter value is applied only if the actor's
 current filter definitions accept it (the server's rules: a known select
 option, `0`/`1`, digits for a number, at most 255 characters); otherwise it is
 dropped, so the list still loads. A saved filter shows in the header and the
-panel; `Alaphelyzet` removes it, also from storage. Broken/disabled storage falls back safely. Preferences remain
-browser-local with no server/device synchronization. Delete the specific key
-to reset; logout preserves it and different users have distinct keys.
+panel; `Alaphelyzet` removes it, also from storage. Broken/disabled storage falls back safely. A user clears
+their settings with `Beállításaim visszaállítása` in the theme selector; logout
+preserves them and different users have distinct documents and keys.
 
 <a id="desktop-only-views"></a>
 
@@ -1126,7 +1130,9 @@ a stale layout double lacking `getRootNode()` (FB-0050). The managed
 `preferences.spec.cjs` checks view URLs through login/reload/history, that a
 `#feature=` address opens no view after a sign-in, persisted column width,
 sort, view and panel width, and broken storage on the feature demo's Tasks
-view.
+view, and the account store: a fresh browser, device classes, fill-only
+migration, no theme flash, reset and a retried save. `tests/shell/preferences.php`
+checks the `__preferences` boundary, merge and limits.
 Feedback: FB-0021.
 
 <a id="application-modules"></a>

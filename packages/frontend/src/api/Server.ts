@@ -42,6 +42,12 @@ export function post(resource: string, action: string, options: CallOptions = {}
     });
 }
 
+/** One `__preferences` patch (JSON text); a background save, so a 401 here never starts the sign-out flow. */
+export function savePreferences(values: string, keepalive: boolean): Promise<number> {
+  return fetch(endpoint(), { method: "POST", credentials: "same-origin", keepalive, headers: { "X-BLADE-CSRF": csrf, "Content-Type": "application/json" },
+    body: `{"resource":"","action":"__preferences","id":null,"values":${values}}` }).then(response => response.status);
+}
+
 /** A `ServerFailure`: the localized server message (or the generic one), field errors and optional details. */
 export function failure(status: number, result: { error?: unknown; fieldErrors?: unknown; details?: unknown } = {}): ServerFailure {
   const fieldErrors = result.fieldErrors && typeof result.fieldErrors === "object" && !Array.isArray(result.fieldErrors) ? result.fieldErrors as Record<string, string> : {};

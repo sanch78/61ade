@@ -798,5 +798,8 @@
   "A feladat már nem érhető el.": "The job is no longer available.",
   "Nem található feladat.": "Job not found.",
   "Hibás feladatkérés.": "Invalid job request.",
-  "Hibás feladatazonosító.": "Invalid job token."
+  "Hibás feladatazonosító.": "Invalid job token.",
+  "Beállításaim visszaállítása": "Reset my settings",
+  "Visszaállítás": "Reset",
+  "A mentett nézetbeállításaid minden eszközödön törlődnek. Ez nem vonható vissza.": "Your saved view settings will be removed on all your devices. This cannot be undone."
 }

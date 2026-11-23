@@ -48,7 +48,7 @@ export interface Application {
     readonly i18n: I18n;
     /** Appearance (factory theme or application skin). */
     readonly theme: Theme;
-    /** Browser-local presentation preferences of the signed-in user. */
+    /** Presentation preferences of the signed-in user: they follow the account (browser-local without one). */
     readonly preferences: Preferences;
     /** List subscriptions on the tab's one live channel. */
     readonly live: Live;
@@ -558,9 +558,10 @@ export interface Theme {
     onChange(listener: (theme: string, skin: string | null) => void, options?: SignalOptions): () => void;
 }
 /**
- * Browser-local preference store of one scope (over `UiPreferences.ts`). Keys live under the versioned
- * `blade-ui:1:` localStorage prefix, separated by page path, user id and scope. Values are JSON; storage failures
- * (private mode, quota) are swallowed: `get` then returns `undefined` and `set` does nothing.
+ * Preference store of one scope, separated by application path, user and scope. For a signed-in user of an application
+ * with a workspace it follows the account (docs/user-preferences-plan.md): reads stay synchronous, a write is saved in
+ * the background and a failed save is retried while the page is open, without an error (for one entry the last write wins). Otherwise it is browser-local under the versioned
+ * `blade-ui:1:` localStorage prefix. Values are JSON; browser storage failures (private mode, quota) are swallowed.
  */
 export interface PreferenceStore {
     get<T = unknown>(key: string): T | undefined;
@@ -1868,8 +1869,8 @@ export interface SettingsFormOptions extends ComponentOptions {
     /** Initial values (over the defaults, under the user's kept values); invalid ones are ignored. */
     values?: Record<string, unknown>;
     /**
-     * Keeps the user's values per page and user in the browser (`UiPreferences`, as a list's view choices), under this
-     * key (1–80 characters); kept values the fields no longer accept are dropped. Never a server write.
+     * Keeps the user's values per page and user (`UiPreferences`, as a list's view choices: they follow the account, with
+     * no record action), under this key (1–80 characters); kept values the fields no longer accept are dropped.
      */
     key?: string;
     /** A submit row with this button (plain-text label): it validates and reports `submit`. Default: none. */

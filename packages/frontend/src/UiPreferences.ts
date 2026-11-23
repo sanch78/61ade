@@ -1,6 +1,7 @@
 import type { Grid, Layout } from "@dhtmlx/suite";
 import type { Sort } from "./GridHeaders";
 import type { FieldDefinition } from "./FormValidation";
+import { account } from "./AccountPreferences";
 
 type Region={id?:string;rows?:Region[];cols?:Region[];width?:number;height?:number;minWidth?:number;collapsable?:boolean;collapsed?:boolean};
 type ResizeCell={
@@ -24,14 +25,22 @@ export type WindowGeometry={left:number;top:number;width:number;height:number;ma
 export class UiPreferences {
   private state:Preferences={};
   private key:string;
-  constructor(user:string,resource:string){
+  /** What the account store last holds of each part of this state. */
+  private synced:Record<string,string>={};
+  constructor(private user:string,private resource:string){
     this.key="blade-ui:1:"+JSON.stringify([location.pathname,user,resource]);
     try{
       const value=JSON.parse(localStorage.getItem(this.key)??"{}");
       if(value&&typeof value==="object"&&!Array.isArray(value))this.state=value;
     }catch{}
+    this.state=account.compose(user,resource,this.state as Record<string,unknown>,this.synced) as Preferences;
   }
-  private save():void{try{localStorage.setItem(this.key,JSON.stringify(this.state));}catch{}}
+  /** Before a size changes: a view open across 768 px continues from the current device class's sizes. */
+  private sizes():void{account.sizes(this.user,this.resource,this.state as Record<string,unknown>,this.synced);}
+  private save():void{
+    try{localStorage.setItem(this.key,JSON.stringify(this.state));}catch{}
+    account.store(this.user,this.resource,this.state as Record<string,unknown>,this.synced);
+  }
   /** The user's chosen presentation, else `fallback`. */
   mode(fallback:Mode="table"):Mode{const mode=this.state.mode;return mode==="table"||mode==="cards"||mode==="tiles"?mode:fallback;}
   setMode(mode:Mode):void{this.state.mode=mode;this.save();}
@@ -99,6 +108,7 @@ export class UiPreferences {
     const visit=(node:Region)=>{if(node.id)nodes.push({...node});node.rows?.forEach(visit);node.cols?.forEach(visit);};visit(tree);
     const save=(id:string,collapse=false)=>{
       const node=nodes.find(node=>node.id===id);if(!node)return;
+      this.sizes();
       const config=layout.getCell(id).config;
       const width=pixels(config.width),height=pixels(config.height);
       const previous=this.state.regions?.[id]??{};
@@ -114,6 +124,7 @@ export class UiPreferences {
       const before=grip.previousElementSibling as HTMLElement|null;
       const after=grip.nextElementSibling as HTMLElement|null;
       const dimension=grip.classList.contains("dhx_layout-resizer--x")?"width":"height";
+      this.sizes();
       for(const element of [before,after]){
         const id=element?.dataset.cellId;
         const original=nodes.find(node=>node.id===id);
@@ -149,6 +160,7 @@ export class UiPreferences {
     }
     grid.setColumns(grid.config.columns??[]);
     grid.events.on("afterResizeEnd",()=>{
+      this.sizes();
       this.state.columns=(grid.config.columns??[]).filter(column=>size(column.width)).map(column=>({id:String(column.id),width:column.width as number}));this.save();
     });
   }

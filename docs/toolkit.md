@@ -182,7 +182,7 @@ each member with one example.
 | `uploads` | `open`, `reopen` of the shared uploader | `Uploader.ts` `uploads` |
 | `i18n` | `t`, `locale`, `languages` | `I18n.ts` |
 | `theme` | `current`, `skin`, `onChange(listener, {signal})` | AdminShell theme/skin handling |
-| `preferences` | `scope(name)` → `get/set/remove` (`name` must contain a dot, else `TypeError`) | `UiPreferences.ts` storage |
+| `preferences` | `scope(name)` → `get/set/remove` (`name` must contain a dot, else `TypeError`) | the [account store](user-preferences-plan.md), browser-local without one |
 | `live` | `subscribe(resource, query, handlers, {signal})` | `LiveChannel`/`Realtime` |
 | `events` | Typed bus `on(name, handler, {signal})`, `off`, `emit` ([event catalog](#event-catalog)) | uploader `on/off` |
 | `identity` | `id`, `displayName`, `tenant`, `authenticated` | bootstrap `userId`, `displayName`, `tenant.current`, `authenticated`; false for the configured public account, without granting any right |
@@ -1221,8 +1221,9 @@ viewer.applyAll(settings.values());          // the kept values are there at onc
 - **Persistence (`key`, 1–80 characters):** `UiPreferences` under the page
   path, the user and `settings:<key>`, written on every change, `set` and
   `setValues`; kept values a field no longer accepts are dropped when the
-  form is created; `reset()` forgets them. There is no server write; a value
-  the server must know is a `RecordForm`.
+  form is created; `reset()` forgets them. The values [follow the
+  account](user-preferences-plan.md) as a preference ([FB-0259](feedback.md#fb-0259)),
+  through no record action; a value the application must act on is a `RecordForm`.
 - **Placement:** any `MountTarget`: a `PageLayout` region, a `Tabs` tab, an
   Accordion section, a window (which it refits when a conditional field
   appears). It is one column with labels above the controls, so it fits a
@@ -3973,6 +3974,7 @@ Results per phase are recorded in [FB-0081](feedback.md#fb-0081); the plan's
 | M114 | Tenant-scoped `SqlResource` statements stay on the row's tenant when a key repeats across tenants; [tenant singleton](tenancy.md#tenant-singleton) (`tenantSingleton`, JSON `tenant_singleton`) | [FB-0258](feedback.md#fb-0258) | if used: a tenant-scoped resource with related or delegation storage or shared rows needs a key unique across tenants (best a one-column primary key or unique index); if its table holds a repeated key, it answers 500 until that is fixed; a hand-written per-tenant `self` view can become a tenant singleton keyed by its tenant column. info: `HTTPS` empty or `OFF` now counts as plain HTTP for cookies |
 | M115 | An open `app.ui.window` follows the 768 px breakpoint and keeps its content ([long-lived windows](#long-lived-windows)) | [FB-0260](feedback.md#fb-0260) | info: a project's own reopen on `viewport:change` can go |
 | M116 | A MySQL deadlock (SQLSTATE 40001) in any action answers 409 instead of 500 ([tenant singleton](tenancy.md#tenant-singleton)) | [FB-0258](feedback.md#fb-0258) | info: a project's own 40001 handling can go |
+| M117 | A signed-in user's settings [follow the account](user-preferences-plan.md): new table `blade_user_preferences`, `__preferences`, bootstrap `preferences`. Browser values go up once, fill-only. For one entry the last write wins, and a change that never reached the server is lost when the page closes | [FB-0259](feedback.md#fb-0259) | run `Schema::install`, else the application stays browser-local; a spec that reads `blade-ui:` keys or expects a fresh browser to have default settings must isolate its account |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the

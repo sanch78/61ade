@@ -798,5 +798,8 @@
   "A feladat már nem érhető el.": "Der Auftrag ist nicht mehr verfügbar.",
   "Nem található feladat.": "Auftrag nicht gefunden.",
   "Hibás feladatkérés.": "Ungültige Auftragsanfrage.",
-  "Hibás feladatazonosító.": "Ungültige Auftragskennung."
+  "Hibás feladatazonosító.": "Ungültige Auftragskennung.",
+  "Beállításaim visszaállítása": "Meine Einstellungen zurücksetzen",
+  "Visszaállítás": "Zurücksetzen",
+  "A mentett nézetbeállításaid minden eszközödön törlődnek. Ez nem vonható vissza.": "Ihre gespeicherten Ansichtseinstellungen werden auf allen Ihren Geräten gelöscht. Das kann nicht rückgängig gemacht werden."
 }

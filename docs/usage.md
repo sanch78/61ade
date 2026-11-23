@@ -764,8 +764,11 @@ builds no hint or overlay element of its own for these states.
 The shell uses `#view=<view id>` (record views `&record=<id>`) to restore active
 views on reload and Back/Forward; any other address gives the empty workspace
 ([shell](shell.md#url-és-helyi-felületbeállítások)).
-[Local preferences](shell.md#url-és-helyi-felületbeállítások) automatically retain
-grid/workspace display settings; marks and the cursor record are transient
+[Preferences](shell.md#url-és-helyi-felületbeállítások) automatically retain
+grid/workspace display settings and, for a signed-in user of an application
+with a workspace, [follow the account](user-preferences-plan.md) after
+`Schema::install` has created `blade_user_preferences` (an existing database
+that has not run it stays browser-local); marks and the cursor record are transient
 and never stored. [Compact login windows](shell.md#kompakt-hitelesítési-ablakok-és-menüikonok)
 fit rendered forms with consistent lower space. List shadows appear under grid
 column headings or the card toolbar, with a separate theme divider between

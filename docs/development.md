@@ -332,6 +332,11 @@ change before every push.
   Consumer browser specs that assert `?v=32` or `?v=<version>` on these URLs
   must accept the file key.
 
+- **Toolkit transition (2026-10-29 to 2026-10-30, [FB-0081](feedback.md#fb-0081),
+  [ADR-0005](decisions/0005-toolkit.md)):** the owner accepted breaking changes
+  for this transition. The [migration guide](toolkit.md#migration) documents the
+  public API changes and the steps for upgrading an application.
+
 #### Consumer update smoke check
 
 The update reaches a consumer by itself, so the check comes after the push and
@@ -385,7 +390,8 @@ delete, so removal is consumer cleanup in its development database:
 - the consumer's identity row;
 - rows keyed by the actor ID: `blade_memberships`, `blade_versions`,
   `blade_auth_settings`, `blade_account_state`, `blade_tokens`,
-  `blade_login_challenges`, `blade_remembered_logins`, and `blade_rules` with
+  `blade_login_challenges`, `blade_remembered_logins`, `blade_user_preferences`,
+  and `blade_rules` with
   `subject_type = 'user'`;
 - `blade_audit` rows the account produced or was the target of, if the
   consumer's test policy removes them;
@@ -446,6 +452,7 @@ PHP scripts use the demo Composer autoloader and throw on failure.
 | Sorting/list presentation | PHP `sorting.php`, `list-presentation.php`, `lists.php`; shell `list-presentation.spec.cjs`, `list-integration.spec.cjs`, `grid-sort.spec.cjs` |
 | Provider lists (`ProviderResource`, `ListProvider`, `ListQuery`, `ListReader`), list `notice` | PHP `provider-lists.php`, `lists.php`, `sorting.php`, `counts.php`; `node tools/build.mjs` then `node tests/shell/live-protocol.mjs`; shell `provider-list.spec.cjs`, `workspace.spec.cjs`, `list-integration.spec.cjs`, `empty-states.spec.cjs` |
 | Jobs (`Action` `job`, `JobQueue`, `JobSource`, `Job`, `__job`; `app.jobs`, `JobView`, `job:*` events) | PHP `jobs.php`, `access.php`, `contracts.php`, `toolkit.php`, `i18n.php`; `npm run typecheck`, `npm run build`, `npm run demo:assets`; shell `jobs.spec.cjs`, `workspace.spec.cjs`, `toolkit-list.spec.cjs`, `dialogs.spec.cjs`, `modal-windows.spec.cjs` |
+| User preferences (`UserPreferences`, `__preferences`, `AccountPreferences.ts`, `UiPreferences.ts`) | PHP `preferences.php`, `contracts.php`, `configuration.php`, `i18n.php`; `node tests/shell/ui-preferences.mjs`; `npm run typecheck`, `npm run build`, `npm run demo:assets`; shell `preferences.spec.cjs`, `browser.spec.cjs`, `workspace.spec.cjs`, `tabs.spec.cjs`, `accordion.spec.cjs`, `settings-form.spec.cjs`, `tree-component.spec.cjs`, `page-layout-*.spec.cjs`, `layout-resizer.spec.cjs`, `skins.spec.cjs`, `registry.spec.cjs` |
 | Localization | `php8.4 tests/shell/i18n.php`; shell `i18n.spec.cjs` |
 | Dialogs | `npm run test:browser -- --project=shell tests/shell/dialogs.spec.cjs` |
 | Location bar (`LocationBar.ts`, `ViewHost.setLocation`, `recordTitle`, a record view's `parent`) | `npm run typecheck`, `npm run build`, `npm run demo:assets`; PHP `contracts.php`, `configuration.php`, `toolkit.php`, `i18n.php`; shell `location-bar.spec.cjs` (themes, a skin, record page, parent records, 1366 and 390 px), `task-page.spec.cjs`, `window-title.spec.cjs` |
@@ -504,6 +511,11 @@ demo account ends on Hungarian and `twofactor@example.test` keeps its e-mail
 confirmation. The framework allows five code sends per account in ten minutes;
 `demo.spec.cjs` and `authentication.spec.cjs` together request four codes for
 `twofactor@example.test`, so repeat those specs only after ten minutes.
+
+The framework demo does not exercise single-language mode. Translation is covered by
+`i18n.php`, but the hidden language selector has no browser check. There is no
+production-only coverage category in this dev-only project. Real external
+providers and MySQL guarantees remain distinct coverage limits.
 
 <a id="commit-és-push"></a>
 
@@ -575,6 +587,12 @@ preserves the child exit status; busy lock or insufficient memory returns 75.
 The raw Playwright CLI is not a supported host entrypoint. The same guard may
 protect other large checks under the same limits.
 
+Historical verification: `memory.max=943718400`, `memory.high=734003200`,
+`memory.swap.max=0`, `pids.max=128`; nested invocation rejected with 75;
+a synthetic Chromium login/menu check passed with an available PHP 8.4 wrapper. Enforcement was checked with small
+loads, without deliberate host OOM. The guard does not cap the entire editor
+session or other services. Host swap/service policy belongs to Infra.
+
 Reference: [systemd resource control](https://www.freedesktop.org/software/systemd/man/latest/systemd.resource-control.html).
 
 <a id="kijelölt-scratch-és-rendszerszintű-böngésző"></a>
@@ -640,7 +658,9 @@ The `test` of `tools/playwright-test.cjs` gives every page a locator handler
 that closes a [view guide](workspaces.md#view-guide) window whenever it is in
 the way of an action (every view's guide opens once per user in the browser context); a spec that
 tests the guide calls `page.removeLocatorHandler(guide(page))` with the
-exported `guide`. Assertions do not trigger the handler.
+exported `guide`. Assertions do not trigger the handler. Because the demo
+accounts are shared, a spec's settings stay in its browser context unless it
+sets `accountPreferences` ([user preferences](user-preferences-plan.md#testing)).
 Artifacts use `tmp/playwright-results/` or the corresponding subdirectory of
 `BLADE_TMP_DIR`; relative scratch resolves from the repository root.
 Before cleaning runtime files, check active consumers and retain needed evidence.
@@ -667,6 +687,10 @@ action declares a meaningful risk that requires confirmation, and use an alert
 only for an error or other necessary blocking information. A form remains
 appropriate when the action needs input fields; this rule does not remove a
 justified confirm or alert.
+
+**Framework first, inside 61ade:** 61ade work implements general capabilities
+in the framework with its DHTMLX adapters; it does not add one-off flows for a
+single consumer.
 
 **Shared infrastructure versus project domain** ([ADR-0004](decisions/0004-project-domain-freedom.md),
 [FB-0080](feedback.md#fb-0080)): framework-first covers shared
@@ -724,6 +748,13 @@ agent-written scenes) runs only inside the opaque-origin `SandboxFrame`
 ([O7](toolkit.md#resolved-decisions); R8 covers configuration and the admin
 origin). Generated ACL catalogs never grant permission.
 
+Keep application business code, schema, data and integration dependencies in the
+application repository. Changes here must preserve consumer runtime boundaries.
+`_AuthHandler` at `/space/share/libs/_AuthHandler` is a separate
+library and must not be edited during 61ade work. Its links are
+`lib/_AuthHandler` and `examples/demo-app/public/lib/_AuthHandler`. Fill gaps
+in the 61ade adapter or a separately authorized library task (FB-0046).
+
 Source locations: PHP `packages/php`, frontend `packages/frontend` (public
 API `src/api`, components `src/components`), the feature demo's project
 module `examples/demo-app/frontend`, tests `tests`, tools `tools`. The root README is the only project README; detailed
@@ -753,6 +784,22 @@ that consumer's separate contract.
 update usage, prerequisites, example, limits and verification in the same session;
 this is a completion condition. Update relevant architecture/planning documents
 in the same batch and never mark a plan implemented without evidence.
+
+Record user testing corrections and usage instructions in `docs/feedback.md`.
+Clear instructions are accepted expectations; uncertain interpretations remain
+open questions. Incorporate general accepted lessons into the canonical guide
+or a linked topic document. A feedback entry alone is insufficient. Unimplemented
+expectations remain planned and open. Before editing, read the relevant guide
+and prior feedback; superseding decisions must link the earlier entry and remove
+contradictory active guidance. Close feedback with guide, implementation where
+applicable, and verification links/results. Behavioral defects may require
+regression coverage; documentation-only edits need no artificial runtime tests.
+Record only reusable framework decisions, synthetic examples and results obtained
+in the framework's own environment. Customer identities, environments, requests,
+release state, business rules and integration results belong in the owning
+project. Apply this boundary to all tracked content and commit messages,
+including historical notes, handoffs, tests and code comments. Keep secrets,
+personal data and full chat transcripts out of Git.
 
 Feature migration requires an inventory of every relevant reference validation:
 module, local overrides, common configuration and persistence. Required fields
