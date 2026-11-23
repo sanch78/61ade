@@ -1091,3 +1091,7 @@
 <a id="fb-0267"></a>
 
 ## FB-0267 — Match the rendered command and tab bar heights
+
+<a id="fb-0268"></a>
+
+## FB-0268 — A stronger divider where inner layout columns meet a header
