@@ -228,6 +228,8 @@ export interface ChoiceOptions {
 }
 /** Options of `Ui.window`. */
 export interface WindowOptions {
+    /** Height of this window's header in CSS pixels. Defaults to the shared header row height. */
+    headerHeight?: number;
     /** Plain-text title (escaped by the framework). */
     title: string;
     /**
@@ -287,7 +289,7 @@ export interface WindowOptions {
     closable?: boolean;
 }
 /**
- * A framework document window (`blade-content-window`: 40 px themed header, a close button named `Ablak bezárása`, Escape
+ * A framework document window (`blade-content-window`: a themed header, a close button named `Ablak bezárása`, Escape
  * closes it while the focus is inside it, also a non-modal one). The window
  * adds no inset: a Layout or a component fills it edge to edge, a Form or an element brings its own padding.
  * Owned by its creator; `close()` or the close button destroys the window and its attached content.
@@ -315,7 +317,7 @@ export interface AppWindow {
 }
 /** Dialogs, toasts, windows and cell content (over `MessageDialog.ts`, Suite `message` and `WindowSizing.ts`). */
 export interface Ui {
-    /** Standard tab and command row height in CSS pixels, for Layout cells. */
+    /** The application's shared header row height in CSS pixels, for Layout cells. */
     readonly headerRowHeight: number;
     /** Modal alert/confirm; resolves `true` for OK/Confirm, `false` for Cancel/Escape. */
     dialog(options: DialogOptions): Promise<boolean>;
@@ -2507,6 +2509,8 @@ export interface CommandSpacer {
  */
 export interface CommandBarOptions extends ComponentOptions {
     items: CommandItem[];
+    /** Height in CSS pixels for a plain element mount. A Layout cell uses its own height. */
+    height?: number;
     /** The toolbar's accessible name (plain text), to tell several bars of a page apart. */
     label?: string;
     /** `bottom`: a bar below its content, with its rule on top instead of below. Default `top`. */
@@ -2767,6 +2771,8 @@ export interface TabDefinition {
     disabled?: boolean;
 }
 export interface TabsOptions extends ComponentOptions {
+    /** Height of this tab header row in CSS pixels. Defaults to the shared header row height. */
+    headerHeight?: number;
     /** 1–12 tabs in display order; an invalid list throws `TypeError`. */
     tabs: TabDefinition[];
     /** The first active tab (an enabled one); default: the remembered tab with `id`, else the first enabled tab. */

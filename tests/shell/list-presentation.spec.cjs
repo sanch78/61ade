@@ -171,7 +171,7 @@ for(const theme of ['blade','light','dark'])test(`compact commands retain ACL st
  {
   await menu.click();await expect(page.getByRole('menuitem',{name:'Adatok',exact:true})).not.toHaveAttribute('aria-disabled','true');await page.getByRole('menuitem',{name:'Adatok',exact:true}).click();
   const dialog=page.getByRole('dialog');await expect(dialog).toBeVisible();
-  await expect.poll(()=>dialog.locator('.dhx_window-header').evaluate(element=>element.getBoundingClientRect().height)).toBe(40);
+  await expect.poll(()=>dialog.locator('.dhx_window-header').evaluate(element=>element.getBoundingClientRect().height)).toBe(44);
   const close=dialog.getByRole('button',{name:/^(close|Ablak bezárása)$/});
   expect(await close.evaluate(button=>{const outer=button.closest('.dhx_window-header').getBoundingClientRect(),box=button.getBoundingClientRect();return box.top>=outer.top&&box.bottom<=outer.bottom;})).toBe(true);
   await page.screenshot({path:path.join(process.env.BLADE_TMP_DIR,`mobile-compact-popup-${theme}.png`),animations:'disabled'});

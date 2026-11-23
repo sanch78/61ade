@@ -1,4 +1,4 @@
-import { HEADER_ROW_HEIGHT } from "./HeaderRow";
+import { headerRowHeight } from "./HeaderRow";
 import { locale, t } from "./I18n";
 import { Form, Layout, Toolbar, Window, message, awaitRedraw, tooltip } from "@dhtmlx/suite";
 import { ResponsiveToolbar } from "./ResponsiveToolbar";
@@ -124,7 +124,7 @@ export class FileManager {
         {id:"panel-0",header:t("Bal panel"),css:"blade-file-panel",resizable:true},
         {id:"panel-1",header:t("Jobb panel"),css:"blade-file-panel"},
       ]},
-      {id:"commands",height:HEADER_ROW_HEIGHT,css:"blade-command-row blade-file-commands"},
+      {id:"commands",height:headerRowHeight(),css:"blade-command-row blade-file-commands"},
     ]});
     const action=(name:string,label:string,icon:string,tooltip?:string)=>this.can(name)?[{id:name,value:t(label),icon,...(tooltip?{tooltip:t(tooltip)}:{})}]:[];
     this.commands=new ResponsiveToolbar(undefined,{data:[
@@ -219,8 +219,8 @@ export class FileManager {
   private panel(index:number,mount:string):Panel{
     // Each panel shows its file listing, its tiles or its folder tree, as the panel modes of mc.
     const layout=new Layout(document.createElement("div"),{type:"none",css:"blade-file-panel__body",rows:[
-      {id:"bar",height:HEADER_ROW_HEIGHT,css:"blade-command-row"},
-      {height:HEADER_ROW_HEIGHT,css:"blade-command-row blade-file-find",cols:[{id:"search",css:"blade-search-cell"},{id:"find",width:340}]},
+      {id:"bar",height:headerRowHeight(),css:"blade-command-row"},
+      {height:headerRowHeight(),css:"blade-command-row blade-file-find",cols:[{id:"search",css:"blade-search-cell"},{id:"find",width:340}]},
       {id:"body"},
     ]});
     // Both cells stay mounted and the inactive one is hidden by cell CSS: Layout views would
@@ -838,7 +838,7 @@ export class FileManager {
    */
   private documentWindow(title:string,css:string,items:any[],navigation?:Navigation,geometry?:Geometry):{win:Window;bar:Toolbar;body:ReturnType<Layout["getCell"]>}{
     const win=this.window(title,960,680,true,"blade-document-window");
-    const layout=new Layout(document.createElement("div"),{type:"none",css:"blade-document "+css,rows:[{id:"bar",height:HEADER_ROW_HEIGHT,css:"blade-command-row"},{id:"body",css:"blade-document__body"}]});
+    const layout=new Layout(document.createElement("div"),{type:"none",css:"blade-document "+css,rows:[{id:"bar",height:headerRowHeight(),css:"blade-command-row"},{id:"body",css:"blade-document__body"}]});
     const bar=new Toolbar(undefined,{css:"blade-document__bar",data:[...FileManager.steps(navigation),...items,FileManager.fullSize()]});
     layout.getCell("bar").attach(bar);win.attach(layout);win.show();
     this.chrome(win,bar,navigation,geometry);

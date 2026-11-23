@@ -7,6 +7,7 @@ import type { CommandBar as CommandBarApi, CommandBarEvents, CommandBarOptions, 
 import { Component } from "./component";
 import { escape } from "./fields";
 import { narrow as narrowViewport } from "../../Viewport";
+import { headerRowHeight } from "../../HeaderRow";
 
 const ID=/^[A-Za-z0-9_.:-]+$/;
 /** A range reports at most this often while it is dragged (and once more on release). */
@@ -50,6 +51,7 @@ export class CommandBar extends Component<CommandBarEvents> implements CommandBa
   private listeners=new AbortController();
   constructor(options:CommandBarOptions){
     super(options);
+    if(options?.height!==undefined)this.host.style.setProperty("--blade-command-bar-height",`${headerRowHeight(options.height,"CommandBar height")}px`);
     const items=Array.isArray(options?.items)?options.items:[];
     if(options?.label!==undefined&&typeof options.label!=="string")throw invalid("CommandBar label must be text.");
     if(options?.placement!==undefined&&options.placement!=="top"&&options.placement!=="bottom")throw invalid(`invalid CommandBar placement "${String(options.placement)}".`);

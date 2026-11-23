@@ -1,4 +1,4 @@
-import { HEADER_ROW_HEIGHT } from "../../HeaderRow";
+import { headerRowHeight } from "../../HeaderRow";
 import { Layout, awaitRedraw, message } from "@dhtmlx/suite";
 import { t } from "../../I18n";
 import { TreeAdapter, type TreeLook, type TreeNode } from "../../TreeAdapter";
@@ -822,7 +822,7 @@ export class RecordTree extends Component<TreeEvents> implements TreeApi{
     const iconColumn=options.iconField!==undefined?view.options.columns.find(column=>column.id===options.iconField):undefined;
     if(options.iconField!==undefined&&(options.iconField===hierarchy.field||!iconColumn||!isIcon(iconColumn as any)))throw new TypeError("61ade: Tree `iconField` must be an icon column of the view (presentation \"icon\").");
     const preferences=options.id!==undefined?new UiPreferences(context.user,options.id):undefined;
-    const bar=control?[{id:"commands",height:HEADER_ROW_HEIGHT}]:[];
+    const bar=control?[{id:"commands",height:headerRowHeight()}]:[];
     this.layout=new Layout(this.host,{type:"none",rows:[...(placement==="top"?bar:[]),{id:"tree",css:"blade-tree-cell"},...(placement==="bottom"?bar:[])]});
     if(control){
       // The list's command row with one icon button on the right, where a list keeps its view controls: it opens

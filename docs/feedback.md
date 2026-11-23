@@ -1075,3 +1075,7 @@
 <a id="fb-0263"></a>
 
 ## FB-0263 — One standard tab and command row height
+
+<a id="fb-0264"></a>
+
+## FB-0264 — Reduce the standard header row to 44 px

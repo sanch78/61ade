@@ -21,6 +21,7 @@ import { brandLogo } from "./BrandLogo";
 import { LocationBar, type Place } from "./LocationBar";
 import type { SignInPage } from "./api/sign-in";
 import { BREAKPOINT, narrow } from "./Viewport";
+import { navigationRowHeight } from "./HeaderRow";
 
 /** One open view: the workspace page or a document window, with the signal its host aborts on close. */
 type Mounted = { view: ViewDefinition; record?: string; open: ViewOpenMode; controller: AbortController; instance?: ViewInstance; wrapper?: DesktopOnly; window?: AppWindow;
@@ -491,7 +492,7 @@ export class AdminShell {
     this.layout = new Layout(root, {
       type: "line",
       rows: [
-        { id: "menu-row", height: 40, css:"blade-navigation-row"+(definition.guest?" blade-public-navigation":""), cols: [{id:"main-menu"},
+        { id: "menu-row", height: navigationRowHeight(), css:"blade-navigation-row"+(definition.guest?" blade-public-navigation":""), cols: [{id:"main-menu"},
           ...(controlItems.length?[{id:"controls",width:"content",css:"blade-navigation-control"}]:[]),
           ...(signInControl?[{id:"sign-in-control",width:"content",css:"blade-navigation-control blade-sign-in-control"}]:[]),
           ...(this.topLogo?[{id:"logo",width:"content",css:"blade-logo-cell",html:this.logoHtml(this.windowLogo)}]:[])] },

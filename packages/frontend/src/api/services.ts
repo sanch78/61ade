@@ -13,7 +13,7 @@ import { UiPreferences, type WindowGeometry } from "../UiPreferences";
 import { account } from "../AccountPreferences";
 import type { AppWindow, I18n, Identity, Live, Mountable, Preferences, PreferenceStore, Theme, Ui, Uploads, WindowOptions } from "./types";
 import { narrow, onViewport } from "../Viewport";
-import { HEADER_ROW_HEIGHT } from "../HeaderRow";
+import { headerRowHeight } from "../HeaderRow";
 
 /**
  * Thin toolkit services over the existing shell modules (toolkit K-F2). They add no behaviour of their own: the
@@ -190,6 +190,7 @@ export function nonModalOpen(except?: AppWindow): boolean { return [...nonModal]
  * and a non-modal one fills the workspace, also when the viewport crosses 768 px while it is open. `user` keys a remembered window (`id`) like the other UI preferences.
  */
 export function openWindow(options: WindowOptions & { css?: string }, user = ""): AppWindow {
+  const headerHeight = options.headerHeight === undefined ? undefined : headerRowHeight(options.headerHeight);
   // Without its own `maxHeight` a fitted window stops at the application's default (`fitWindow`, FB-0225).
   const maxHeight = options.maxHeight;
   if (maxHeight !== undefined && (typeof maxHeight !== "number" || Number.isNaN(maxHeight) || maxHeight < 120)) throw new TypeError("61ade: window `maxHeight` is a number of px from 120 (Infinity: the viewport).");
@@ -351,6 +352,7 @@ export function openWindow(options: WindowOptions & { css?: string }, user = "")
     if (dialog && document.activeElement && dialog.contains(document.activeElement)) { event.preventDefault(); api.close(); }
   }, { signal: controller.signal });
   if (first) win.show(first.left, first.top); else win.show();
+  if (headerHeight !== undefined) dialog()?.style.setProperty("--blade-window-header-height", `${headerHeight}px`);
   if (mobile) dialog()?.classList.add("blade-window--phone");
   if (saved?.maximized) toggle(true);
   if (!mobile && !modal) keep();
@@ -366,7 +368,7 @@ export function openWindow(options: WindowOptions & { css?: string }, user = "")
 }
 
 export const ui: Ui = {
-  headerRowHeight: HEADER_ROW_HEIGHT,
+  get headerRowHeight() { return headerRowHeight(); },
   dialog: options => showDialog(options),
   choice: options => requestChoice(options),
   toast(text, severity = "neutral") {

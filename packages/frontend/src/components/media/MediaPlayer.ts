@@ -1,4 +1,4 @@
-import { HEADER_ROW_HEIGHT } from "../../HeaderRow";
+import { headerRowHeight } from "../../HeaderRow";
 import { Layout, Toolbar } from "@dhtmlx/suite";
 import { locale, t } from "../../I18n";
 import { server } from "../../api/Server";
@@ -78,7 +78,7 @@ export class MediaPlayer implements MediaPlayerContract {
     const signal = this.listeners.signal;
 
     const bar = options.toolbar !== false;
-    const barRow = bar ? [{ id: "bar", height: HEADER_ROW_HEIGHT, css: "blade-command-row" }] : [];
+    const barRow = bar ? [{ id: "bar", height: headerRowHeight(), css: "blade-command-row" }] : [];
     const stageRow = { id: "stage", css: "blade-document__body" };
     this.layout = new Layout(document.createElement("div"), { type: "none", css: `blade-document blade-document--${kind} blade-player`,
       rows: options.toolbarPosition === "bottom" ? [stageRow, ...barRow] : [...barRow, stageRow] });

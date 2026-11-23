@@ -1204,7 +1204,11 @@ own icons. Breakpoints include icon width. See [list headings/counts](workspaces
 
 ## Main-menu tabs
 
-The entire 40 px navigation row has one presentation in every factory theme
+The navigation row uses the shared header height of 44 px by default. Set
+`--blade-navigation-height` to a whole pixel value on `:root` for a
+navigation-only override. See [shared header rows](toolkit.md#page-command-bars).
+
+The entire navigation row has one presentation in every factory theme
 and application skin: native DHTMLX Menu items and Toolbar controls (tenant,
 guide, language and theme) are flat, full-height elements with 12 px horizontal
 padding and an 8 px icon-to-label gap. The controls have a content-sized Layout
@@ -1491,10 +1495,12 @@ count, badge or menu of their own.
 
 ## Compact window header and complete mobile menu
 
-Native Window headers are 40 px high, with 16 px title and 32 px close button.
+Native Window headers use the shared height of 44 px by default, with a 16 px
+title and a 32 px close button. An individual `app.ui.window` can set
+`headerHeight`. See [shared header rows](toolkit.md#page-command-bars).
 Framework padding is 4 px vertical/12 px horizontal instead of factory
 28 px top/20 px bottom. Content sizing measures the actual header. Its 1 px
-bottom line uses `--dhx-border-color` inside the 40 px height (FB-0031).
+bottom line uses `--dhx-border-color` inside the header height (FB-0031).
 The secondary background is light gray in light theme and lighter dark in dark
 theme; Blade and Blade Night keep their glossy chrome gradient.
 

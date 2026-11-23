@@ -1,4 +1,4 @@
-import { HEADER_ROW_HEIGHT } from "../../HeaderRow";
+import { headerRowHeight } from "../../HeaderRow";
 import { t } from "../../I18n";
 import { Form, Layout, List, Toolbar, Window, message, awaitRedraw } from "@dhtmlx/suite";
 import { ResponsiveToolbar } from "../../ResponsiveToolbar";
@@ -111,7 +111,7 @@ export class DiagramView {
     this.linkType=this.config.linkTypes[0].id;
     for(const type of this.config.nodeTypes)this.types.set(type.id,type);
     this.layout=new Layout(host,{type:"space",rows:[
-      {id:"commands",height:HEADER_ROW_HEIGHT,css:"blade-command-row"},
+      {id:"commands",height:headerRowHeight(),css:"blade-command-row"},
       {cols:[
         {type:"line",width:240,css:"blade-diagram-side",rows:[
           {id:"diagrams",header:t("Diagramok"),height:200,resizable:true},

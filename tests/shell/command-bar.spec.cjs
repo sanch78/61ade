@@ -147,7 +147,7 @@ async function names(page){
 async function checkNames(page,title){
  for(const name of ['Beszélgetés',title])await expect(page.locator('#nm').getByRole('toolbar',{name,exact:true})).toHaveCount(1);
  expect(await page.evaluate(()=>[...document.querySelectorAll('#nm .blade-command-bar,#nm .dhx_layout,#nm .dhx_layout-cell')].filter(e=>e.hasAttribute('aria-label')).length)).toBe(0);
- expect(await page.evaluate(()=>[document.querySelector('#nm > div:first-child').getBoundingClientRect().height,document.querySelector('#nm [data-cell-id="head"]').getBoundingClientRect().height])).toEqual([48,40]);
+ expect(await page.evaluate(()=>[document.querySelector('#nm > div:first-child').getBoundingClientRect().height,document.querySelector('#nm [data-cell-id="head"]').getBoundingClientRect().height])).toEqual([44,40]);
 }
 for(const width of [1366,390])test(`CommandBar accessible name and standard height at ${width} px`,async({page})=>{
  const failures=errors(page);

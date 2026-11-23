@@ -1,4 +1,4 @@
-import { HEADER_ROW_HEIGHT } from "../../HeaderRow";
+import { headerRowHeight } from "../../HeaderRow";
 import { locale, t } from "../../I18n";
 import { Form, Layout, Window, message, awaitRedraw } from "@dhtmlx/suite";
 import { scheduler as vendorScheduler } from "dhtmlx-scheduler";
@@ -105,7 +105,7 @@ export class CalendarView {
   constructor(container:HTMLElement,private view:CalendarViewDefinition){
     this.config=view.calendar;
     this.layout=new Layout(container,{type:"space",rows:[{id:"panel",header:view.title,css:"blade-calendar-panel",rows:[
-      {id:"commands",height:HEADER_ROW_HEIGHT,css:"blade-command-row"},
+      {id:"commands",height:headerRowHeight(),css:"blade-command-row"},
       {id:"calendar",css:"blade-calendar-cell"},
     ]}]});
     const day=this.config.dayAction;

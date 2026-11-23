@@ -1,4 +1,4 @@
-import { HEADER_ROW_HEIGHT } from "../../HeaderRow";
+import { headerRowHeight } from "../../HeaderRow";
 import { Layout } from "@dhtmlx/suite";
 import { t } from "../../I18n";
 import { escape } from "../../RecordPresentation";
@@ -61,7 +61,7 @@ export class TextDiff extends Component<Record<string, never>> implements TextDi
     this.compute(options.before, options.after);
 
     const bar = options.toolbar !== false;
-    this.layout = new Layout(this.host, { type: "none", css: "blade-diff-layout", rows: [...(bar ? [{ id: "commands", height: HEADER_ROW_HEIGHT }] : []), { id: "body" }] });
+    this.layout = new Layout(this.host, { type: "none", css: "blade-diff-layout", rows: [...(bar ? [{ id: "commands", height: headerRowHeight() }] : []), { id: "body" }] });
     if (bar) {
       this.bar = new CommandBar({ label: this.label, items: [
         { id: "previous", label: t("Előző változás"), icon: "bi bi-chevron-up", iconOnly: true, pinned: true },

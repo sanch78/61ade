@@ -1791,12 +1791,10 @@ head.update("title", { label: renamed, badge: "" });                         // 
   collapse into `Műveletek`, `narrow: "icons"`, `update` of the title); the
   outer element carries no name of its own. Give each bar of a page a
   `label` or a title so they can be told apart.
-- **Height** ([FB-0251](feedback.md#fb-0251)): a bar mounted into a plain
-  element is at least `--blade-command-bar-height` (48 px, the framework's
-  command rows) high, with the same rule and padding as a bar in a cell, so
-  a project sets no height of its own. In a Layout cell, an `AppWindow` or a
-  `ViewHost` the container decides; a shorter bar belongs in a cell of that
-  height.
+- **Height:** a bar mounted into a plain element takes the shared header
+  height by default. Its `height` option sets an individual height in CSS
+  pixels. A Layout cell, an `AppWindow` or a `ViewHost` sets the height of a
+  bar mounted directly into it. See [shared header rows](#page-command-bars).
 
 <a id="pagelayout"></a>
 
@@ -2124,7 +2122,7 @@ tabs.on("change", ({ id }) => {
   labelled by its tab, and only the open tab is in the page's tab order. Tab
   buttons get the theme's inset focus ring.
 - Presentation (every skin, from the Suite and skin variables): the tab row
-  is the panel's header. It uses the standard 48 px header row height, the
+  is the panel's header. It uses the standard 44 px header row height, the
   header surface, Blade chrome and title type. Tabs start at the panel's edge
   with dividers between them and labels on the content's 20 px inset. The
   open tab has the panel's surface and an accent top edge and opens directly
@@ -3398,11 +3396,22 @@ signal.addEventListener("abort", () => layout.destructor(), { once: true });
 
 A composed page or tab's own commands use `CommandBar` in the first row of a
 `type: "none"` Layout attached directly to the host cell. Size that row using
-`app.ui.headerRowHeight`. This read-only value is 48 CSS px for framework
-tab headers and standard command rows in every skin and viewport. Plain
-element mounts of `CommandBar` use the same value through
-`--blade-command-bar-height`. In a tab, the bar spans the panel immediately
-below the tab header. The content fills the remaining row and owns its padding,
+`app.ui.headerRowHeight`. The main navigation row, window headers, tab
+headers and standard command rows share a 44 CSS px default. To change it
+application-wide, declare `--blade-header-row-height` on `:root` in an
+application stylesheet with a positive whole pixel value, such as
+`:root { --blade-header-row-height: 46px; }`. Include the rule in a sign-in
+stylesheet as well for the same override on the sign-in screen. The shell
+reads it at startup. The read-only `app.ui.headerRowHeight` returns the
+resolved value.
+
+Use `--blade-navigation-height` on `:root` to size only the navigation
+row and `--blade-window-header-height` to style window headers.
+`app.ui.window` and `app.components.Tabs` accept `headerHeight` to
+size individual headers. Set `CommandBarOptions.height` for a plain
+element mount or the Layout cell's `height` for a mounted command row.
+In a tab, the bar spans the panel immediately below the tab header.
+The content fills the remaining row and owns its padding,
 panel frames and scrolling.
 The toolbar supplies its own button inset, divider and shadow. Reusable
 presentation rules are in the
@@ -3984,6 +3993,7 @@ Results per phase are recorded in [FB-0081](feedback.md#fb-0081); the plan's
 | M116 | A MySQL deadlock (SQLSTATE 40001) in any action answers 409 instead of 500 ([tenant singleton](tenancy.md#tenant-singleton)) | [FB-0258](feedback.md#fb-0258) | info: a project's own 40001 handling can go |
 | M117 | A signed-in user's settings [follow the account](user-preferences-plan.md): new table `blade_user_preferences`, `__preferences`, bootstrap `preferences`. Browser values go up once, fill-only. For one entry the last write wins, and a change that never reached the server is lost when the page closes | [FB-0259](feedback.md#fb-0259) | run `Schema::install`, else the application stays browser-local; a spec that reads `blade-ui:` keys or expects a fresh browser to have default settings must isolate its account |
 | M118 | [Standard header row](#page-command-bars): `app.ui.headerRowHeight` is 48 CSS px. `Tabs` and standard command rows use it | [FB-0263](feedback.md#fb-0263) | info: tab headers grow from 37 px to 48 px. A project command row can use the exported height in its Layout declaration |
+| M119 | [Shared header row](#page-command-bars): 44 CSS px for tabs, command rows, main navigation and windows. `--blade-header-row-height` sets the application default. `TabsOptions.headerHeight`, `WindowOptions.headerHeight` and `CommandBarOptions.height` are additive | [FB-0264](feedback.md#fb-0264) | info: explicit project Layout heights can follow the standard using `app.ui.headerRowHeight` |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the

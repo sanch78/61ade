@@ -3,7 +3,7 @@ import { releaseSplash } from "./Splash";
 import { installSuiteLabels } from "./SuiteLabels";
 import { installModalWindows } from "./ModalWindows";
 import { installRedrawGuard } from "./SuiteRedraw";
-import { HEADER_ROW_HEIGHT } from "./HeaderRow";
+import { configureHeaderRows } from "./HeaderRow";
 import "@dhtmlx/suite/codebase/suite.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import "./themes/blade-chrome.css";
@@ -14,7 +14,7 @@ import "./flags/flags.css";
 import "./uploader.css";
 import "./splash.css";
 
-document.documentElement.style.setProperty("--blade-command-bar-height", `${HEADER_ROW_HEIGHT}px`);
+configureHeaderRows();
 
 // Suite's English-only names (a collapsable header, a window's close button) in the page's language, on every page
 // that loads the bundle, with or without the shell (FB-0155).

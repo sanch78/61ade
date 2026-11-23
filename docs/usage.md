@@ -147,8 +147,10 @@ often as needed; a cell that showed markup takes a component too
 A page or tab with its own commands attaches a `type: "none"` Layout with a
 `CommandBar` row above the content, full width immediately below the tab
 header. Use `app.ui.headerRowHeight` for the Layout row so it matches the
-48 px tab header. A plain element mount gets the standard height from the
-bar. Content padding and scrolling stay below the bar. A list keeps its own
+tab header. The standard is 44 px and also applies to window headers and main
+navigation. Set `--blade-header-row-height` in the application stylesheet
+to change the common default. A plain element mount gets the standard height
+from the bar. Content padding and scrolling stay below the bar. A list keeps its own
 record commands. See [page and tab command rows](toolkit.md#page-command-bars)
 and [FB-0213](feedback.md#fb-0213).
 

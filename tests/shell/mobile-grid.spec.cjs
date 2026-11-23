@@ -22,7 +22,7 @@ test('native cards preserve selection, editing and live data across responsive c
  expect((await page.locator('.blade-grid-cards').boundingBox()).width).toBeGreaterThan(340);
  await page.getByText('Szűrés',{exact:true}).click();
  await expect(page.getByRole('dialog').getByLabel('Cím',{exact:true})).toBeVisible();
- expect((await page.locator('.dhx_window-header').boundingBox()).height).toBe(40);
+ expect((await page.locator('.dhx_window-header').boundingBox()).height).toBe(44);
  await page.getByRole('dialog').getByRole('button',{name:/^(close|Ablak bezárása)$/}).click();
 
  await cards.first().click();await page.getByRole('button',{name:'Műveletek',exact:true}).click();
