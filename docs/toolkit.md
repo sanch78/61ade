@@ -425,7 +425,10 @@ menu.on("select", ({ id }) => choose(id));   // choose, efforts: the page's own
   entries shows the `empty` note (default `Nincs választható elem.`,
   localized). `detail` is plain secondary text at the entry's right edge (cut
   with `…` when long, at most 45 % of the width) and part of its accessible
-  name; it is no keyboard shortcut.
+  name. The label shortens first to leave room for a short detail such as a
+  time. Entry highlights have rounded corners and a 6 px inset from either
+  side of the menu. Headings and separators span the full row.
+  ([FB-0261](feedback.md#fb-0261))
 - **Checked entries:** an entry with `checked` (true or false) is a
   `menuitemradio` with `aria-checked` and a check mark in its icon slot.
   Unchecked entries keep an empty slot so the labels line up. The checkable

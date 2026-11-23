@@ -9,12 +9,13 @@
   max-height: min(27rem, var(--blade-popup-menu-space, calc(100vh - 16px)));
   overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; padding: 4px 0;
 }
-.blade-popup-menu .blade-popup-menu__entry .dhx_menu-button { gap: 12px; min-width: 0; }
+.blade-popup-menu .blade-popup-menu__entry { padding-inline: 6px; }
+.blade-popup-menu .blade-popup-menu__entry .dhx_menu-button { gap: 12px; min-width: 0; border-radius: var(--dhx-border-radius); }
 .blade-popup-menu .blade-popup-menu__entry .dhx_menu-button__block--left { min-width: 0; flex: 1 1 auto; }
 .blade-popup-menu .blade-popup-menu__entry .dhx_menu-button__text { display: flex; align-items: baseline; gap: 12px; min-width: 0; flex: 1 1 auto; }
 .blade-popup-menu .blade-popup-menu__label { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .blade-popup-menu .blade-popup-menu__detail {
-  flex: 0 1 auto; max-width: 45%; margin-left: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  flex: 0 0 auto; max-width: 45%; margin-left: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   font-size: var(--dhx-font-size-small); color: var(--dhx-font-color-secondary);
 }
 .blade-popup-menu .blade-popup-menu__entry [aria-checked="true"] { font-weight: var(--dhx-font-weight-medium, 500); }
