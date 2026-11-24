@@ -1879,9 +1879,10 @@ signal.addEventListener("abort", () => page.destroy(), { once: true });   // las
   loading and empty states. The dots take the theme's accent colour when
   the pointer is over the drag area ([FB-0230](feedback.md#fb-0230),
   [FB-0231](feedback.md#fb-0231)).
-  Beside a vertical divider, the edge of a leading command bar, tab row or
-  inner region title has a subtle theme-coloured fade. The divider stays
-  1 px wide through the header ([FB-0269](feedback.md#fb-0269)).
+  After a vertical divider, the start edge of the following leading command
+  bar, tab row or inner region title has a subtle theme-coloured fade; the
+  header before the divider has none. The divider stays 1 px wide through
+  the header ([FB-0269](feedback.md#fb-0269), [FB-0271](feedback.md#fb-0271)).
   Its regions are ordinary regions of the page: `cell(id)`, `attach(id, …)`,
   `placeholder(id, …)`, kept sizes and the double-click work as for any
   region, so each holds any component or element. The region holding it

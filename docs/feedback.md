@@ -1103,3 +1103,7 @@
 <a id="fb-0270"></a>
 
 ## FB-0270 — Separate operations from dismissal in action rows
+
+<a id="fb-0271"></a>
+
+## FB-0271 — Shade only the end edge of a header before a divider

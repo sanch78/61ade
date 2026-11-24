@@ -50,30 +50,19 @@ body,
 /* A PageLayout's inner layout (`inner`, FB-0222): Suite's line resizer is 0 px across and only its dots take the drag by default.
    Its handle spans the line with 8 px across it, centred on the cell border before it. Only line layouts: the framed
    panels and a list's space or wide layout inside a region keep their own grips. */
-/* Shade the heading surfaces next to an inner divider, keeping Suite's one-pixel rule. */
-:where(.blade-page-layout.dhx_layout-line, .blade-page-layout .dhx_layout-line).dhx_layout-columns > .dhx_layout-cell {
-  --blade-inner-header-shade: color-mix(in srgb, var(--dhx-font-color-secondary) 18%, transparent);
-  --blade-inner-header-start: var(--blade-inner-header-shade);
-  --blade-inner-header-end: var(--blade-inner-header-shade);
-}
-:where(.blade-page-layout.dhx_layout-line, .blade-page-layout .dhx_layout-line).dhx_layout-columns > .dhx_layout-cell:first-of-type {
-  --blade-inner-header-start: transparent;
-}
-:where(.blade-page-layout.dhx_layout-line, .blade-page-layout .dhx_layout-line).dhx_layout-columns > .dhx_layout-cell:last-of-type {
-  --blade-inner-header-end: transparent;
-}
-:where(.blade-page-layout.dhx_layout-line, .blade-page-layout .dhx_layout-line).dhx_layout-columns > .dhx_layout-cell
+/* Shade only the start edge of a heading after an inner divider, keeping Suite's one-pixel rule. */
+:where(.blade-page-layout.dhx_layout-line, .blade-page-layout .dhx_layout-line).dhx_layout-columns > .dhx_layout-cell:not(:first-of-type)
   > .dhx_layout > :first-child:is(.blade-tabs__row, .dhx_layout-cell:has(
     > .dhx_toolbar, > .dhx_layout > .blade-command-row:only-child > .dhx_toolbar
   ))::after,
-:where(.blade-page-layout.dhx_layout-line, .blade-page-layout .dhx_layout-line).dhx_layout-columns > .blade-inner-region
+:where(.blade-page-layout.dhx_layout-line, .blade-page-layout .dhx_layout-line).dhx_layout-columns > .blade-inner-region:not(:first-of-type)
   > .blade-inner-region__header::after {
   content: "";
   position: absolute;
   z-index: 2;
   inset: 0;
   background: linear-gradient(var(--blade-inner-header-direction, 90deg),
-    var(--blade-inner-header-start), transparent 12px, transparent calc(100% - 12px), var(--blade-inner-header-end));
+    color-mix(in srgb, var(--dhx-font-color-secondary) 18%, transparent), transparent 12px);
   pointer-events: none;
 }
 :where(.blade-page-layout.dhx_layout-line, .blade-page-layout .dhx_layout-line).dhx_layout-columns:dir(rtl) {
