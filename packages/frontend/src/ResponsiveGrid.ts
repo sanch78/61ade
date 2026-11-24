@@ -5,7 +5,7 @@ import { gridHeader } from "./GridHeaders";
 import { RESERVED, alias, gridEditor, unalias } from "./GridEditing";
 import type { Row } from "./Realtime";
 
-import { escape, toned, recordFields, recordCheckbox, recordIcon, recordMedia, recordSlot, hasSlot, imageSlot, optionText, isIcon, isMedia, isImage, mediaOf, presentedFields, thumbnailFailed, derivedOf, derivedText, columnText, withDerived } from "./RecordPresentation";
+import { escape, toned, recordFields, recordCheckbox, recordIcon, recordMedia, recordSlot, hasSlot, imageSlot, optionText, isIcon, isMedia, isImage, mediaOf, presentedFields, derivedOf, derivedText, columnText, withDerived } from "./RecordPresentation";
 import { narrow } from "./Viewport";
 type Position={id?:string;offset:number;x:number;y:number};
 export type GridMode="table"|"cards"|"tiles";
@@ -223,8 +223,6 @@ export class ResponsiveGrid {
       if(element.scrollTop+element.clientHeight>=element.scrollHeight-400)this.more("next");
       else if(element.scrollTop<120)this.more("previous");
     },true);
-    // A missing thumbnail (404/415) falls back to the type icon; inline handlers are blocked by the CSP.
-    document.addEventListener("error",event=>{const image=event.target;if(image instanceof HTMLImageElement&&image.isConnected&&image.matches("img[data-blade-thumbnail],img[data-blade-static-image]"))thumbnailFailed(image);},{capture:true,signal:this.listeners.signal});
     document.addEventListener("pointerdown",event=>{this.engaged=!!within(event);},{capture:true,signal:this.listeners.signal});
     on("mousedown",(event,target)=>{
       if((event as MouseEvent).detail>1&&!target.closest("input,textarea,select"))event.preventDefault();

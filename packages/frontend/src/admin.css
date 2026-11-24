@@ -242,9 +242,18 @@ body,
 .blade-icon--repeat::before { content: "\f813"; } /* bi-repeat */
 .blade-icon--repeat-off::before { content: "\f813"; } /* bi-repeat */
 
-/* Media column presentation: lazy thumbnail over a type icon; the accessible name carries the type. */
+/* Media slots: native loading indicator, decoded image or static type icon; the accessible name carries the type. */
 .blade-media { position: relative; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; overflow: hidden; vertical-align: middle; border-radius: 4px; background: var(--dhx-background-secondary); color: var(--dhx-font-color-secondary); }
 .blade-media__image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+/* Loading belongs to real image bytes, never to a missing/pending thumbnail's type icon. */
+.blade-media--loading .blade-media__image { visibility: hidden; }
+.blade-media:is(.blade-media--loading, .blade-media--ready) .blade-media__icon { visibility: hidden; }
+.blade-media > .blade-media__spinner { width: var(--blade-media-icon); height: var(--blade-media-icon); z-index: auto; }
+@media (prefers-reduced-motion: reduce) {
+  .blade-media__spinner, .blade-media__spinner .path { animation: none; }
+  .blade-media__spinner .path { stroke-dasharray: 90, 150; }
+}
+
 .blade-media { --blade-media-icon: 20px; }
 .blade-media .blade-media__icon::before, .blade-media .blade-record-icon :is(.dxi, .bi)::before { font-size: var(--blade-media-icon); }
 .blade-media--video .blade-media__icon { display: inline-flex; align-items: center; justify-content: center; width: calc(var(--blade-media-icon) * 1.25); height: calc(var(--blade-media-icon) * 1.25); border: 2px solid var(--dhx-font-color-additional); border-radius: 50%; box-sizing: border-box; }

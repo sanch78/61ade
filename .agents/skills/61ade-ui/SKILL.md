@@ -340,6 +340,13 @@ tree as decoration for a flat list.
 
 ## Card and detail rules
 
+- A media or static image slot shows the native spinner only while real image
+  bytes load and decode; a missing or pending thumbnail keeps its type icon
+  static. End busy on success or failure, including cached renders and lazy
+  rows detached and reattached by the widget. Hide the fallback icon beneath
+  a decoded transparent image, preserve the slot's accessible name and respect
+  reduced motion ([media loading](../../../docs/workspaces.md#media-columns-tiles-row-height-and-search)).
+
 - Render cards with the native DataView. Choose a readable minimum width and
   let the framework determine columns from the available panel; the 61ade
   workspace default targets roughly 340 px columns and one column on mobile.

@@ -1410,6 +1410,15 @@ Phase U3 of the [file/media plan](files-media-plan.md) ([FB-0063](feedback.md#fb
   duration badge; the accessible name states the type in text
   (`Videó: minta.webm, 0:06`). The table cell scales with the row height;
   cards show the media slot on top.
+- **Image loading.** Media thumbnails and static images show the theme's native
+  spinner while their image bytes load and decode, with `aria-busy` on the
+  named slot. Reduced motion keeps a static arc. The decoded image replaces
+  the indicator and hides the type icon even through transparent pixels.
+  A thumbnail whose descriptor is `none`, `pending` or `failed` has no image
+  request or animation: its type icon stays static. An image load or decode
+  failure restores that icon and ends busy. Cached images, recreated slots
+  and detached lazy rows use the same lifecycle in tables, cards, tiles and
+  standalone record details ([FB-0272](feedback.md#fb-0272)).
 - **MIME-class filter.** A filter on a media column takes `image` or `video`
   (advertised as a select with `Kép`/`Videó`), limited to mounts the actor may
   read; other values are `400`, a field the actor may not query `403`.

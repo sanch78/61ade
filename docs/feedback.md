@@ -1107,3 +1107,7 @@
 <a id="fb-0271"></a>
 
 ## FB-0271 — Shade only the end edge of a header before a divider
+
+<a id="fb-0272"></a>
+
+## FB-0272 — Loading feedback for record images

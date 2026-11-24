@@ -109,9 +109,51 @@ const hasDerived=(field:Column,row:Row)=>{const of=derivedOf(field),media=row._m
 /** Display text of a column value in tiles and lists: derived media part, option label or the value. */
 export const columnText=(field:Column,row:Row):string=>field.text?.(row)??derivedText(field,row)??optionText(field,row[field.id]);
 const failedThumbnails=new Set<string>();
+const recordImages="img[data-blade-thumbnail],img[data-blade-static-image]";
+const decodingImages=new WeakSet<HTMLImageElement>();
+let imageObserver:MutationObserver|undefined;
 /** An unavailable thumbnail (404/415 while missing, or a decode error) shows the type icon; later renders skip that URL. */
-export function thumbnailFailed(image:HTMLImageElement):void{
-  failedThumbnails.add(image.getAttribute("src")??"");image.closest(".blade-media")?.classList.add("blade-media--failed");image.remove();
+function thumbnailFailed(image:HTMLImageElement):void{
+  failedThumbnails.add(image.getAttribute("src")??"");
+  const slot=image.closest(".blade-media");
+  slot?.classList.remove("blade-media--loading","blade-media--ready");
+  slot?.classList.add("blade-media--failed");slot?.removeAttribute("aria-busy");
+  slot?.querySelector(".blade-media__spinner")?.remove();image.remove();
+}
+/** Reveal only decoded pixels. Detached rows may finish too; a later insertion checks cached/failed lazy images again. */
+function thumbnailReady(image:HTMLImageElement):void{
+  if(!image.complete||!image.closest(".blade-media--loading")||decodingImages.has(image))return;
+  if(!image.naturalWidth){thumbnailFailed(image);return;}
+  decodingImages.add(image);
+  void image.decode().then(()=>{
+    const slot=image.closest(".blade-media");
+    slot?.classList.remove("blade-media--loading");slot?.classList.add("blade-media--ready");
+    slot?.removeAttribute("aria-busy");slot?.querySelector(".blade-media__spinner")?.remove();
+  },()=>thumbnailFailed(image)).finally(()=>decodingImages.delete(image));
+}
+/** One page-wide lifecycle for all record slots, including details without a Grid. No retained row nodes or timers. */
+function observeRecordImages():void{
+  if(imageObserver)return;
+  const on=(event:Event)=>{
+    const image=event.target;
+    if(image instanceof HTMLImageElement&&image.matches(recordImages)){
+      if(event.type==="error")thumbnailFailed(image);else thumbnailReady(image);
+    }
+  };
+  document.addEventListener("load",on,true);document.addEventListener("error",on,true);
+  imageObserver=new MutationObserver(changes=>{
+    for(const change of changes)for(const node of Array.from(change.addedNodes)){
+      if(!(node instanceof Element))continue;
+      if(node instanceof HTMLImageElement&&node.matches(recordImages))thumbnailReady(node);
+      node.querySelectorAll<HTMLImageElement>(recordImages).forEach(thumbnailReady);
+    }
+  });
+  imageObserver.observe(document.documentElement,{childList:true,subtree:true});
+}
+/** The native Suite spinner is decorative; the containing slot keeps its name and reports busy while bytes decode. */
+function recordPicture(url:string,attribute:string):string{
+  observeRecordImages();
+  return `<svg class="dhx_spinner blade-media__spinner" viewBox="25 25 50 50" aria-hidden="true"><circle class="path" cx="50" cy="50" r="20"></circle></svg><img class="blade-media__image" src="${escape(url)}" alt="" loading="lazy" decoding="async" ${attribute}>`;
 }
 export const duration=(ms:number)=>{const s=Math.max(0,Math.round(ms/1000)),h=Math.floor(s/3600),m=Math.floor(s/60)%60,r=String(s%60).padStart(2,"0");return h?`${h}:${String(m).padStart(2,"0")}:${r}`:`${m}:${r}`;};
 /** Type in text for the accessible name; icon and colour only repeat it. */
@@ -139,7 +181,7 @@ export function recordMedia(field:Column,row:Row,size:"cell"|"card"|"tile"="cell
   const kind=mediaKind(media),length=mediaLength(media);
   const url=media.thumbnail==="ready"&&field.media?actionUrl(field.media,"thumbnail_get",media.id,media.revision):"";
   const label=escape(mediaLabel(media)),failed=!!url&&failedThumbnails.has(url);
-  return `<span class="blade-media blade-media--${size}${sized.css} blade-media--${kind}${failed?" blade-media--failed":""}"${sized.style} role="img" aria-label="${label}" title="${label}"><span class="blade-media__icon ${escape(mediaTypeIcon(media.mime_type))}" aria-hidden="true"></span>${url&&!failed?`<img class="blade-media__image" src="${escape(url)}" alt="" loading="lazy" decoding="async" data-blade-thumbnail>`:""}${length?`<span class="blade-media__duration" aria-hidden="true">${escape(length)}</span>`:""}</span>`;
+  return `<span class="blade-media blade-media--${size}${sized.css} blade-media--${kind}${failed?" blade-media--failed":url?" blade-media--loading":""}"${sized.style}${url&&!failed?' aria-busy="true"':""} role="img" aria-label="${label}" title="${label}"><span class="blade-media__icon ${escape(mediaTypeIcon(media.mime_type))}" aria-hidden="true"></span>${url&&!failed?recordPicture(url,"data-blade-thumbnail"):""}${length?`<span class="blade-media__duration" aria-hidden="true">${escape(length)}</span>`:""}</span>`;
 }
 /**
  * Static image column (`presentation: image`): `<img>` of `imageBase` + file name in the media slot sizes; a load
@@ -150,7 +192,7 @@ export function recordImage(field:Column,row:Row,size:"cell"|"card"|"tile"="cell
   const url=imageUrl(field,row[field.id]);
   if(!url)return size==="cell"?"":`<span class="blade-media blade-media--${size} blade-media--image blade-media--empty" aria-hidden="true"></span>`;
   const of=field.altOf,alt=of&&row[of]!=null?escape(row[of]):"",failed=failedThumbnails.has(url);
-  return `<span class="blade-media blade-media--${size} blade-media--image${failed?" blade-media--failed":""}" ${alt?`role="img" aria-label="${alt}" title="${alt}"`:`aria-hidden="true"`}><span class="blade-media__icon bi bi-image" aria-hidden="true"></span>${failed?"":`<img class="blade-media__image" src="${escape(url)}" alt="" loading="lazy" decoding="async" data-blade-static-image>`}</span>`;
+  return `<span class="blade-media blade-media--${size} blade-media--image${failed?" blade-media--failed":" blade-media--loading"}"${failed?"":' aria-busy="true"'} ${alt?`role="img" aria-label="${alt}" title="${alt}"`:`aria-hidden="true"`}><span class="blade-media__icon bi bi-image" aria-hidden="true"></span>${failed?"":recordPicture(url,"data-blade-static-image")}</span>`;
 }
 /**
  * The built-in `image` presentation (registered on `app.presentations` by builtins.ts). A static image column renders
