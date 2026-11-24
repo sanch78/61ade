@@ -1754,8 +1754,8 @@ Frontend requests it from view.row_numbers, including watch. PHP tests check
 full ordinal rank across both paging directions/middle windows.
 
 Mobile filtering creates a separate native Form, copying applied values into the
-panel form. Closing does not move widgets between layouts. Filter/reset buttons
-share one row with 8 px gap.
+panel form. Closing does not move widgets between layouts. Apply and Reset sit together on the left. Cancel sits at the right edge of the dialog.
+Buttons keep at least 8 px between them and wrap when the available width requires it.
 
 <a id="listafejléc-és-rekordszám"></a>
 
@@ -1841,7 +1841,7 @@ A form fits to the lower edge of its footer; details retain 24 px beyond
 article padding. Every framework form has the same frame
 ([FB-0242](feedback.md#fb-0242), `WindowSizing.ts` `formLayout`): the fields
 in one body with a 20 px inset on every side (the last field keeps no margin
-of its own), and the action row (`Mégse` beside the submit button) as a fixed
+of its own), and the action row (operations on the left, `Mégse` at the right edge) as a fixed
 footer below it, the message dialog's footer: one rule above it, the
 secondary background, 12 px above and below the buttons, the body's inset
 beside them. Only the body scrolls, so a scrollbar runs beside the fields
@@ -2107,8 +2107,7 @@ declared, its icon only.
 
 In a textarea of a framework form (record and action forms, the edit window,
 `SettingsForm`, the calendar and file manager forms) Ctrl+Enter, or Cmd+Enter on
-macOS, commits the typed value and presses the form's primary button (the
-last one of its action row). Validation and confirmation run as for a click
+macOS, commits the typed value and presses the form's primary button. Validation and confirmation run as for a click
 ([FB-0250](feedback.md#fb-0250)). Nothing happens when that button is
 disabled, inert or missing. Plain Enter keeps its line break. A
 project's own text field uses [`app.ui.submitKeys`](toolkit.md#submit-keys).

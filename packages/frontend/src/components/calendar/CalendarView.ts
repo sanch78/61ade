@@ -237,7 +237,7 @@ export class CalendarView {
       editable:false,
       timePicker:time,timeFormat:24,dateFormat:time?"%Y-%m-%d %H:%i":"%Y-%m-%d",weekStart:"monday",value});
     const actions=formActions({name:"submit",text:t("Mentés"),icon:"bi bi-floppy",color:"primary"});
-    if(!isNew&&this.can("delete"))actions.cols.unshift({type:"button",name:"remove",text:t("Törlés"),icon:"bi bi-trash",view:"link",color:"danger",width:"content",css:"blade-calendar-remove"});
+    if(!isNew&&this.can("delete"))actions.cols.unshift({type:"button",name:"remove",text:t("Törlés"),icon:"bi bi-trash",view:"link",color:"danger",width:"content"});
     const form=new Form(document.createElement("div"),formLayout([
       ...fields.map(field=>input(field,event[field.name])),
       {css:"blade-calendar-dates",cols:[picker("start_date",t("Kezdete"),wire(event.start_date)),picker("end_date",t("Vége"),wire(event.end_date))]},

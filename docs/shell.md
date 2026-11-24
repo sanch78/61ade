@@ -1199,8 +1199,11 @@ a duplicate throws unless `{replace: true}`.
 
 Login and e-mail confirmation use native Window/Form. Rendered button bottoms
 determine height with 24 px lower space, capped by viewport. Resize/validation
-remeasures without activating the window over an error modal. Three equal-width
-confirmation buttons have 8 px gaps; secondary actions are real buttons.
+remeasures without activating the window over an error modal. Authentication
+actions start on the left; Cancel or Back to sign-in sits at the right. Buttons
+keep their content width and wrap with 8 px gaps when space is short. E-mail
+confirmation keeps Verify and Resend together before Back; secondary actions
+are real buttons.
 
 Menu icons exist at every level: static items default to folder, features have
 configurable view icons, groups use open folder, compact menu/logout have their

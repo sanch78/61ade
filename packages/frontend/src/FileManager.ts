@@ -45,8 +45,8 @@ type Panel={index:number;mount:string;mode:"files"|"tiles"|"tree";directory?:Dir
   query:Query;next:string|null;loading:boolean;capped:boolean;total:number;matched:number};
 /** Same Cancel + submit row as the workspace forms. */
 const formActions=(submit:{name:string;text:string;icon:string}):any=>({css:"blade-form-actions",cols:[
-  {type:"button",name:"cancel",text:t("Mégse"),icon:"bi bi-x-lg",view:"flat",color:"secondary",width:"content"},
   {type:"button",...submit,color:"primary",width:"content"},
+  {type:"button",name:"cancel",css:"blade-action-dismiss",text:t("Mégse"),icon:"bi bi-x-lg",view:"flat",color:"secondary",width:"content"},
 ]});
 /** Icon by kind and detected MIME type, the same in the listing and the tree: a media type (`app.mediaTypes`) first. */
 const fileIcon=(kind:string,mime:string):string=>kind==="directory"?"bi bi-folder":findMediaType(mime)?.icon??(mime==="text/csv"?"bi bi-file-earmark-spreadsheet":mime.startsWith("text/")||mime==="application/json"?"bi bi-text-left":"bi bi-file-earmark");

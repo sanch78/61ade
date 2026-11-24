@@ -107,7 +107,7 @@ function present(options: DialogOptions, choices?: DialogChoice[], applyAll?: { 
     node.dataset.bladeDialogAction = "choice:" + choice.value;
     return node;
   });
-  footer.append(...(choices ? [cancel!, ...answers] : cancel ? [cancel, primary] : [primary]));
+  footer.append(...(choices ? [...answers, cancel!] : cancel ? [primary, cancel] : [primary]));
 
   // Optional "apply to all" checkbox: a native control between the message and the buttons.
   let checkbox: HTMLInputElement | null = null;

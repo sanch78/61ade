@@ -1210,9 +1210,8 @@ export class AdminShell {
           checked: false,
         }] : []),
         {
-          align: "end",
+          css: "blade-auth-actions",
           cols: [
-            ...(definition.publicAccess ? [{type:"button" as const,name:"public",text:t("Mégse"),view:"link" as const}] : []),
             {
               type: "button",
               name: "login",
@@ -1220,7 +1219,9 @@ export class AdminShell {
               icon: "bi bi-key",
               view: "flat",
               color: "primary",
+              width: "content",
             },
+            ...(definition.publicAccess ? [{type:"button" as const,name:"public",text:t("Mégse"),view:"link" as const,width:"content",css:"blade-action-dismiss"}] : []),
           ],
         },
         // External sign-in: AuthHandler's own overlay offers the configured providers.
@@ -1327,10 +1328,10 @@ export class AdminShell {
         { type: "text", name: "recipient", label: t("Megerősítő levelet küldtünk"), value: escape(confirmation.email) },
         { type: "input", name: "code", label: t("Megerősítő kód"), labelPosition: "top", required: true, maxlength: 6,
           validation: (value: string | number) => /^[0-9]{6}$/.test(String(value)), errorMessage: t("A levélben kapott 6 számjegyű kód szükséges.") },
-        { type: "button", name: "verify", text: t("Belépés megerősítése"), full:true, padding:"8px 0 0 0", icon:"bi bi-check-lg", color: "primary" },
-        { rows: [
-          { type: "button", name: "resend", text: t("Új kód küldése"), full:true, padding:"8px 0 0 0", icon:"bi bi-envelope", view: "flat", color:"secondary" },
-          { type: "button", name: "cancel", text: t("Vissza a belépéshez"), full:true, padding:"8px 0 0 0", icon:"bi bi-arrow-left", view: "flat", color:"secondary" },
+        { css: "blade-auth-actions", padding: "8px 0 0 0", cols: [
+          { type: "button", name: "verify", text: t("Belépés megerősítése"), width:"content", icon:"bi bi-check-lg", color: "primary" },
+          { type: "button", name: "resend", text: t("Új kód küldése"), width:"content", icon:"bi bi-envelope", view: "flat", color:"secondary" },
+          { type: "button", name: "cancel", text: t("Vissza a belépéshez"), width:"content", css:"blade-action-dismiss", icon:"bi bi-arrow-left", view: "flat", color:"secondary" },
         ] },
       ],
     });
@@ -1383,8 +1384,10 @@ export class AdminShell {
           validation: length, errorMessage: t("Az új jelszó 12–128 karakter legyen.") },
         { type: "input", inputType: "password", name: "confirm_password", label: t("Új jelszó ismét"), labelPosition: "top", required: true, maxlength: 128,
           validation: (value: string | number): boolean => String(value) === String(form.getValue().new_password ?? ""), errorMessage: t("A két új jelszó eltér.") },
-        { type: "button", name: "save", text: t("Jelszó mentése és belépés"), full:true, padding:"8px 0 0 0", icon:"bi bi-key", color: "primary" },
-        { type: "button", name: "cancel", text: t("Vissza a belépéshez"), full:true, padding:"8px 0 0 0", icon:"bi bi-arrow-left", view: "flat", color:"secondary" },
+        { css: "blade-auth-actions", padding: "8px 0 0 0", cols: [
+          { type: "button", name: "save", text: t("Jelszó mentése és belépés"), width:"content", icon:"bi bi-key", color: "primary" },
+          { type: "button", name: "cancel", text: t("Vissza a belépéshez"), width:"content", css:"blade-action-dismiss", icon:"bi bi-arrow-left", view: "flat", color:"secondary" },
+        ] },
       ],
     });
     this.loginForm = form;

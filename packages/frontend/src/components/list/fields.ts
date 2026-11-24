@@ -495,16 +495,16 @@ const builtinInput=(f:FieldDefinition,value:unknown,readOnly=false):any=>f.type=
 export const formActions=(submit:{name:string;text:string;icon?:string;color?:string},cancel=true):any=>({
   css:"blade-form-actions",
   cols:[
-    ...(cancel?[{type:"button",name:"cancel",text:t("Mégse"),icon:"bi bi-x-lg",view:"flat",color:"secondary",width:"content"}]:[]),
     {type:"button",...submit,width:"content"},
+    ...(cancel?[{type:"button",name:"cancel",css:"blade-action-dismiss",text:t("Mégse"),icon:"bi bi-x-lg",view:"flat",color:"secondary",width:"content"}]:[]),
   ],
 });
-// Ctrl+Enter (Cmd+Enter on macOS) in a framework form's textarea presses that form's primary (last) action button,
+// Ctrl+Enter (Cmd+Enter on macOS) in a framework form's textarea presses that form's primary action button,
 // so it validates and submits exactly as a click; nothing happens when the button is absent or disabled.
 if(typeof document!=="undefined")document.addEventListener("keydown",event=>{
   const area=event.target;
   if(event.key!=="Enter"||!(event.ctrlKey||event.metaKey)||event.altKey||event.shiftKey||event.isComposing||event.defaultPrevented||!(area instanceof HTMLTextAreaElement))return;
-  const buttons=area.closest(".dhx_form")?.querySelectorAll<HTMLButtonElement>(":scope > .blade-form-actions button"),button=buttons?.[buttons.length-1];
+  const button=area.closest(".dhx_form")?.querySelector<HTMLButtonElement>(":scope > .blade-form-actions button.dhx_button--color_primary");
   if(!button)return;
   event.preventDefault();
   // Suite takes a typed value on `change`; commit it first, as a click's blur would.

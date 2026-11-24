@@ -88,4 +88,3 @@
 /* Event form: the shared Suite Form window with two date columns and a wrapping weekday row. */
 .blade-calendar-dates { gap: 16px; }
 .blade-calendar-days .dhx_layout-columns, .blade-calendar-days .dhx_layout-cell { flex-wrap: wrap; }
-.blade-calendar-remove { margin-right: auto; }

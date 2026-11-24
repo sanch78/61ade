@@ -113,10 +113,10 @@ test('choice with "apply to all": checkbox in the focus trap, Escape cancels',as
  expect(await page.evaluate(()=>document.activeElement.dataset.bladeDialogAction)).toBe('cancel');
  const order=await dialog(page).evaluate(box=>[...box.children].map(node=>node.className.split(' ')[0]));
  expect(order).toEqual(['blade-dialog__header','blade-dialog__body','blade-dialog__all','blade-dialog__footer']);
- await page.keyboard.press('Shift+Tab');await expect(all).toBeFocused();
+ await page.keyboard.press('Tab');await expect(all).toBeFocused();
  await page.keyboard.press('Space');await expect(all).toBeChecked();
  await page.keyboard.press('Enter');await expect(dialog(page)).toBeVisible();
- await page.keyboard.press('Tab');expect(await page.evaluate(()=>document.activeElement.dataset.bladeDialogAction)).toBe('cancel');
+ await page.keyboard.press('Tab');expect(await page.evaluate(()=>document.activeElement.dataset.bladeDialogAction)).toMatch(/^choice:/);
  for(let i=0;i<4;i++)await page.keyboard.press('Tab');
  await expect(all).toBeFocused();
  await page.keyboard.press('Escape');

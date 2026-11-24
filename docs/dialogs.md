@@ -150,8 +150,11 @@ include the failed row messages in that toast.
 Separate toned header/icon, naturally wrapping `pre-wrap` body including long
 words, and action bar with background/divider. Maximum width 480 px. Every side
 retains at least 16 px or safe-area inset; viewport caps height, body scrolls
-internally and buttons remain visible. Below 480 px, buttons stack full width,
-primary above Cancel.
+internally and buttons remain visible. Actions start at the left, with Cancel
+at the right after them in reading and keyboard order. The footer keeps a
+12 px gap between buttons and wrapped rows, including on mobile. Buttons wrap
+onto another row when necessary, with Cancel still at the right; long button
+labels wrap within the available width.
 
 <a id="döntés-miért-nem-a-natív-dhtmlx-alertconfirm"></a>
 

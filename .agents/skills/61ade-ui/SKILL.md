@@ -100,6 +100,7 @@ tree as decoration for a flat list.
   to carry one; a list's own record commands stay in its toolbar or a
   `CommandBar` `menu` ([FB-0202](../../../docs/feedback.md#fb-0202),
   [FB-0248](../../../docs/feedback.md#fb-0248)).
+- Put actions on the left of a form or dialog and Cancel on the right, last in keyboard order. Keep at least 8 px between buttons and wrap them on narrow surfaces.
 - Use native controls, theme tokens, and framework sizing. Test light, dark, and
   the default theme; do not recreate a vendor skin or introduce a consumer
   shell layer to obtain a visual tweak.

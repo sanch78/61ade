@@ -315,7 +315,7 @@ class UploadService {
     // The shared window action row (as formActions): the secondary command flat, Close as the primary one.
     const commands = new Form(document.createElement("div"), { padding: 0, rows: [formFooter({ css: "blade-form-actions", cols: [
       { type: "button", name: "clear", text: t("Befejezettek törlése"), icon: "bi bi-trash", view: "flat", color: "secondary", width: "content", disabled: true },
-      { type: "button", name: "close", text: t("Bezárás"), icon: "bi bi-x-lg", color: "primary", width: "content" },
+      { type: "button", name: "close", css: "blade-action-dismiss", text: t("Bezárás"), icon: "bi bi-x-lg", color: "primary", width: "content" },
     ] }, 16)] } as any);
     commands.events.on("click", (name: string) => {
       if (name === "clear") this.clearFinished();

@@ -286,8 +286,8 @@ export class DiagramView {
     this.windows.add(win);
     win.events.on("afterHide",()=>{this.windows.delete(win);void awaitRedraw().then(()=>win.destructor());});
     const form=new Form(document.createElement("div"),formLayout(items,{css:"blade-form-actions",cols:[
-      {type:"button",name:"cancel",text:t("Mégse"),icon:"bi bi-x-lg",view:"flat",color:"secondary",width:"content"},
       {type:"button",name:"submit",text:t(this.actionDefinition(action)?.label??"Mentés"),icon:"bi bi-check-lg",submit:true,color:"primary",width:"content"},
+      {type:"button",name:"cancel",css:"blade-action-dismiss",text:t("Mégse"),icon:"bi bi-x-lg",view:"flat",color:"secondary",width:"content"},
     ]}));
     win.attach(form);win.show();void fitWindow(win);
     const validation=new FormValidation(form,this.actionDefinition(action)?.fields??[]);let saving=false;

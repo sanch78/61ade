@@ -79,11 +79,17 @@ test('without remember: the confirmation actions stay inside the login window in
       const top = Math.min(...content.map(box => box[0])), bottom = Math.max(...content.map(box => box[1]));
       return top >= last.y + last.height ? Math.abs(outer.y + outer.height - bottom) : Infinity;
     }).toBeLessThanOrEqual(2);
-    const outer = await dialog.boundingBox(); let previousBottom = 0;
+    const outer = await dialog.boundingBox(), actions = await dialog.locator('.blade-auth-actions').boundingBox(); let previous;
+    const dismissal = await dialog.getByRole('button', {name: 'Vissza a belépéshez', exact: true}).boundingBox();
+    expect(Math.abs(dismissal.x + dismissal.width - actions.x - actions.width)).toBeLessThanOrEqual(1);
     for (const name of ['Belépés megerősítése', 'Új kód küldése', 'Vissza a belépéshez']) {
       const button = dialog.getByRole('button', {name, exact: true}); await expect(button).toHaveClass(/dhx_button--view_flat/); await button.hover(); const bounds = await button.boundingBox();
       expect(await button.evaluate(e => {const r = e.getBoundingClientRect(); return e.contains(document.elementFromPoint(r.x + r.width / 2, r.bottom - 2));})).toBe(true);
-      if (previousBottom) expect(bounds.y - previousBottom).toBeGreaterThanOrEqual(8); previousBottom = bounds.y + bounds.height;
+      if (previous) {
+        if (Math.abs(bounds.y - previous.y) <= 1) expect(bounds.x - previous.x - previous.width).toBeGreaterThanOrEqual(8);
+        else expect(bounds.y - previous.y - previous.height).toBeGreaterThanOrEqual(8);
+      } else expect(Math.abs(bounds.x - actions.x)).toBeLessThanOrEqual(1);
+      previous = bounds;
       expect(bounds.x).toBeGreaterThanOrEqual(outer.x); expect(bounds.x + bounds.width).toBeLessThanOrEqual(outer.x + outer.width); expect(bounds.y + bounds.height).toBeLessThanOrEqual(outer.y + outer.height);
     }
     await page.screenshot({path: path.join(process.env.BLADE_TMP_DIR, 'confirmation-' + theme + '.png')});

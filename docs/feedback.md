@@ -1099,3 +1099,7 @@
 <a id="fb-0269"></a>
 
 ## FB-0269 — Shade the header surface beside the one-pixel divider
+
+<a id="fb-0270"></a>
+
+## FB-0270 — Separate operations from dismissal in action rows

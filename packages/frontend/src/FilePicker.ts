@@ -67,8 +67,8 @@ async function describeStored(config:StoredFileFieldConfig,id:string):Promise<Me
 }
 /** Same Cancel + submit row as the workspace forms. */
 const actions=(submit:{name:string;text:string;icon:string}):any=>({css:"blade-form-actions",cols:[
-  {type:"button",name:"cancel",text:t("Mégse"),icon:"bi bi-x-lg",view:"flat",color:"secondary",width:"content"},
   {type:"button",...submit,color:"primary",width:"content"},
+  {type:"button",name:"cancel",css:"blade-action-dismiss",text:t("Mégse"),icon:"bi bi-x-lg",view:"flat",color:"secondary",width:"content"},
 ]});
 
 /**
