@@ -1,6 +1,7 @@
 /* Both Suite toolbar submenus and anchored context menus render these popup lists. */
 ul.dhx_menu[role="menu"] { padding-block: 4px; }
 ul.dhx_menu[role="menu"] > .dhx_menu-item:has(> .dhx_menu-button) { padding-inline: 6px; }
+ul.dhx_menu[role="menu"] > .dhx_menu-item:has(> .dhx_menu-button) + .dhx_menu-item:has(> .dhx_menu-button) { margin-top: 2px; }
 ul.dhx_menu[role="menu"] > .dhx_menu-item > .dhx_menu-button { border-radius: var(--dhx-border-radius); }
 
 /* Popup menu at a project's button (PopupMenu.ts, `app.ui.menu`; docs/toolkit.md#popup-menu). Suite's own context menu

@@ -1111,3 +1111,7 @@
 <a id="fb-0272"></a>
 
 ## FB-0272 — Loading feedback for record images
+
+<a id="fb-0273"></a>
+
+## FB-0273 — A gap between adjacent popup menu rows

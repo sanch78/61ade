@@ -24,6 +24,48 @@ describes order.
 
 ## Current status
 
+The 2026-10-16 foundation includes registered execution, declarative forms/grids,
+SQL object scopes, field rights, UI/API separation, scoped tokens and transactional
+audit. Later built-in admin work supersedes the earlier consumer-only useradmin
+model; see [admin](admin.md), [ACL](access-and-actions.md) and [shell](shell.md).
+[Workspaces](workspaces.md) support configurable filter/form/grid, integrated
+column header filters, dynamic lists, server sorting and polling/WebSocket live
+data over [one channel per tab](workspaces.md#live-channel) that every list and
+sub-view shares; singleton details are direct forms.
+Cards place their child-list button over the cover's upper-right corner, keeping
+the same height as cards without children. Cards without a cover keep the
+full-width footer button. Tiles overlay the same button across the cover's bottom
+edge ([sub-views](workspaces.md#sub-views)).
+Sections inside cards and details have equal heights within each row, with
+top-aligned content. A project's stylesheet can configure their column widths
+and ratios ([section columns](workspaces.md#card-group-columns)); narrow
+records stack them through CSS alone.
+The full desktop menu aligns logout to the right, before the selectors; compact
+navigation keeps it inside Menü ([shell](shell.md#kompakt-ablakfejléc-és-teljes-mobilmenü)).
+No upper application-title header; one lower bar has user left, application/version
+right. Session idle timeout and persistent cookie lifetime are [configurable](authentication.md#session-lifetime), with unchanged 30-minute/browser-session defaults.
+Three security options are opt-in, with unchanged defaults: `sameSite: 'Strict'`
+(JSON `session.same_site`) for the session and remember cookies
+([cookie SameSite](authentication.md#cookie-samesite); a definition combining
+`Strict` and OAuth is rejected at startup; other cross-site arrivals come
+without the cookies), `bindSessionToClientAddress` (JSON `session.bind_to_client_address`)
+to end a signed-in session used from another address
+([binding](authentication.md#client-address-binding)), and `HttpEntrypoint::run`'s
+`$trustProxy` list of proxy networks ([trusted proxies](shell.md#trusted-proxies)).
+An ended session signs the page out on its next request
+([shell](shell.md#ended-session)). Blade (default), Blade Night, light and dark use DHTMLX setTheme; Blade is a
+custom Suite 9 theme ([appearance](shell.md#megjelenési-mód)).
+Applications whose sign-in is entered from a separate public document may
+set `SignIn(closeHref: '/public/')` (JSON `application.sign_in.close_href`)
+to return there from the first-step native header X; defaults are unchanged
+([sign-in content](shell.md#sign-in-content)).
+Collapsed column headers in Blade and Blade Night use a full-height glossy
+strip with the vertical caption inside, preserving the original width
+([theme details](shell.md#61ade-character)). In Blade and Blade Night,
+accordion sections, accordion form sections, collapsable panels and tree folders ease to
+their new size on open and close (`--blade-motion-duration`, off under
+reduced motion; [theme motion](shell.md#theme-motion)).
+
 Optional [multi-tenancy](tenancy.md) (organizations) has its stage 1:
 tenant-scoped SQL resources and lookups, memberships, switching, tenant-bound
 API keys and audit. Tenant-scoped files remain open. A reliable
@@ -632,6 +674,12 @@ validation inventory and documented deviations, not just required fields.
 
 ## ACL and action execution
 
+[ACL/audit](access-and-actions.md) is usable; it also documents the opt-in
+multipart transport, ID-only audit detail and SQLite immediate transactions.
+access.php verifies default deny,
+object scope, field denial, API/token scope, optimistic conflicts, audit/rollback.
+Independent integration checks covered Registry, SqlResource and Workspace. Fresh checks must respect current coverage limits.
+
 [Delegated access](access-and-actions.md#delegated-access) is opt-in per
 resource (`SqlResource` `delegation: new Delegation(read: [...], write: [...])`
 with `DelegationLink` and an optional `DelegationVia`; JSON
@@ -867,7 +915,8 @@ This applies at every depth and to desktop controls near the right edge too
 ([CommandBar](toolkit.md#commandbar)).
 No consumer configuration; rebuild/prepare assets.
 
-Native toolbar submenus and toolkit popup menus share inset row highlights.
+Native toolbar submenus and toolkit popup menus share inset row highlights
+with a small gap between adjacent rows.
 Toolkit popups keep room for short details such as times beside long labels.
 See [popup menus](toolkit.md#popup-menu).
 
