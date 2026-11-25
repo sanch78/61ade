@@ -711,6 +711,18 @@ app.commands.register("demo.count-marked", {
 });
 ```
 
+A media type gives files of some MIME types their label and fallback icon
+wherever 61ade presents a file: media slots (table, cards, tiles, details,
+the `file` field), the derived `type` part, the file manager's icon column and
+tree. `mime` lists exact types or classes (`audio/*`); an exact entry wins over
+a class, and a file no entry matches is `Fájl` with the generic file icon. The
+`icon` uses the bundled [Bootstrap Icons](icons.md), for example
+`bi bi-music-note-beamed` (built-in `audio`) or `bi bi-film`.
+The same catalog supplies every icon slot, including a [CommandBar](#commandbar)
+button (`bi bi-play-fill`, `bi bi-pause-fill`, `bi bi-skip-end-fill`).
+Legacy Suite and `blade-icon` classes remain supported for existing consumers.
+Presentation only: what a file may be, and who reads it, stays the server's.
+
 ```ts
 app.mediaTypes.register("demo.scene", { mime: ["text/javascript"], label: "Animáció", icon: "bi bi-film" });
 ```
@@ -1689,6 +1701,10 @@ top.mount(page.cell("above")); bottom.mount(page.cell("below"));
 | `popup` (`CommandPopup`: a button's keys, `menuLabel`, `items` as `app.ui.menu`, `empty`) | button opening a popup menu | stays in the bar beside the menu | `select {id, item}` ([popup](#commandbar-title)) |
 | `range` (`id`, `label`, `min`, `max`, `step`, `value`, `valueLabel`) | native range input (`slider`, value text from `valueLabel`), the remaining width, at least 120 px | stays in the bar beside the menu | `change {id, value}`: at most every 100 ms while dragged, then on release |
 
+- Separate bar buttons (buttons, toggles, selects, menus, popups) sit 4 px
+  apart, so a hover, open or pressed highlight never touches its neighbour;
+  `group` and `segmented` buttons stay joined. Not in the shell's menu row.
+  ([FB-0274](feedback.md#fb-0274))
 - A pick of the chosen option reports nothing; changes from code (`update`)
   report nothing. `update(id, changes)` takes `label`, `icon`, `disabled`,
   `hidden`, `pressed` (toggle), `value` (select, segmented, range), `options`
@@ -3895,7 +3911,18 @@ Results per phase are recorded in [FB-0081](feedback.md#fb-0081); the plan's
 
 <a id="migration"></a>
 
+## Framework migration reference
+
+This table records framework contract changes and their general integration
+requirements. Applications determine the applicable range from their own
+recorded framework revision and perform updates in their own repositories.
+61ade sessions do not edit application runtimes.
+
+**Needs:** **action** means a required integration change; **if used** applies
+only to the named capability; *info* identifies behavior to account for.
+
 | # | Change | Source | Needs |
+| --- | --- | --- | --- |
 | M1 | Address `#view=<id>[&record=<id>]` ([routing](#routing)); `#feature=<resource>` is a legacy alias that resolves to the view whose id equals the resource and is rewritten to `#view=` with `replaceState`; `activate: 'page'` writes `#view=<child id>` | P2, FB-0081 | if used: code or specs that read or assert the hash |
 | M2 | Menu item ids `feature:<resource>` → `view:<id>` (`sibling:view:<id>` in the collapsed menu) | P2 | if used: specs or CSS that address menu ids |
 | M3 | Bootstrap `views` shape: list keys under `options`, `id` and `kind` always set ([bootstrap shape](#views)) | P2 | if used: code reading `#blade-config` `views` |
@@ -3904,10 +3931,10 @@ Results per phase are recorded in [FB-0081](feedback.md#fb-0081); the plan's
 | M6 | Project `stylesheets` ([module loading](#module-loading)) replace stylesheet injection; linked on signed-in pages only, after `admin.css` and skins | P2, O8 | if used: a consumer that injects its own CSS |
 | M7 | `.deploy.json` `shared_assets.files` adds `sandbox.html` beside `admin.js` ([packaging](#packaging)); `admin.d.ts` is never deployed | P3, O6 | if used: `SandboxFrame` users |
 | M8 | Frontend internals (`Workspace` constructor, which now takes the shell's `LiveChannel`, private classes) are not a contract; use `app` and [components](#components) | P3 | info |
-| M9 | [Cache keys](#cache-keys) from the served file `?v=<base36 mtime>-<base36 size>`: `admin.js`/`admin.css` (released build `?v=30`, dev URL `?v=32` from `02a64d6` to `edbc90f`), project `modules`/`stylesheets` (formerly `?v=<version>`, still the fallback), skin stylesheets and AuthHandler files (formerly unkeyed); an own `?…` key stays as written | P4, FB-0085 | if used: specs that assert `?v=30`, `?v=32` or `?v=<version>` on these URLs must accept the file key |
+| M9 | [Cache keys](#cache-keys) from the served file `?v=<base36 mtime>-<base36 size>`: `admin.js`/`admin.css` (formerly hand-bumped version keys), project `modules`/`stylesheets` (formerly `?v=<version>`, still the fallback), skin stylesheets and AuthHandler files (formerly unkeyed); an own `?…` key stays as written | P4, FB-0085 | if used: specs that assert `?v=30`, `?v=32` or `?v=<version>` on these URLs must accept the file key |
 | M10 | Record commands only in the list toolbar; the record context menu is gone: a right click, the context-menu key or Shift+F10 on a row, card or tile keeps the browser's own behaviour ([registries](#registries)). `Adatok` is the `details` record command: toolbar id `blade-results` → `blade-command:details`, disabled without a cursor record or with several marks | P3 C-5b | if used: specs that open a row context menu (use the toolbar or `Műveletek`) or address `blade-results` |
 | M11 | Live protocol 2 ([FB-0075](feedback.md#fb-0075)): one channel per tab; `dist` and `packages/php/bin/live-server.mjs` must come from the same commit; a page loaded before an update gets 4409 and reloads once | before P0 | if used: a WebSocket live service |
-| M12 | Product name `61de` → `61ade` ([FB-0070](feedback.md#fb-0070), [renaming](renaming.md#61de--61ade-correction-2026-10-29)): package names, recommended link names, product texts in logs (`61ade unavailable:`) and errors; `Blade\`, `BLADE_*`, `blade_*` unchanged; old link names keep working | before P0 | info |
+| M12 | Product name `61de` → `61ade` ([FB-0070](feedback.md#fb-0070), [renaming](renaming.md#61de--61ade-correction-2026-10-29)): package names, recommended link names, product texts in logs (`61ade unavailable:`) and errors; `Blade\`, `BLADE_*`, `blade_*` unchanged; old link names keep working \| before P0 \| info \| already `lib/61ade`, `public/assets/61ade` \| its own unreleased rename ships with its next release (handoff) |
 | M13 | A form checkbox's accessible name is its field label again (`Archivált`); the released build exposed `checkbox Archivált` ([FB-0082](feedback.md#fb-0082)) | before P2 | if used: specs that matched the doubled name |
 | M14 | Menu pages keep their header and panel filter values in browser storage per path, user and view; `Alaphelyzet` clears them ([FB-0079](feedback.md#fb-0079)) | before P0 | info: a spec that reuses a storage state may start filtered |
 | M15 | New optional capabilities, nothing changes until used: tenancy ([FB-0069](feedback.md#fb-0069); `blade_tokens.tenant_id`, `blade_audit.tenant_id` and the tenant tables only after `Tenancy::install`), sub-views (FB-0071), skins (FB-0072), one live server for several applications (FB-0074), static image column (FB-0076), declared activation incl. `page` (FB-0077, FB-0078), and the toolkit: modules, `app` services, registries, record views, [activation map](#activation-map), components, `SandboxFrame`, `documentRoot` | all | info |
@@ -3964,7 +3991,7 @@ Results per phase are recorded in [FB-0081](feedback.md#fb-0081); the plan's
 | M66 | [Theme motion](shell.md#theme-motion): in Blade and Blade Night, `Accordion` sections, accordion form sections, `collapsable` Layout cells (`PageLayout`, list workspaces, tree navigation) and the folders of every Suite Tree (`RecordTree`, file manager) ease to their new size in 200 ms (`--blade-motion-duration`; `0s` under `prefers-reduced-motion`); state, events and ARIA change at once | [FB-0187](feedback.md#fb-0187) | info: a browser test that reads a region's size right after a toggle waits for the size to settle (`expect.poll`, or `page.emulateMedia({reducedMotion: "reduce"})`) |
 | M67 | [Accordion forms](workspaces.md#form-accordion): fixed sections (`sectionCollapsible: false`) keep their legend above their own scrolling fields and shrink when constrained; natural height is kept when it fits | [FB-0188](feedback.md#fb-0188) | info: applies to framed and flush forms; no declaration change |
 | M68 | [Card hover](shell.md#61ade-character): a hovered card or tile no longer rises; its edge lights up (border colour, outer ring, `--blade-lift-shadow`) and one light sweep crosses it on an overlay, the card and its content keep their boxes; token `--blade-card-hover-edge` | [FB-0189](feedback.md#fb-0189) | info: a browser test no longer has to move the pointer off a card before reading its geometry |
-| M69 | [Tree](#tree) `expandControl` is one toggle icon button on the right of the bar (`Mindet kinyit` until everything is open, then `Mindet bezár`), `expandControl: {placement: "top"|"bottom"}`; a [CommandBar](#commandbar) mounted above content casts the command row's shadow; a pinned item after a `spacer` stays on the right in the collapsed bar; tree navigation's toolbar collapses into `Műveletek`; a region's idle status no longer makes its cell 1 px too high (no scrollbar over a toolbar) | [FB-0191](feedback.md#fb-0191) | info: a spec that looked for both `Mindet kinyit` and `Mindet bezár` finds one button whose name follows the state; a spec that clicked a tree navigation action in a narrow panel opens `Műveletek` first |
+| M69 | [Tree](#tree) `expandControl` is one toggle icon button on the right of the bar (`Mindet kinyit` until everything is open, then `Mindet bezár`), `expandControl: {placement: "top"\|"bottom"}`; a [CommandBar](#commandbar) mounted above content casts the command row's shadow; a pinned item after a `spacer` stays on the right in the collapsed bar; tree navigation's toolbar collapses into `Műveletek`; a region's idle status no longer makes its cell 1 px too high (no scrollbar over a toolbar) | [FB-0191](feedback.md#fb-0191) | info: a spec that looked for both `Mindet kinyit` and `Mindet bezár` finds one button whose name follows the state; a spec that clicked a tree navigation action in a narrow panel opens `Műveletek` first |
 | M70 | [Tree presentation](#tree-presentation): every Suite Tree row is 40 px high (a grid row) with one ellipsized line; `TreeOptions.striped` and `TreeOptions.lines` (default `true`), `Registry::tree(..., striped:, lines:)`, JSON `tree.striped` / `tree.lines`, `TreeMetadata.striped` / `.lines` (sent only when `false`) | [FB-0193](feedback.md#fb-0193) | info: a spec or screenshot that measured tree rows finds 40 px instead of about 24 px, and the toggle of an expandable node is a framed +/- box (the arrow with `lines: false`); a node label no longer wraps; the selected tree row and the grid's cursor row have a straight 3 px bar and a thin frame (no slanted bar, no lower glow) |
 | M71 | [Window title](#window-title): `WindowOptions.titleOverflow` (`"end"` default, `"start"`: a leading `…`, the end stays visible) and `titlePrefix` (never cut); a cut title shows the full title as its tooltip; `AppWindow.setTitle` also renames the window's accessible name | [FB-0194](feedback.md#fb-0194) | info: a spec that read the dialog's name after `setTitle` finds the new title instead of the opening one |
 | M72 | [Empty-valued select filters](workspaces.md#integrated-grid-header-filters): a select option declared with the empty value is a real filter condition (`filters: {field: ""}`) in the header picker, the filter panel, `setFilters`, `#filter.<field>=` presets and saved filters; no filter shows an empty header control. A user filter on a hierarchy's parent field replaces its implicit root scope | [FB-0195](feedback.md#fb-0195) | info: a list with an empty-valued option no longer shows that option's label in the header without filtering; a spec that expected `setFilters({field: ""})` or a saved `""` to be ignored for such a select now sees the condition requested |
@@ -3972,15 +3999,19 @@ Results per phase are recorded in [FB-0081](feedback.md#fb-0081); the plan's
 | M74 | [Menu commands](shell.md#menu-commands): `ApplicationDefinition` `menuCommands` (PHP `MenuCommand`, JSON `application.menu_commands`) put up to three emphasized commands in the menu row; their handler is an `app.commands` entry with `placement: "menu"` (`MenuCommand`, `MenuCommandContext`; the registry's type is `Registry<ClientCommand \| MenuCommand>`). [Long-lived windows](#long-lived-windows): `WindowOptions.maximizable`, `WindowOptions.id`, `AppWindow.maximized`/`maximize()`; the menu row's popups open above windows; Escape closes a modal window above a non-modal one | [FB-0199](feedback.md#fb-0199) | info: TypeScript code that reads `app.commands.get(…)` as a `ClientCommand` narrows by `placement`; a spec that measured the feature demo's menu row finds `Munkaasztal` after the navigation |
 | M75 | [View guide](workspaces.md#view-guide): while a non-modal window is open (a [long-lived window](#long-lived-windows)), a view opened behind it does not open its guide by itself; the guide stays unseen and `Útmutató` shows it | [FB-0200](feedback.md#fb-0200) | info: no declaration or API change; a spec that opened a long-lived window and then expected a view's first guide finds none |
 | M76 | [Modal windows](#modal-windows): a modal Suite window (`app.ui.window` by default, every framework record or action window, a project's own `new Window({modal: true})`) makes everything before it in the document `inert`, keeps Tab and Shift+Tab inside the topmost one and returns the focus to its opener on close; Escape closes the topmost focused modal window also without a non-modal one, but not while an open popup in it takes the key (`preventDefault`/stopped key, `:popover-open`, a focused `role="menu"`, an expanded `aria-haspopup` or combobox trigger). A Suite redraw asked for in the frame that destroys its view is dropped | [FB-0201](feedback.md#fb-0201) | info: a spec that tabbed from a modal window to the page behind it, or clicked through to an element before it, finds it inert; a popup inside a window that wants Escape to close the window as well must not mark itself open |
+| M77 | [Popup menu](#popup-menu): `app.ui.menu(anchor, options)` returns a `PopupMenu` (`opened`, `open`, `close`, `on("select")`, `destroy`); types `PopupMenuOptions`, `PopupMenuItem`, `PopupMenuEntry`, `PopupMenuGroup`, `PopupMenuEvents` in `admin.d.ts`: group headings, checked radio entries with a right-hand detail, scrolling beyond about 12 entries and the APG menu-button keys at any button | [FB-0202](feedback.md#fb-0202) | if used: a project's own popup menu can be replaced; nothing changes otherwise |
 | M78 | [View availability](workspaces.md#view-availability): `available` (`Closure(Context): bool`) on `View`, `View::list`, `Registry::view`, `SqlResource::register`, JSON `view.available` / `views.<id>.available` (a binding name); false leaves the view out of that bootstrap | [FB-0204](feedback.md#fb-0204) | none: additive, no consumer change required |
 | M79 | Bundled [Bootstrap Icons](icons.md) in every icon slot; framework/demo defaults migrated, record icon columns also accept `bi bi-…`, old `blade-icon` names alias the new catalog | [FB-0203](feedback.md#fb-0203) | info: no asset/configuration change; legacy icon values still display. A screenshot or glyph-class assertion follows the new defaults |
 | M80 | [Action command captions](workspaces.md#action-command-label): optional PHP `Action::$commandLabel` / JSON `actions[].command_label` overrides a list command's caption, form window title and accessible name; uses the existing `icon` and i18n catalogue, leaving `update` cell/form saves unchanged | [FB-0206](feedback.md#fb-0206) | additive, no consumer change required |
+| M81 | [`TextDiff`](#textdiff): `app.components.TextDiff` compares two texts (unified or side by side, word highlights, folded unchanged stretches, `+N −M` summary, keyboard navigation between changes); a revision list offers it through a project record command and a project read action naming the previous revision | [FB-0207](feedback.md#fb-0207) | additive, no consumer change required |
 | M82 | [Tenant-scoped calendars and overlay](calendar.md#tenant-scoped-calendars): `CalendarDefinition` `tenantScoped` (events per active tenant in the new nullable `blade_calendar_events.tenant_id`) and `overlay` (read-only consumer events in `events`, `readonly`/`tone` on the event); `occurrences()` takes an optional `$tenant` | [FB-0208](feedback.md#fb-0208) | additive, no consumer change required; a consumer that adopts `tenantScoped` runs `CalendarDefinition::install()` once to add the column |
 | M83 | [Value tones and emphasized records](workspaces.md#value-tones): field `column.tones` (select option → `primary`, `secondary`, `success`, `warning`, `danger`), view `emphasis` (`{field, value, label?}` on `View::list`, `Registry::view`, `SqlResource::register`, JSON `view.emphasis`), attention `label` (`{count}` message), computed `select` fields; types `ValueTone`, `ColumnMetadata.tones`, `ListKindOptions.emphasis`, `attention.label` | [FB-0212](feedback.md#fb-0212) | additive, no consumer change required; if used: a project's denormalized state column or its interim tone presentation can be replaced |
 | M84 | [Location bar](shell.md#location-bar): every page view shows a 32 px shell-owned bar below the menu row (menu path, a record page's source path and record title); a record view's `recordTitle` (JSON `views.<id>.record_title`) names the record; `ViewHost.setLocation(segments)` and `LocationSegment` set a page's own levels; the document title becomes `‹current› · ‹application title›` | [FB-0217](feedback.md#fb-0217) | no code change; the workspace is 32 px shorter, so specs that measure its height or count rendered grid rows at a fixed viewport may need 32 px more, and specs that assert `document.title` on a page see the new form; if used: declare `record_title`, call `host.setLocation` |
+| M85 | [Record details layout](#recorddetails): a media field's `column.detailsWidth` (JSON `column.details_width`, 160–800 px, `ColumnMetadata.detailsWidth`) sizes its image in `RecordDetails` and `Adatok` by the file's ratio, and a section holding only that field shows no label row; `RecordDetailsOptions.longText: "card"` makes each long text outside the sections a scrolling card below the groups; the details element carries `data-blade-view` ([sized image in the details](workspaces.md#details-media-width)) **Removed again by M89** (2026-11-18): `longText: "card"`, its fitting and `--blade-record-text-min-height`; the lone-media rule became general. | [FB-0218](feedback.md#fb-0218) | none (additive; details without the options are unchanged) |
 | M86 | [Card button to the page](workspaces.md#sub-views): with the parent view's `activate: 'page'` (or a map entry resolving to `page`) the card and tile sub-view button opens the child page filtered to the record like the activation, with `aria-description` "Megnyitás: ‹child title›" and the `bi-box-arrow-in-right` icon instead of `aria-haspopup="dialog"`; a list left through a `page` navigation shows the same record at the same offset with its cursor on Back ([activation](workspaces.md#activation)) | [FB-0219](feedback.md#fb-0219) | info: no declaration or API change; a spec that clicked the card button of a page-activated list and expected the window finds the child page; a spec that expected a list to open at the top after Back finds it where it was left |
 | M88 | [Inner layout](#pagelayout-inner): a `PageRegion` with `inner` (a `rows` or `cols` branch) holds a frameless layout whose regions are ordinary page regions (lines with an 8 px handle); a tree of only `{inner}` is frameless as a whole; `resizable` on the last region of a branch draws the line before it; a dragged line keeps the declared size of the region after it too (also in list layouts); `--blade-record-text-min-height: 0px` now means 0 instead of 160 px. Replaces `PageLayoutOptions.frame` and `RecordDetailsOptions.longText: "reading"` of `3b7390c` (FB-0221), which are removed | [FB-0221](feedback.md#fb-0221), [FB-0222](feedback.md#fb-0222) | info: a layout whose last region declared `resizable` (which drew nothing) gains its line; `frame: "line"` becomes a tree of only `{inner}`, `longText: "reading"` is gone (the project styles its own text); a minimum set to `1px` to avoid the 160 px fallback can be `0px` |
 | M89 | [Field subset and a media field alone in a section](#recorddetails-fields): `RecordDetailsOptions.fields` (a subset of the view's detail fields in the view's order; a derived media column follows its media field; a field the row lacks is not shown; an empty array, a non-string entry or an id that is not a detail field throws `TypeError`). In `RecordDetails` and `Adatok`, a section whose only shown field is a media field shows its heading and the media without a label row, also without `detailsWidth` ([media alone in a section](workspaces.md#details-media-alone)). Removes `RecordDetailsOptions.longText` (`"inline"`, `"card"`) of `1a3ee5f` (FB-0218), the CSS property `--blade-record-text-min-height` and the classes `.blade-record-texts`, `.blade-record-text`, `.blade-record-text__body` and `.blade-record-details--fill` | [FB-0218](feedback.md#fb-0218), [FB-0223](feedback.md#fb-0223) | if used: TypeScript rejects `longText: "card"` and the runtime ignores it, so remove it. The long text is inline below the groups and the details scroll as a whole. Project styles on the removed classes or property match nothing. A view copy with reduced `detailFields` can become `fields`. info: a section holding only a media field without `detailsWidth` loses its label row in `RecordDetails` and `Adatok`, so a spec that counted that `dt` finds none |
+| M90 | [Parent records](shell.md#location-bar-parent): a record view's `parent: {field, view}` (PHP `View`, JSON `views.<id>.parent`, `ViewDefinition.parent`; `field` a non-secret `select`, `number` or `text` field of the record resource holding the parent's id, `view` a record view of the parent resource (a lookup select must reference it), checked at definition time) puts the resolved parent records (recursively, at most 4) as links before the record, from the menu path of the topmost parent actually resolved (none: the view's own), which also carries the marker; `location: 'group'` (M87, JSON `location`, `ViewDefinition.location`) is removed; `ViewHost.setLocation(segments, {from: "root"})` makes the segments the whole bar and `LocationSegment` `target.filters` links to a filtered list ([own path](shell.md#location-bar-own-path)) | [FB-0224](feedback.md#fb-0224), [FB-0226](feedback.md#fb-0226) | if used: remove `location: 'group'` (JSON `location` fails at load) and declare `parent` where the record has a parent record; a page that put its parent into its own `setLocation` segments drops that segment |
 | M91 | [Application window height and long-text placement](workspaces.md#long-text-placement): `ApplicationDefinition` `windowMaxHeight` (JSON `application.window_max_height`, 320–4000 px, bootstrap `windowMaxHeight` only when declared) is the default cap of every fitted window instead of the fixed 800 px, which stays the fallback; `WindowOptions.maxHeight` still wins ([window sizing](workspaces.md#window-sizing)). Field `column.placement` (`"end"` default, `"row"`, `"group"`; `ColumnMetadata.placement`, `ColumnPlacement`) places a long text outside the sections at the end, as a row at its declaration place or as a group of its own in cards, `Adatok` and `RecordDetails` | [FB-0177](feedback.md#fb-0177), [FB-0225](feedback.md#fb-0225) | none (additive; without the declarations nothing changes); if used: an application with other screens declares its window height, a record with a long text between its sections declares its placement |
 | M93 | [A region whose content is about to change](#busy-filled-region): `busy(id, on)` of `PageLayout`, `Tabs` and `Accordion` shows the loading indicator over a region's content (`aria-busy`, `A tartalom frissül…`) until the page ends it; mounting content keeps it | [FB-0232](feedback.md#fb-0232) | info: a page that drew its own overlay over a filled region can use the mark |
 | M94 | [Empty own path](shell.md#location-bar-empty): `ViewHost.setLocation([], {from: "root"})` leaves the location bar empty (the 32 px line without levels, the `<nav>` `aria-hidden`, the document title the application title) instead of returning to the automatic path as under M90; `setLocation([])` without `from` still returns to it | [FB-0236](feedback.md#fb-0236) | **behaviour change**: a page that called `setLocation([], {from: "root"})` to get the menu path back calls `setLocation([])` instead; a spec that expected the menu path after that call sees an empty bar |
@@ -3988,6 +4019,7 @@ Results per phase are recorded in [FB-0081](feedback.md#fb-0081); the plan's
 | M95 | [Location bar](shell.md#location-bar-top-level): a page whose automatic path is only its own top-level menu entry (no group, record, parent or `setLocation` levels) shows no bar while the full menu row marks that entry; collapsed into `Menü` it shows the entry as before. [Switched off](shell.md#location-bar-off): PHP `View::$locationBar` (`View(locationBar: false)`, `->with(locationBar: false)`), JSON `views.<id>.location_bar` / `resources.<name>.view.location_bar`, bootstrap `ViewDefinition.locationBar: false` | [FB-0237](feedback.md#fb-0237) | **behaviour change**: a spec that expected the bar, or measured the workspace 32 px lower, on a top-level ungrouped page at a width with the full menu row finds no bar there; if wanted: declare `location_bar: false` |
 | M96 | [Back button](shell.md#location-bar-back) and [level icons](shell.md#location-bar-icons) of the location bar: PHP `ApplicationDefinition` `locationBack` / `locationIcons` (JSON `application.location_back` / `location_icons`, bootstrap `locationBack: true` / `locationIcons: true` only when on) and `View` `locationBack` / `locationIcons` (JSON `views.<id>.location_back` / `location_icons`, `resources.<name>.view.…`, `ViewDefinition.locationBack` / `locationIcons` only when declared). The Back button (`history.back()`, disabled on the tab's first 61ade entry, an in-app depth in `history.state.bladeDepth`) and a divider before the levels; off by default. The levels are text only by default | [FB-0238](feedback.md#fb-0238) | **behaviour change**: the levels lose their icons (the first level's section icon, `setLocation` segment icons, the `…` menu's entry icons); a spec that expected a level icon finds none; if wanted: `location_icons: true` for the application or the view. The Back button is additive (off unless declared) |
 | M92 | [Inner region header](#pagelayout-inner-header): a region of an `inner` layout takes `header` and `count` (a frameless title row with a count badge over its content, a `region` landmark named by the title and `{count} elem`); `PageLayout.header(id, {label?, count?})` changes them | [FB-0227](feedback.md#fb-0227) | info: a tree with a `header` inside `inner`, which threw `TypeError`, now builds; a project-drawn heading row inside an inner region can become the declared header |
+| M87 | [Location bar from the group](shell.md#location-bar): a record view's `location: 'group'` (PHP `View`, JSON `views.<id>.location`, `ViewDefinition.location`) starts its bar at the menu group without the source view's entry; marker and compact siblings unchanged **Removed again by M90** (2026-11-18): `location` is replaced by `parent` and `setLocation(…, {from: "root"})`. | [FB-0220](feedback.md#fb-0220) | none (additive; record views without the option are unchanged) |
 | M98 | [Conditional sections](workspaces.md#form-section-conditional): a field's `sectionVisibleWhen` (PHP `Field`, JSON `section_visible_when`, `FieldMetadata.sectionVisibleWhen`; the shape of `visibleWhen`, the same on every field of the section) shows a whole form section (header, frame, fields) only while the condition holds; meanwhile its fields are not validated and the server keeps their stored values (never stored empty). In accordion forms a hidden section is never the open one. The server now counts a boolean condition value (JSON `true`/`false`) as `"1"`/`"0"` for `visibleWhen` too, as the browser did | [FB-0240](feedback.md#fb-0240) | none (additive); info: an API call that sent `false` for a checkbox controlling a `visibleWhen` field with `in: ["0"]` now finds the field active (before, the server treated it as inactive and stored it empty while the form showed it); if used: a section whose fields all repeat one `visibleWhen` can declare `sectionVisibleWhen` instead, which also hides the header and keeps the stored values |
 | M99 | [View guides](workspaces.md#view-guide) open automatically once per application path, user and view in the browser profile. The mark survives sign-out and is shared across tabs. | [FB-0243](feedback.md#fb-0243) | info: a spec that expects the guide to reopen after another sign-in needs a fresh browser context or a different account |
 | M100 | [CommandBar header items](#commandbar-title): `title` (first, `badge`), `popup` (an `app.ui.menu` bound by the bar, `select {id, item}`, `menuLabel`) and `narrow: "icons"`; a popup menu on a bar's button no longer needs a project's own `app.dhx.Toolbar` | [FB-0248](feedback.md#fb-0248) | info: a header or composer built from `app.dhx.Toolbar` with `app.ui.menu` moves to `CommandBar` (`title`, `popup`, `menu`, Bootstrap icons) |
@@ -4024,12 +4056,48 @@ markup may change without notice.
 
 ### Steps for a consumer session
 
+1. **Confirm the range.** Take the library commit from the last
+   `shared_assets` record of `/space/apps/<project>/.deploy-history.jsonl`, run
+   `git -C /space/share/libs/61ade log --oneline <commit>..origin/main`, read
+   this table and the named feedback entries
+   ([update smoke check](development.md#consumer-update-smoke-check), step 1).
+2. **Smoke-check the development URL** (sign in, menu, one list, one form, one
+   synthetic save reverted, console and PHP error log;
+   [update smoke check](development.md#consumer-update-smoke-check), step 2).
+   Also check that a menu page shows `#view=<id>` (M1) and that `Adatok` and the record actions sit in the list toolbar (M10).
+3. **Fix the specs** that fall under M2, M9, M10 or M13. Search the specs for
+   `?v=`, `feature:`, `#feature=`, `blade-results`, `contextmenu`,
+   `button: 'right'`, `Shift+F10` and `checkbox `; then run them through your
+   [guarded wrapper](development.md#consumer-browser-tests).
+4. **Release.** Run `deploy-site` only after steps 2 and 3 pass; it copies the
+   current `packages/php` and `dist` together, which also keeps M11's pair
+   intact. Record the result in your own documentation.
+5. **Adopt the toolkit (optional, one change at a time, each followed by step
+   3):** project `stylesheets` instead of injected CSS (M6,
+   [module loading](#module-loading)); drop own `?v=` suffixes so the
+   [file key](#cache-keys) applies; project `modules` with the
+   [TypeScript recipe](#typescript-recipe) (types-only imports, Suite through
+   `app.dhx`, one bundle, never import `admin.js`, dotted registration names);
+   [record views](#record-views) and the [activation map](#activation-map);
+   [components](#components); `SandboxFrame` with the sandbox files in
+   `.deploy.json` (M7, [packaging](#packaging)). The feature demo is the worked
+   example ([toolkit consumer](demos.md#toolkit-consumer)).
+6. **Report framework gaps** to the 61ade owner instead of working around them
+   in 61ade; an interim local version is allowed
+   ([ADR-0004](decisions/0004-project-domain-freedom.md)).
+
 <a id="changes"></a>
 
 ## Changes
 
+Log of contract changes after gate G1. Rule: every change to this guide or
+`src/api/types.ts` after G1 needs an entry with date, the general contract
+change and a feedback reference. Keep application-specific background outside
+this register; once the transition closes, changes follow
+[breaking changes](development.md#breaking-changes).
+
 | Date | Change | Feedback |
-| --- | --- | --- | --- |
+| --- | --- | --- |
 | 2026-11-20 | `Application.jobs` (`Jobs`, `JobReference`, `JobStatus`, `JobState`, `JobLogLine`, `JobStartOptions`), `components.JobView` (`JobViewOptions`, `JobViewEvents`, `JobView`), `AppEvents` `job:started`, `job:progress`, `job:done`, `CallOptions.token`, `ActionMetadata.job`; PHP `Action` `job` and `heartbeat`, `Blade\Jobs\JobSource`, `JobQueue`, `Job`, `Jobs` and the `__job` reads ([jobs](#jobs), [server side](workspaces.md#jobs)). Additive: actions without `job` and `TaskQueue` are unchanged; a consumer that declares a `job: true` action runs `JobQueue::install()` in its setup. | [FB-0253](feedback.md#fb-0253) |
 | 2026-11-20 | `Snapshot.notice` (`{text, tone}`): a list answer's view-level notice, shown above the rows and kept by the live channel's `update` frame; PHP `ProviderResource`, `ListProvider`, `ListQuery` and the `ListReader` interface of `Action::$listSource` (formerly `?ListSource`), [provider lists](workspaces.md#provider-lists). Additive: `ListSource` implements `ListReader`, and SQL lists read, validate and answer as before. | [FB-0252](feedback.md#fb-0252) |
 | 2026-11-20 | `Application.viewport` (`Viewport`), `AppEvents["viewport:change"]`; `PageLayoutOptions.narrow`, `PageLayoutEvents.variant`, `PageLayout.narrow` (M101). Additive. | [FB-0250](feedback.md#fb-0250) |
@@ -4154,6 +4222,7 @@ markup may change without notice.
 | 2026-11-18 | PHP `View::$location`, JSON `views.<id>.location` (`"group"`, record views only), `ViewDefinition.location`: the location bar starts at the menu group without the source view's entry (M87). Additive. Removed again by M90. | [FB-0220](feedback.md#fb-0220) |
 | 2026-11-18 | `PageRegion.inner` (a region's frameless inner layout of ordinary page regions; a tree of only `{inner}` is frameless as a whole); `resizable` on a branch's last region draws the line before it; both regions beside a dragged line keep their declared size; `--blade-record-text-min-height: 0px` is 0 (M88). `PageLayoutOptions.frame` and `RecordDetailsOptions.longText: "reading"` of the same day are removed. | [FB-0221](feedback.md#fb-0221), [FB-0222](feedback.md#fb-0222) |
 | 2026-11-18 | `RecordDetailsOptions.fields` (a subset of the view's detail fields in the view's order, `TypeError` for an empty array, a non-string entry or an id that is not a detail field). A media field alone among a section's shown fields shows the heading and the media without a label row, also without `detailsWidth`. `RecordDetailsOptions.longText`, `--blade-record-text-min-height` and the long-text card classes are removed (M89). | [FB-0218](feedback.md#fb-0218), [FB-0223](feedback.md#fb-0223) |
+| 2026-11-18 | PHP `View::$parent`, JSON `views.<id>.parent`, `ViewDefinition.parent` (`{field, view}`, record views only, the field a non-secret `select`, `number` or `text` field holding the parent's id; a lookup select must reference the view's record resource), `Field::references()`, public `Lookup::$resource`: the location bar shows a record's resolved parent records before it, from the menu path of the topmost parent resolved, and the menu marker follows it (M90). Breaking: `View::$location`, JSON `views.<id>.location` and `ViewDefinition.location` (M87) are removed | [FB-0220](feedback.md#fb-0220), [FB-0224](feedback.md#fb-0224) |
 | 2026-11-18 | PHP `ApplicationDefinition` `windowMaxHeight`, JSON `application.window_max_height` (320–4000), bootstrap `windowMaxHeight`: the application's default height of fitted windows, 800 px the fallback, `WindowOptions.maxHeight` still wins; PHP/JSON field `column.placement` (`end`, `row`, `group`; a textarea without a section, presentation or editor), `ColumnMetadata.placement`, `ColumnPlacement`: a long text outside the sections at the end, as a row or as a group of its own in cards and details (M91). Additive. | [FB-0177](feedback.md#fb-0177), [FB-0225](feedback.md#fb-0225) |
 | 2026-11-18 | `ViewHost.setLocation(segments, {from: "root"})` (the segments are the whole location bar) and `LocationSegment` `target.filters` (a link to a filtered list). Additive (M90). | [FB-0226](feedback.md#fb-0226) |
 | 2026-11-19 | `PageLayout.busy(id, on)`, `Tabs.busy` and `Accordion.busy`: a region whose content is about to change shows the loading indicator over it until the page clears it (M93). Additive. | [FB-0232](feedback.md#fb-0232) |
@@ -4168,7 +4237,11 @@ markup may change without notice.
 
 ## Resolved decisions O1–O11
 
-| --- | --- | --- |
+Open questions of the [toolkit plan](toolkit-plan.md#3-fixed-decisions-and-open-decisions),
+resolved in the framework contract.
+
+| # | Resolution |
+| --- | --- |
 | O1 | Dependency injection: the shell `import()`s declared modules and calls each default export with `Application`; no import map; types from `admin.d.ts`. |
 | O2 | Plain ES modules accepted; TypeScript recommended, built by the project ([recipe](#typescript-recipe)); the feature demo uses TypeScript built by `tools/build.mjs`. |
 | O3 | View `id` (`[a-z][a-z0-9_.-]*`, unique) independent of `resource`, default = resource. `#view=` is canonical; menu ids `view:<id>`. Superseded on 2026-10-30 ([FB-0081](feedback.md#fb-0081)): the `#feature=<resource>` alias is removed and a duplicate id throws ([rule](#view-id-rule)). |
@@ -4186,6 +4259,28 @@ markup may change without notice.
 ## Decisions at gate G1
 
 Accepted by the owner on 2026-10-29 as recommended:
+
+1. **Duplicate view ids:** a later declaration with the same id replaces the
+   earlier one and keeps its menu position; a client view kind registered
+   twice is an error unless `{replace: true}`. *Superseded on 2026-10-30
+   ([FB-0081](feedback.md#fb-0081)): a duplicate view id throws and
+   `Registry::updateView()` changes a declared view explicitly
+   ([rule](#view-id-rule)); the client kind rule is unchanged.*
+2. **Translation keys of project modules (O9):** Hungarian source text like the
+   framework, or a project prefix (`example.player.play`) for texts without a
+   natural source; overriding framework keys stays allowed and documented.
+3. **Project name prefix:** project kinds, presentations, field types,
+   commands, event names and preference scopes must contain a dot.
+4. **JSON placement of extra views:** a module-level `views` section;
+   `resources.<name>.view` gains only `id` and the activation map (later also
+   `commands`, C-5b).
+5. **Module timeout and failure policy:** 5 s per module, report and continue.
+6. **`modules` naming:** `application.modules` (browser) beside
+   `workspace.modules` (JSON files) stays, explained in this guide.
+7. **Proposed limits** (sandbox code 1 MiB, files 32 MiB, `ready` within 10 s,
+   project-kind options 64 KiB) stand until P3 C-4/K-S1 verify them; a change
+   is logged in [changes](#changes). Confirmed unchanged; the generic
+   provider's final shape rules are logged there (2026-10-30).
 
 ## Related
 

@@ -323,6 +323,8 @@ body,
 .dhx_toolbar-button.blade-command--grouped.blade-command--first, .dhx_toolbar-button.blade-command--segment.blade-command--first { margin-left: 0; border-radius: var(--dhx-border-radius) 0 0 var(--dhx-border-radius); }
 .dhx_toolbar-button.blade-command--grouped.blade-command--last, .dhx_toolbar-button.blade-command--segment.blade-command--last { border-radius: 0 var(--dhx-border-radius) var(--dhx-border-radius) 0; }
 .dhx_toolbar-button.blade-command--grouped:focus-visible, .dhx_toolbar-button.blade-command--segment:focus-visible { position: relative; z-index: 1; }
+/* Separate buttons sit 4 px apart so adjacent highlights never touch; joined groups and the menu row stay flush. */
+.dhx_toolbar:not(.blade-navigation-row *) .dhx_toolbar__item:has(> .dhx_toolbar-button) + .dhx_toolbar__item:has(> .dhx_toolbar-button:not(.blade-command--grouped, .blade-command--segment), > .blade-command--first) { margin-left: 4px; }
 .dhx_menu-button.blade-command--grouped, .dhx_menu-button.blade-command--segment { border: 0; margin: 0; border-radius: 0; box-shadow: none; }
 /* A CommandBar title: first, shortening with an ellipsis before the commands move; its badge stays whole. */
 .dhx_toolbar__item.blade-command--title { flex: 0 1 auto; min-width: 48px; overflow: hidden; }

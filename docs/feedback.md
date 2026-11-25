@@ -1115,3 +1115,7 @@
 <a id="fb-0273"></a>
 
 ## FB-0273 — A gap between adjacent popup menu rows
+
+<a id="fb-0274"></a>
+
+## FB-0274 — A gap between adjacent toolbar buttons
