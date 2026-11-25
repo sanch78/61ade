@@ -1065,8 +1065,9 @@ URL-encoded; a view id defaults to its resource. On reload, login and
 Back/Forward, the shell resolves it through the current permission-filtered
 `views`. Unknown, empty or unoffered ids, a record view without `record` and a
 view whose kind is not registered give an empty workspace. Filter presets apply
-once and leave the address (`history.replaceState`). Navigation never writes
-data.
+once and leave the address (`history.replaceState`). An address without
+presets that names the open page (view and record) keeps it mounted.
+Navigation never writes data.
 
 - **Only `#view=`:** any other fragment, such as the removed
   `#feature=<resource>`, names no view and gives the empty workspace; it is
@@ -1168,6 +1169,10 @@ a duplicate throws unless `{replace: true}`.
   initialization) is reported by a danger toast (`Egy alkalmazásmodul nem
   indult el: {module}`), the `module:error` event and the console, and skipped;
   the shell always starts. Without modules the shell routes at once, as before.
+  The menu works while the modules load: a view of a built-in kind opened from
+  it meanwhile, with any dialog it holds, is kept by that first route, which
+  remounts nothing when the address names the open page
+  ([FB-0275](feedback.md#fb-0275)).
   Login-only sign-in pages create no `Application`; they run only the
   [sign-in modules](#sign-in-modules) with their restricted `SignInApplication`.
   A public sign-in keeps its guest `Application`, views and modules behind the

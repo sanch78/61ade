@@ -170,13 +170,17 @@ export class AdminShell {
   private signedOut=false;
   /**
    * `#view=<id>[&record=<id>]`; `filter.<field>=<value>` presets that view's filters once and leaves the address.
+   * The address of the open page without presets keeps it with its dialogs: the first route after the modules loaded
+   * finds the view a menu click opened meanwhile (FB-0275).
    */
   private route = () => {
     this.track();
     const route = parseRoute(location.hash);
     const view = route.view === undefined ? undefined : this.navigable(route.view);
     const record = view?.record ? route.record : undefined;
-    if (view && Object.keys(route.filters).length) { const url = new URL(location.href); url.hash = routeHash({ view: view.id, record }); history.replaceState(history.state, "", url); }
+    const presets = Object.keys(route.filters).length > 0;
+    if (view && !presets && this.page?.view === view && this.page.record === record) return;
+    if (view && presets) { const url = new URL(location.href); url.hash = routeHash({ view: view.id, record }); history.replaceState(history.state, "", url); }
     if (view && this.openable(view, record)) void this.openView(view, { record, filters: route.filters });
     else this.clear();
   };
