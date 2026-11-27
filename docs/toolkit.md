@@ -1344,6 +1344,15 @@ tree.on("activate", () => layout.tabsOf("details")?.select("details"));
   {row}` is a double-click or Enter, after the node is selected. `selected()`
   returns the row or `undefined`. Mount the tree in the same task that creates
   it: events reach only a mounted component.
+- **Browser history.** Set `history: host` and a stable `id` on a page's
+  Tree to make its selection addressable. Each distinct selection adds a
+  browser entry. An automatic initial selection updates the current entry.
+  Back and Forward restore the selected row in the mounted tree and report it
+  through the usual `select` event. Reloading or opening a copied link opens
+  the ancestors and selects the addressed row. The fragment contains one
+  `tree.<id>` parameter per node ID in root-to-leaf order. Use a distinct
+  tree ID for each participating tree on the page. Update the detail panel
+  in the selection handler and leave navigation to the tree. [FB-0278](feedback.md#fb-0278).
 - **Navigation to a node.** Pass `initialPath` with the IDs from a root to
   the requested node, including both ends. Use the same `id`, source and
   initial defaults as the ordinary entry. For example, a category breadcrumb

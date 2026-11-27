@@ -739,7 +739,9 @@ only by the [Tree](toolkit.md#tree)'s `select`:
   ([expansion](toolkit.md#tree-expansion)), and `iconField: "kind"`, the
   computed icon column `Kulcstípus` ([tree icons](toolkit.md#tree-icons)).
   A link with `#view=demo.registry-browser&filter.key_path=<root>,<parent>,<key>`
-  passes the keys' numeric IDs to `initialPath` on the same Tree.
+  passes the keys' numeric IDs to `initialPath` on the same Tree. Its
+  `history: host` keeps the selected key in the address. Back and Forward
+  switch keys in place, and reloading opens the key's ancestors.
   [Tree navigation to a node](toolkit.md#tree), [FB-0246](feedback.md#fb-0246).
 - **Tabs:** `Értékek`, the selected key's values as a scoped `ListView` of
   `demo_registry_browser_values` (`menu: false`, `get` and `create`), and `Kulcs adatai`, the key's `RecordDetails`. Enter or a

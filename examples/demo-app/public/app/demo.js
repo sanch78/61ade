@@ -1593,7 +1593,7 @@ function browser(app, host, view) {
     narrow: { rows: [{ id: "tree", header: nodes.title, height: 220, minHeight: 120, resizable: true, collapsable: true }, { ...center, minHeight: 200 }, { id: "value", header: t("\xC9rt\xE9k adatai"), height: 200, collapsable: true, collapsed: true }] }
   });
   host.attach(layout);
-  const nodeTree = new app.components.Tree({ view: nodes, label: "name", iconField: "kind", id: `${view.id}.tree`, expandControl: true, initialPath });
+  const nodeTree = new app.components.Tree({ view: nodes, label: "name", iconField: "kind", id: `${view.id}.tree`, expandControl: true, history: host, initialPath });
   nodeTree.mount(layout.cell("tree"));
   layout.placeholder("key", { text: t("V\xE1lassz egy kulcsot a f\xE1ban.") });
   layout.placeholder("value", { text: t("V\xE1lassz egy \xE9rt\xE9ket a list\xE1ban.") });

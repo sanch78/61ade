@@ -840,6 +840,11 @@ same state before the list replies arrive. On the managed demo, open
 The first visit and a changed access context load the tree from the server.
 [Verification and limits](feedback.md#fb-0244).
 
+For shareable selections, pass the page host as `history: host` along with
+the Tree's `id`. In the demo key browser select two keys, use browser Back
+and Forward, then reload or open the copied address in a new tab. Selection
+and details follow the address. [Tree history](toolkit.md#tree).
+
 A breadcrumb that opens a node passes its root-to-node IDs to `initialPath`
 and uses the ordinary Tree's stable `id`. The selected row comes into view,
 including when the target was under a previously loaded, closed folder.

@@ -44,7 +44,7 @@ function browser(app: Application, host: ViewHost, view: ViewDefinition<BrowserO
     narrow: { rows: [{ id: "tree", header: nodes.title, height: 220, minHeight: 120, resizable: true, collapsable: true }, { ...center, minHeight: 200 }, { id: "value", header: t("Érték adatai"), height: 200, collapsable: true, collapsed: true }] } });
   host.attach(layout);
 
-  const nodeTree: Tree = new app.components.Tree({ view: nodes, label: "name", iconField: "kind", id: `${view.id}.tree`, expandControl: true, initialPath });
+  const nodeTree: Tree = new app.components.Tree({ view: nodes, label: "name", iconField: "kind", id: `${view.id}.tree`, expandControl: true, history: host, initialPath });
   nodeTree.mount(layout.cell("tree"));
 
   // A region's placeholder shows while no component is mounted there. Not `busy` while the tree starts: a tree whose

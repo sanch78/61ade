@@ -3731,3 +3731,15 @@ key and deleted it; the temporary password of a
 new account was read from the same dialog.
 
 Guides: [API keys](admin.md#api-kulcsok-a3), [dialogs](dialogs.md).
+
+## FB-0278 — Tree selection in browser history
+
+Back, Forward and reload follow the selected tree node while keeping the
+current page layout during selection changes. A page opts
+in with `history: host` and a stable Tree `id`. The D8 key browser uses
+the same public option. [Tree](toolkit.md#tree).
+
+On the managed demo at 1366 and 390 px, switching keys and stepping through
+history kept the same tree and layout elements and updated the values panel.
+Reload, a link in a new tab, a 13-level lazy path, and an explicitly empty
+selection restored the addressed selection.

@@ -9,6 +9,7 @@ Use relevant shared skills within this project's locally declared scope.
 # 61ade project contract
 
 Canonical checkout: `/space/share/libs/61ade` on `catalyst`, owner `sanch`.
+The owner's request in this project authorizes the requested 61ade framework change.
 The product is **61ade**; identifiers use `Blade\`, `BLADE_*` and `blade`.
 
 There is **one development environment only**, https://demo.61ade.com/

@@ -1989,6 +1989,8 @@ export interface TreeOptions extends ComponentOptions {
      * and the kept preferences. Use the same `id` and defaults as the ordinary entry to the tree.
      */
     initialPath?: readonly string[];
+    /** The owning page host. With a unique tree id, selection follows browser history, reloads and deep links. */
+    history?: ViewHost;
     /**
      * Remembers the selection and, once the user changed it, the expansion per page and user under this key
      * (`[a-z][a-z0-9_.-]*`).

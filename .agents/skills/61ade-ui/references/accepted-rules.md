@@ -64,3 +64,7 @@ contract and current limitations.
   [usage](../../../../docs/usage.md), and the affected topic guide. This ledger is
   a routing map for the skill, not a replacement for those documents.
 | [FB-0225](../../../../docs/feedback.md#fb-0225) | A framework default fixed to one consumer's screen becomes an application setting or a declared option with the old value as the fallback: the fitted-window cap is the application's `windowMaxHeight` (800 px by default), and a long text outside the sections declares its `column.placement` (`end`, `row`, `group`). | Fitted windows, cards and details; a window's own `maxHeight` still wins; without sections the placement has no effect. [Window sizing](../../../../docs/workspaces.md#window-sizing), [long-text placement](../../../../docs/workspaces.md#long-text-placement). |
+
+- When a page needs shareable tree selections and browser history, use the
+  Tree's `history: host` with a stable ID and update its details on `select`.
+  [FB-0278](../../../../docs/feedback.md#fb-0278).

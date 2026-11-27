@@ -16,6 +16,7 @@ import type { AppWindow, LocationSegment, NavigationTarget, Row, ViewDefinition,
 import { createApplication, loadModules, type Kernel } from "./app/Application";
 import { CellStatus } from "./components/CellStatus";
 import { TreeCache } from "./components/list/TreeCache";
+import { registerTreePage } from "./app/tree-history";
 import { parseRoute, routeHash } from "./app/routes";
 import { loadSignInModules, signInApplication, signInThemeApplied } from "./SignIn";
 import { brandLogo } from "./BrandLogo";
@@ -30,6 +31,7 @@ type Mounted = { view: ViewDefinition; record?: string; open: ViewOpenMode; cont
   location?: Place[];
   /** `setLocation(…, {from: "root"})`: `location` is the whole bar, without the menu path and the parents; empty, no level. */
   whole?: boolean;
+  restoreTrees?: () => void;
   /** A Back action for the current levels of this page. */
   back?: () => void;
   /** A record page: its resolved parent records (`ViewDefinition.parent`), the root first, each with its record view. */
@@ -179,8 +181,20 @@ export class AdminShell {
     const view = route.view === undefined ? undefined : this.navigable(route.view);
     const record = view?.record ? route.record : undefined;
     const presets = Object.keys(route.filters).length > 0;
-    if (view && !presets && this.page?.view === view && this.page.record === record) return;
-    if (view && presets) { const url = new URL(location.href); url.hash = routeHash({ view: view.id, record }); history.replaceState(history.state, "", url); }
+    if (view && !presets && this.page?.view === view && this.page.record === record) {
+      this.settle(++this.navigation);
+      this.page.restoreTrees?.();
+      this.locate();
+      return;
+    }
+    if (view && presets) {
+      const url = new URL(location.href), params = new URLSearchParams(routeHash({ view: view.id, record }));
+      new URLSearchParams(url.hash.slice(1)).forEach((value, key) => {
+        if (key.startsWith("tree.")) params.append(key, value);
+      });
+      url.hash = params.toString();
+      history.replaceState(history.state, "", url);
+    }
     if (view && this.openable(view, record)) void this.openView(view, { record, filters: route.filters });
     else this.clear();
   };
@@ -958,6 +972,17 @@ export class AdminShell {
         const url=new URL(location.href);url.hash="";this.push(url);this.clear();
       },
     });
+    if (open === "page") {
+      const current = () => {
+        const route = parseRoute(location.hash);
+        return this.page === mounted && route.view === view.id && (!view.record || route.record === mounted.record);
+      };
+      mounted.restoreTrees = registerTreePage(host, current, (url, replace) => {
+        if (replace) history.replaceState(history.state, "", url);
+        else this.push(url);
+        this.locate();
+      });
+    }
     try{
       const instance=await kind.create(host,view);
       if(signal.aborted){instance.destroy();return;}

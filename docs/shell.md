@@ -1382,7 +1382,8 @@ below the menu row, across the full width, before the workspace
      is `ViewDefinition.locationBackTarget`.
   3. If neither action nor an offered target with a registered browser kind
      is available, Back uses the in-app history. At depth 0 the history
-     fallback is disabled.
+     fallback is disabled. An address-tracked [Tree](toolkit.md#tree) adds its
+     selections to this same browser history.
 
   A configured action or available target works on a direct landing, too.
   The button still follows the application and view switches above. The

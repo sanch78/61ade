@@ -61,12 +61,31 @@ for(const [width,height] of [[1366,900],[390,844]])test(`key browser at ${width}
  await expect(tree(page)).toHaveAttribute('aria-activedescendant',await item(page,'HKEY_LOCAL_MACHINE').getAttribute('id'));
  await page.keyboard.press('Home');
  await expect(tree(page)).toHaveAttribute('aria-activedescendant',await root.getAttribute('id'));
- // A click selects too: Desktop below Control Panel.
+ // A click selects too: Desktop below Control Panel. The address follows without replacing the layout.
+ await page.evaluate(()=>{window.__keyBrowserTree=document.querySelector('[role="tree"][aria-label="Kulcsok"]');window.__keyBrowserLayout=document.querySelector('[data-cell-id="tree"]');});
  await page.keyboard.press('ArrowDown');await page.keyboard.press('ArrowRight');
  await item(page,'Desktop').click();
  await expect(item(page,'Desktop')).toHaveAttribute('aria-selected','true');
  await expect(item(page,'Desktop')).toHaveAttribute('aria-level','3');
  await expect(values(page)).toContainText('Wallpaper');
+ const ids=JSON.parse(php(`echo json_encode($db->query("SELECT name,id FROM demo_registry_keys WHERE name IN ('HKEY_CURRENT_USER','Control Panel','Desktop')")->fetchAll(PDO::FETCH_KEY_PAIR));`),(key,value)=>typeof value==="number"?String(value):value);
+ expect(new URLSearchParams(new URL(page.url()).hash.slice(1)).getAll('tree.demo.registry-browser.tree')).toEqual([ids.HKEY_CURRENT_USER,ids['Control Panel'],ids.Desktop]);
+ const desktopUrl=page.url();
+ await item(page,'Desktop').click();
+ if(width<768)await page.getByRole('navigation',{name:'Hely',exact:true}).getByRole('button',{name:'Vissza',exact:true}).click();
+ else await page.goBack();
+ await expect(item(page,'Environment')).toHaveAttribute('aria-selected','true');
+ await expect(values(page)).toContainText('TEMP');
+ await page.goForward();
+ await expect(item(page,'Desktop')).toHaveAttribute('aria-selected','true');
+ await expect(values(page)).toContainText('Wallpaper');
+ expect(await page.evaluate(()=>window.__keyBrowserTree===document.querySelector('[role="tree"][aria-label="Kulcsok"]')&&window.__keyBrowserLayout===document.querySelector('[data-cell-id="tree"]'))).toBe(true);
+ // A fresh document accepts the copied address and opens every ancestor to the selected node.
+ const linked=await page.context().newPage();
+ await linked.goto(desktopUrl);
+ await expect(item(linked,'Desktop')).toHaveAttribute('aria-selected','true');
+ await expect(values(linked)).toContainText('Wallpaper');
+ await linked.close();
  // The list's selection drives the value details.
  const value=page.locator('[data-cell-id="value"]');
  // On a phone the value panel starts collapsed below the tabs: its header opens it.
@@ -112,10 +131,10 @@ for(const [width,height] of [[1366,900],[390,844]])test(`key browser at ${width}
  await expect(item(page,'HKEY_LOCAL_MACHINE')).toHaveAttribute('aria-expanded','false');
  await expect(item(page,'DemoService')).toHaveCount(0);
  await expect(values(page)).toContainText('Wallpaper');
- // Kept like a manual change: everything stays collapsed; the selection below it is not loaded, so `initial` applies.
+ // The selected address takes precedence over collapsed preferences and opens its ancestors after reload.
  await page.reload();
- await expect(item(page,'HKEY_CURRENT_USER')).toHaveAttribute('aria-selected','true');
- await expect(item(page,'HKEY_CURRENT_USER')).toHaveAttribute('aria-expanded','false');
+ await expect(item(page,'Desktop')).toHaveAttribute('aria-selected','true');
+ await expect(item(page,'HKEY_CURRENT_USER')).toHaveAttribute('aria-expanded','true');
  await expect(item(page,'HKEY_LOCAL_MACHINE')).toHaveAttribute('aria-expanded','false');
  expect(failures).toEqual([]);
 });
