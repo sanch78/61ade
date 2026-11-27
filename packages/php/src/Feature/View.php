@@ -76,7 +76,7 @@ final readonly class View
         public ?\Closure $available = null,
         public ?string $recordTitle = null,
         public ?array $parent = null,
-        // Legacy location arguments are accepted and ignored (FB-0224).
+        // Legacy argument (FB-0224), accepted and ignored.
         public ?string $location = null,
         public bool $locationBar = true,
         public ?bool $locationBack = null,

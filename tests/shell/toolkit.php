@@ -243,7 +243,7 @@ foreach([['asset_id','demo.missing'],['asset_id','assets'],['asset_id','demo.tra
 $familyViews=array_column((new Workspace($family,$db))->views(new Identity('1','Egy')),null,'id');
 $trackKeys=array_keys($familyViews['demo.track']??[]);
 check(($familyViews['demo.track']['parent']??null)===['field'=>'asset_id','view'=>'demo.asset']&&!isset($familyViews['demo.asset']['parent'])&&array_search('parent',$trackKeys,true)===array_search('record',$trackKeys,true)+1,'Bootstrap: parent after record, only on its view');
-// Legacy location arguments are accepted and ignored (FB-0224).
+// FB-0224: legacy location arguments are accepted and omitted from the view metadata.
 $legacy=new Registry();$resource()->register($legacy,'Médiatár');$legacy->addView(new View('demo.legacy','demo.player','Régi',record:'assets',location:'group'));
 $legacyViews=array_column((new Workspace($legacy,$db))->views(new Identity('1','Egy')),null,'id');
 check(isset($legacyViews['demo.legacy'])&&!array_key_exists('location',$legacyViews['demo.legacy']),'A location argument is accepted and ignored');
