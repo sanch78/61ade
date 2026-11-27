@@ -607,7 +607,17 @@ export class AdminShell {
         if(view.group){
           let group=features.find(v=>v.id==="group:"+view.group);
           if(!group){group={id:"group:"+view.group,value:escape(view.group),icon:definition.menuGroupIcons?.[view.group]??"bi bi-folder2-open",items:[],separatorBefore:definition.menuSeparators?.includes(view.group)};features.push(group);}
-          group.items.push(item);
+          let entries = group.items;
+          if (view.subgroup) {
+            const label = escape(view.subgroup);
+            let branch = entries.find((entry: any) => entry.items && entry.value === label);
+            if (!branch) {
+              branch = {id: "subgroup:"+view.id, value: label, icon: "bi bi-folder2-open", items: []};
+              entries.push(branch);
+            }
+            entries = branch.items;
+          }
+          entries.push(item);
         }else features.push(item);
       }
       this.menuItems = [...map(definition.menu || []), ...features];
@@ -790,6 +800,7 @@ export class AdminShell {
       if(first)places.push({icon:view.icon??"bi bi-file-earmark-text",...first},...rest);
     }else{
     if(group)places.push({label:group,icon:this.definition.menuGroupIcons?.[group]??"bi bi-folder2-open"});
+    if(source?.subgroup)places.push({label:source.subgroup,icon:"bi bi-folder2-open"});
     if(source)places.push({label:source.title,...(places.length?{}:{icon:source.icon??"bi bi-table"}),...(source===view?{}:{href:"#"+routeHash({view:source.id})})});
     const parents=page.parents??[],own=[...parents.map(parent=>parent.place),...page.location??[]];
     if(!places.length&&own.length)own[0]={icon:root.icon??"bi bi-file-earmark-text",...own[0]};

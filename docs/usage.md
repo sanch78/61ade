@@ -923,6 +923,10 @@ See [popup menus](toolkit.md#popup-menu).
 A collapsed desktop `Menü` is followed by the open feature's sibling menu items
 ([shell](shell.md#kompakt-ablakfejléc-és-teljes-mobilmenü)); no configuration.
 
+To put views in a submenu, give them the same `group` and set
+`ApplicationDefinition::menuSubgroups` (JSON `application.menu_subgroups`)
+to a map from their view IDs to the submenu label. See [view submenus](shell.md#submenus-within-view-groups).
+
 Optional `ApplicationDefinition(menuSeparators: ['Management'])` / JSON
 `application.menu_separators` adds a native separator before the named view
 group, keeping declaration order and the existing separator before logout.

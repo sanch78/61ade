@@ -3694,3 +3694,16 @@ Guides: [CommandBar view controls](toolkit.md#commandbar-view-controls).
 When module loading finishes, keep an already open page with the same view and record and no filter presets, preserving its dialogs.
 
 Guides: [Application modules](shell.md#application-modules), [URLs](shell.md#urls-and-local-ui-preferences).
+
+<a id="fb-0276"></a>
+
+## FB-0276 — Clickable views inside a submenu
+
+A menu group can contain both direct views and a named subgroup of views.
+The compact menu and the location bar follow the same hierarchy.
+
+Managed-demo checks opened both views and their details at 1600 and 390 px,
+checked the location levels, followed a compact sibling and browser Back,
+and confirmed the branch was absent for an account offered neither view.
+
+Guide: [submenus within view groups](shell.md#submenus-within-view-groups).

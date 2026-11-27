@@ -4043,6 +4043,7 @@ only to the named capability; *info* identifies behavior to account for.
 | M118 | [Standard header row](#page-command-bars): `app.ui.headerRowHeight` is 48 CSS px. `Tabs` and standard command rows use it | [FB-0263](feedback.md#fb-0263) | info: tab headers grow from 37 px to 48 px. A project command row can use the exported height in its Layout declaration |
 | M119 | [Shared header row](#page-command-bars): 44 CSS px for tabs, command rows, main navigation and windows. `--blade-header-row-height` sets the application default. `TabsOptions.headerHeight`, `WindowOptions.headerHeight` and `CommandBarOptions.height` are additive | [FB-0264](feedback.md#fb-0264) | info: explicit project Layout heights can follow the standard using `app.ui.headerRowHeight` |
 | M120 | [A record page before it mounts](#loading-and-empty-states): the workspace shows the loading indicator while the shell resolves the record of a page navigation. No API or declaration change | [FB-0266](feedback.md#fb-0266) | info: record pages show it with no project change |
+| M121 | [Submenus within view groups](shell.md#submenus-within-view-groups). An offered view can carry a translated `ViewDefinition.subgroup` label | [FB-0276](feedback.md#fb-0276) | Optional application configuration |
 
 Unchanged: the `?blade=1` action endpoint, the `__form` pseudo-action (its
 field metadata is camelCase, M19), the

@@ -98,6 +98,16 @@ blade_demo_topology()->register($workspace);
 // Digital signage scheduler: framework event calendar over the media assets, plus the per-day playlist API.
 blade_demo_signage_register($workspace, $files);
 
+// Synthetic nested menu: standard read-only views over the existing campaign sheets and text revisions.
+$workspace->registry->view('demo_media_sheets', 'Lapnéző', [
+    ['id' => 'file_id', 'header' => 'Kép'], ['id' => 'title', 'header' => 'Megnevezés'],
+    ['id' => 'client', 'header' => 'Megrendelő'], ['id' => 'channel', 'header' => 'Csatorna'], ['id' => 'year', 'header' => 'Év'],
+], ['get'], group: 'Skinek', icon: 'bi bi-images', rowHeight: 56, id: 'demo.fantasy-sheets');
+$workspace->registry->view('demo_text_revisions', 'Szövegek', [
+    ['id' => 'document', 'header' => 'Dokumentum'], ['id' => 'sequence', 'header' => 'Változat'],
+    ['id' => 'note', 'header' => 'Változás leírása'], ['id' => 'characters', 'header' => 'Karakter'],
+], ['get'], group: 'Skinek', icon: 'bi bi-journal-text', id: 'demo.fantasy-texts');
+
 // Mandatory administration with every sign-in switch: OAuth permission, e-mail confirmation, default language.
 $accounts = new Accounts($workspace, 'accounts', 'id', 'email', 'display_name', 'password_hash',
     createDefaults: ['active' => 1, 'can_manage' => 0], languages: $languages, oauth: true, emailConfirmation: false);
@@ -199,7 +209,8 @@ return new ApplicationDefinition(
     // entry also shows the pending approvals' live count.
     menuCommands: [new MenuCommand('demo.workbench', 'Munkaasztal', icon: 'bi bi-pencil', tooltip: 'Munkaablak: nézetváltáskor is nyitva marad', attention: 'demo_approvals')],
     // Menu icons of the view groups (docs/shell.md#menu-group-icons); the framework's Adminisztráció keeps its own.
-    menuGroupIcons: ['Feature demó' => 'bi bi-stars', 'Digitális kijelző' => 'bi bi-tv'],
+    menuGroupIcons: ['Feature demó' => 'bi bi-stars', 'Digitális kijelző' => 'bi bi-tv', 'Skinek' => 'bi bi-palette'],
+    menuSubgroups: ['demo.fantasy-sheets' => 'Classic fantasy', 'demo.fantasy-texts' => 'Classic fantasy'],
     // View guides of the framework's own views (docs/workspaces.md#view-guide); the demo's views declare their own.
     guides: blade_demo_admin_guides(),
     // The location bar's history Back button on every page (docs/shell.md#location-bar-back); Mérések leaves it out.

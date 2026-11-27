@@ -123,6 +123,30 @@ navigation is described below, and a project command in the row is a
 For a new module, first implement needed feature/action/policy capabilities,
 then configure its business integration.
 
+### Submenus within view groups
+
+A grouped view can appear one level deeper in the main menu. Give both views
+the usual `group` (for example `Skinek`) and map their view IDs to the same
+submenu label in `ApplicationDefinition`:
+
+```php
+menuSubgroups: [
+    'demo.fantasy-sheets' => 'Classic fantasy',
+    'demo.fantasy-texts' => 'Classic fantasy',
+],
+```
+
+The JSON equivalent is `application.menu_subgroups`. Each key must name a
+declared, grouped menu-entry view and each value must be a nonblank string.
+The shell translates the label using the application's language catalog.
+Each subgroup appears at its first offered view's position, alongside any
+direct entries in the same group. Views keep their declaration order inside
+the subgroup. An actor offered no children sees no subgroup.
+
+Opening a leaf uses its usual view URL. The location bar includes the subgroup
+and the compact desktop row can show the open leaf's siblings when they fit.
+Group separators and group icons apply to the top-level group.
+
 <a id="menu-group-separators"></a>
 
 ### Separators before view groups

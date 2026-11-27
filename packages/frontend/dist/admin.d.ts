@@ -1014,6 +1014,8 @@ export interface ViewDefinition<Options = unknown> {
     options: Options;
     /** Menu group label; absent: a top-level entry. */
     group?: string | null;
+    /** Optional translated submenu label within the view's menu group. */
+    subgroup?: string;
     /** Icon classes of the menu entry (Bootstrap Icons `bi bi-…`; legacy Suite classes also work). */
     icon?: string | null;
     /** Below 768 px a notice replaces the view (`DesktopOnly`). */

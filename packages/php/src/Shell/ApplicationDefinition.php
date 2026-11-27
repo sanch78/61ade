@@ -114,6 +114,8 @@ final readonly class ApplicationDefinition
          * `locationIcons: true` only when set.
          */
         public bool $locationIcons = false,
+        /** Localized subgroup labels by grouped menu-entry view id. @var array<string, string> */
+        public array $menuSubgroups = [],
     ) {
         if ($title === '' || $runtime === '' || !preg_match('/^(?:__Host-)?[a-zA-Z][a-zA-Z0-9_]+$/D', $sessionName)
             || ($this->hostCookie() && $cookiePath !== '/')
@@ -157,6 +159,14 @@ final readonly class ApplicationDefinition
         foreach ($menuGroupIcons as $group => $icon) {
             if (!is_string($icon)) throw new \InvalidArgumentException('Invalid group icon: '.$group);
             $workspace->registry->groupIcon((string) $group, $icon);
+        }
+        if ($menuSubgroups && !$workspace) throw new \InvalidArgumentException('Menu subgroups need a workspace.');
+        foreach ($menuSubgroups as $id => $label) {
+            if (!is_string($id) || !is_string($label) || trim($label) === '') throw new \InvalidArgumentException('Invalid menu subgroup: '.$id);
+            $view = $workspace->registry->viewById($id);
+            if (!$view || $view->group === null || !$view->menu || $view->record !== null || $workspace->registry->embedded($id)) {
+                throw new \InvalidArgumentException('Menu subgroups require grouped menu-entry views: '.$id);
+            }
         }
         if (!array_is_list($menuCommands) || count($menuCommands) > 3) throw new \InvalidArgumentException('Menu commands must be a list of at most 3 MenuCommand objects.');
         $commands = [];

@@ -171,6 +171,10 @@ final class Application
             if ($tenancy) $bootstrap['tenant'] = ['current' => $tenant, 'choices' => array_map(static fn($id, $name) => ['id' => (string) $id, 'name' => $name], array_keys($memberships = $tenancy->memberships($identity->id)), $memberships)];
             if ($workspace) {
                 $bootstrap['views'] = $workspace->views($actor, $tenant);
+                foreach ($bootstrap['views'] as $index => $view) {
+                    $subgroup = $definition->menuSubgroups[$view['id']] ?? null;
+                    if ($subgroup !== null) $bootstrap['views'][$index]['subgroup'] = Translator::text($subgroup);
+                }
                 $separators = array_values(array_intersect(array_map(Translator::text(...), $definition->menuSeparators), array_column($bootstrap['views'], 'group')));
                 if ($separators) $bootstrap['menuSeparators'] = $separators;
                 // Icons of the offered groups, by translated label like the views' `group` (docs/shell.md#menu-group-icons).
