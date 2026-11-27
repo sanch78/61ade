@@ -3710,7 +3710,7 @@ Guide: [submenus within view groups](shell.md#submenus-within-view-groups).
 
 <a id="fb-0277"></a>
 
-## FB-0277 — API keys: date expiry, a copyable one-time secret and delete
+## FB-0277 — API keys: date expiry, a copyable one-time secret, regenerate and delete
 
 The API-key expiry was a typed text field showing a stored timestamp; the
 issued key appeared in a toast that closed on click or after 10 seconds, so it
@@ -3722,10 +3722,12 @@ could not be copied; and a mistaken key could only be revoked, not deleted.
   password of a new account set it.
 - The expiry is a `date` field stored as `YYYY-MM-DD`, valid through the end of
   that UTC day; `Schema::install` converts earlier timestamps.
-- API keys register Delete.
+- API keys register Regenerate (a new secret for the same key, the old one
+  stops at once) and Delete.
 
 Managed-demo checks picked the expiry in the calendar, copied the key from the
-dialog, closed it, revoked the key and deleted it; the temporary password of a
+dialog, closed it, regenerated it (the old secret answered 401), revoked the
+key and deleted it; the temporary password of a
 new account was read from the same dialog.
 
 Guides: [API keys](admin.md#api-kulcsok-a3), [dialogs](dialogs.md).

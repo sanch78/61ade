@@ -94,6 +94,15 @@ $db->prepare('UPDATE blade_tokens SET expires_at=? WHERE id=?')->execute([$futur
 check($db->query('SELECT expires_at FROM blade_tokens WHERE id='.(int)$today['id'])->fetchColumn()===$future,'Timestamp expiry migrated to its date');
 check($run('create',null,['label'=>'Max','actor_id'=>'2','scopes'=>'notes.get','expires_at'=>gmdate('Y-m-d',time()+365*86400)])['id']!=='','The last allowed day is accepted');
 
+// Regenerate replaces the secret (the old one stops at once); a revoked key cannot be regenerated.
+$rotated=$run('create',null,['label'=>'Rotated','actor_id'=>'2','scopes'=>'notes.get','expires_at'=>$future]);
+$fresh=$run('regenerate',$rotated['id']);
+check(preg_match('/^[a-f0-9]{64}$/D',$fresh['reveal']['value'])===1 && ($fresh['reveal']['copy']??false)===true && $fresh['id']===$rotated['id'],'Regenerate reveals a new secret to copy');
+check($tokens->authenticate($rotated['reveal']['value'])===null && $tokens->authenticate($fresh['reveal']['value'])['scopes']===['notes.get'],'Old secret stops, new one works with the same scopes');
+check(!str_contains(json_encode($db->query('SELECT * FROM blade_audit')->fetchAll()),$fresh['reveal']['value']),'Regenerated secret never audited');
+fails(fn()=>$run('regenerate',$created['id']),409,'Revoked key cannot be regenerated');
+check((int)$db->query("SELECT COUNT(*) FROM blade_rules WHERE resource='blade_api_keys' AND action='regenerate'")->fetchColumn()===1,'Administrator receives regenerate');
+
 // Delete removes the key outright (audited); own scope deletes only own keys.
 $doomed=$run('create',null,['label'=>'Doomed','actor_id'=>'2','scopes'=>'notes.get','expires_at'=>$future]);
 $run('delete',$doomed['id'],['revision'=>$run('get',$doomed['id'])['revision']]);

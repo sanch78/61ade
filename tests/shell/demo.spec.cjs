@@ -106,7 +106,7 @@ test('e-mail second factor: the formatted code mail lands in the demo mailbox in
  await expect(page.locator('.blade-session-bar')).toContainText('Two-factor Demo');
 });
 
-test('users carry OAuth, e-mail confirmation and default language switches; an API key is shown once to copy, revoked by checkbox and deleted',async({page})=>{
+test('users carry OAuth, e-mail confirmation and default language switches; an API key is shown once to copy, regenerated, revoked by checkbox and deleted',async({page})=>{
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await signIn(page,'demo@example.test');
  await openAdmin(page,'Felhasználók');
@@ -153,10 +153,21 @@ test('users carry OAuth, e-mail confirmation and default language switches; an A
  await page.getByRole('textbox',{name:'Szűrés: Megnevezés',exact:true}).fill(label);
  const row=page.locator('.dhx_grid-row').filter({hasText:label});
  await expect(row).toContainText('Feladatok · Lista (demo_tasks.list), Feladatok · Megnyitás (demo_tasks.get)');
+ // Regenerate: after the confirmation the key gets a new secret to copy; the old one stops at once.
+ await row.click();
+ await command(page,'Újragenerálás');
+ await page.getByRole('alertdialog',{name:'Újragenerálás'}).getByRole('button',{name:'Újragenerálás',exact:true}).click();
+ const renewed=page.getByRole('alertdialog',{name:'API-kulcs (egyszer jelenik meg)'});
+ const fresh=await renewed.getByRole('textbox').inputValue();
+ expect(fresh).toMatch(/^[a-f0-9]{64}$/);
+ expect(fresh).not.toBe(secret);
+ await renewed.getByRole('button',{name:'Bezárás',exact:true}).click();
+ expect(await call(secret)).toBe(401);
+ expect(await call(fresh)).toBe(404);
  const revoked=row.getByRole('checkbox',{name:'Visszavonva',exact:true});
  await revoked.locator('xpath=..').locator('.dhx_checkbox__visual-input').click();
  await expect(revoked).toBeChecked();
- expect(await call(secret)).toBe(401);
+ expect(await call(fresh)).toBe(401);
  // Delete removes the key after the danger confirmation.
  await row.click();
  await command(page,'Törlés');

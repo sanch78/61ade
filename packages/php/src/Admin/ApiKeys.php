@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace Blade\Admin;
 
-use Blade\Feature\{Context, Failure, Field, Registry, SqlResource};
+use Blade\Feature\{Action, Context, Failure, Field, Registry, SqlResource};
 use Blade\I18n\Translator;
 
 /**
  * Built-in API key administration over blade_tokens. Only a hash is stored; the secret
  * is shown once after creation. A key never grants more than its owner's API ACL:
- * the chosen operations only narrow it. Revocation is a one-way checkbox; Delete removes the key outright.
+ * the chosen operations only narrow it. Revocation is a one-way checkbox; Delete removes the key outright;
+ * Regenerate replaces the secret of a key that is not revoked (the old one stops working at once).
  * The expiry is a calendar date: the key works through the end of that UTC day.
  */
 final class ApiKeys
@@ -39,7 +40,18 @@ final class ApiKeys
             normalize: fn(Context $ctx, ?array $target, array $values): array => $this->normalize($ctx, $target, $values),
             afterSave: fn(Context $ctx, string $id, ?array $target, array $values): ?array => $target ? null : $this->issue($ctx, $id),
         );
-        $resource->register($registry, 'API-kulcsok', group: $group, icon: 'bi bi-key');
+        $view = $resource->register($registry, 'API-kulcsok', group: $group, icon: 'bi bi-key');
+        $registry->add(new Action(self::RESOURCE, 'regenerate', 'Újragenerálás', [], function (Context $ctx, array $target): array {
+            if ((string) $target['row']['revoked'] === '1') throw new Failure('A visszavont kulcs nem generálható újra; adj ki újat.', 409);
+            return $this->issue($ctx, (string) $target['id']);
+        }, resolve: fn(Context $ctx, ?string $id): array => $resource->target($ctx, $id), write: true, channels: ['ui'], icon: 'bi bi-arrow-repeat', confirm: [
+            'message' => 'A kulcs új titkot kap, a régi azonnal érvénytelenné válik. Az új titok egyszer jelenik meg.',
+            'title' => 'Újragenerálás',
+            'severity' => 'warning',
+            'confirm_label' => 'Újragenerálás',
+            'cancel_label' => 'Mégse',
+        ]));
+        $registry->appendViewActions($view->id, ['regenerate']);
         $resource->registerDelete($registry);
     }
 

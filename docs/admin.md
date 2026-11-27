@@ -171,15 +171,16 @@ allows it.
 - Issue generates 256-bit secret shown once in a dialog with a selected read-only field and Copy (`reveal.copy`); only SHA-256 hash is stored. Lists/audit contain no secret.
 - Use `Authorization: Bearer <key>` at POST ./?blade=1. Both key scope and owner's api ACL must permit the action.
 - Revocation via form/grid is immediate and irreversible (409 to restore); issue another key. Owner is immutable; scope/expiry editable. Disable/e-mail change revokes all account keys.
+- Regenerate (`regenerate`, UI only, warning confirmation, audited) gives a key that is not revoked a new secret, shown once in the same copy dialog; the old secret stops at once, label/scope/expiry stay. A revoked key answers 409.
 - Delete (bulk-capable, danger confirmation, audited) removes a key row outright; it needs the `delete` rule (the administrator role receives it on setup).
 - `Tokens::issue` stores the date of its last day as well. `Schema::install` converts timestamp expiries of earlier releases (`…T23:59:59Z`) to their date; run it when updating ([FB-0277](feedback.md#fb-0277)).
-- Grant `blade_api_keys` list/get/create/update (and delete) on `ui` with `own` scope for self-service. The actor may then issue and manage only keys whose `actor_id` matches the session; the view is absent without a usable UI rule. Use `all` scope for an administrator managing other accounts.
+- Grant `blade_api_keys` list/get/create/update (and regenerate, delete) on `ui` with `own` scope for self-service. The actor may then issue and manage only keys whose `actor_id` matches the session; the view is absent without a usable UI rule. Use `all` scope for an administrator managing other accounts.
 - New scopes use comma-separated storage; older Tokens::issue JSON lists remain valid.
 
 `api-keys.php` checks default deny, initial admin, root-menu registration,
 catalog choices, once-only secret/hash/audit, self-scope menu/list/create/update,
 ACL+scope, validation, one-way revocation, old format, expiry-day boundary and
-migration, and own/all-scope delete.
+migration, regenerate, and own/all-scope delete.
 Browser coverage: demo.spec.cjs.
 
 <a id="tenants"></a>
