@@ -35,6 +35,8 @@ final class Schema
         ] as [$table, $column, $definition]) {
             if (!in_array($column, self::columns($db, $table), true)) $db->exec("ALTER TABLE $table ADD COLUMN $column $definition");
         }
+        // API-key expiry is a date (through the end of that UTC day); earlier releases stored a UTC timestamp.
+        $db->exec('UPDATE blade_tokens SET expires_at = SUBSTR(expires_at, 1, 10) WHERE LENGTH(expires_at) > 10');
         foreach(['blade_rules_lookup'=>['blade_rules','resource,action,channel,subject_type,subject_id'], 'blade_audit_actor_action'=>['blade_audit','actor_id,resource,action,occurred_at'], 'blade_challenge_actor'=>['blade_login_challenges','actor_id,created_at'], 'blade_remember_actor'=>['blade_remembered_logins','actor_id,expires_at']] as $name=>[$table,$columns]){
             if($db->getAttribute(\PDO::ATTR_DRIVER_NAME)==='mysql'){
                 $q=$db->prepare('SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? AND INDEX_NAME=?');$q->execute([$table,$name]);

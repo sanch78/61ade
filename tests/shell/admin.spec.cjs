@@ -36,10 +36,12 @@ async function createUser(page,email){
  await dialog.getByLabel('Teljes név',{exact:true}).fill('Synthetic Person');
  await dialog.getByLabel('E-mail',{exact:true}).fill(email.toUpperCase());
  await dialog.getByRole('button',{name:'Mentés',exact:true}).click();
- const notice=page.locator('.blade-toast').last();
- await expect(notice).toContainText('Ideiglenes jelszó (egyszer jelenik meg)');
- await expect(notice).toContainText('Érvényes 72 óráig');
- const temporary=(await notice.innerText()).match(/[A-Za-z0-9]{20}/)[0];
+ // The one-time password stays in a dialog to copy until it is closed.
+ const reveal=page.getByRole('alertdialog',{name:'Ideiglenes jelszó (egyszer jelenik meg)'});
+ await expect(reveal).toContainText('Érvényes 72 óráig');
+ const temporary=await reveal.getByRole('textbox').inputValue();
+ expect(temporary).toMatch(/^[A-Za-z0-9]{20}$/);
+ await reveal.getByRole('button',{name:'Bezárás',exact:true}).click();
  return temporary;
 }
 test('admin creates a user; the temporary password forces a change before any session',async({page})=>{

@@ -1,7 +1,7 @@
 import { t } from "../../I18n";
 import { fitWindow, formLayout } from "../../WindowSizing";
 import { Form, Window, message, awaitRedraw, type Layout } from "@dhtmlx/suite";
-import { requestConfirmation } from "../../MessageDialog";
+import { acknowledge, requestConfirmation } from "../../MessageDialog";
 import type { Row } from "../../Realtime";
 import { mergeUsages, confirmUsages, clearedText, type Usage } from "../../RecordPresentation";
 import { FileFields, type ResourceCall } from "../../FilePicker";
@@ -41,12 +41,16 @@ export function confirmed(action:Pick<ActionDefinition,"confirm"|"submitLabel">,
   const fill=(text:string)=>text.replace("{count}",String(count));
   return requestConfirmation({message:fill(c.message),title:c.title,severity:c.severity??"neutral",confirmLabel:c.confirmLabel??action.submitLabel,cancelLabel:c.cancelLabel});
 }
-/** The non-blocking success toast of an action, or its one-time reveal/secret. */
+/**
+ * The non-blocking success toast of an action or its reveal. A reveal to copy (`reveal.copy`, a one-time secret)
+ * opens a dialog with the value in a selected read-only field and a Copy button that stays until it is closed.
+ */
 export function resultNotice(result:any):void{
   // A started job reports in its own window (docs/toolkit.md#jobs), not in a toast.
   if(result?.job)return;
+  if(result?.reveal?.copy){void acknowledge({title:String(result.reveal.label??""),message:String(result.reveal.note??""),copyValue:String(result.reveal.value??""),okLabel:t("Bezárás")});return;}
   if(result?.reveal){message({text:result.reveal.label+": "+result.reveal.value+(result.reveal.note?"\n\n"+result.reveal.note:""),css:"blade-toast",expire:10000});return;}
-  if(result?.secret){message({text:t("Egyszer megjelenő API-token")+": "+result.secret,css:"blade-toast",expire:10000});return;}
+  if(result?.secret){void acknowledge({title:t("Egyszer megjelenő API-token"),message:"",copyValue:String(result.secret),okLabel:t("Bezárás")});return;}
   // A delete that cleared references (usage providers) says which and how many.
   const cleared=clearedText(result?.cleared);
   message({text:t("A művelet sikerült.")+(cleared?"\n"+cleared:""),css:"blade-toast",expire:cleared?8000:4000});

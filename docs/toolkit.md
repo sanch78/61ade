@@ -199,6 +199,7 @@ const blob = await (await app.server.request("files", "content_get", { id })).bl
 const { fields, values } = await app.server.form("tasks", "update", id, { signal: host.signal }); // `__form`
 audio.src = app.server.url("signage_assets", "content_stream", id, revision);  // GET action, session cookie
 if (await app.ui.dialog({ message: app.i18n.t("Biztosan?"), mode: "confirm", severity: "warning" })) { /* … */ }
+await app.ui.dialog({ title: t("Új titok"), message: t("Egyszer jelenik meg."), copyValue: secret.value }); // selected field + Copy
 const choice = await app.ui.choice({ message: "…", choices: [{ value: "a", label: "A" }] });
 app.ui.toast(app.i18n.t("Mentve."));                                 // plain text (escaped)
 await app.ui.copy(secret.value, { label: t("Titok") });               // clipboard + "Titok másolva." toast (#copy)

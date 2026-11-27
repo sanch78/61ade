@@ -106,7 +106,7 @@ test('e-mail second factor: the formatted code mail lands in the demo mailbox in
  await expect(page.locator('.blade-session-bar')).toContainText('Two-factor Demo');
 });
 
-test('users carry OAuth, e-mail confirmation and default language switches; an API key is shown once and revoked by checkbox',async({page})=>{
+test('users carry OAuth, e-mail confirmation and default language switches; an API key is shown once to copy, revoked by checkbox and deleted',async({page})=>{
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await signIn(page,'demo@example.test');
  await openAdmin(page,'Felhasználók');
@@ -125,11 +125,26 @@ test('users carry OAuth, e-mail confirmation and default language switches; an A
  await page.locator('.dhx_combobox-options').getByText('Feladatok · Lista (demo_tasks.list)',{exact:true}).click();
  await page.locator('.dhx_combobox-options').getByText('Feladatok · Megnyitás (demo_tasks.get)',{exact:true}).click();
  await dialog.getByLabel('Megnevezés',{exact:true}).click();
+ // The expiry is a date field with the Suite calendar, defaulting to a date.
+ const expiry=dialog.getByLabel('Lejárat',{exact:true});
+ await expect(expiry).toHaveValue(/^\d{4}-\d{2}-\d{2}$/);
+ await expiry.click();
+ const calendar=page.locator('.dhx_popup .dhx_calendar').last();
+ await expect(calendar).toBeVisible();
+ await calendar.locator('.dhx_calendar-day:not(.dhx_calendar-day--outside)').filter({hasText:/^15$/}).click();
+ await expect(calendar).toBeHidden();
+ await expect(expiry).toHaveValue(/^\d{4}-\d{2}-15$/);
  await dialog.getByRole('button',{name:'Mentés',exact:true}).click();
- // One-time reveals are a non-blocking toast (docs/dialogs.md).
- const notice=page.getByRole('alert').filter({hasText:'API-kulcs (egyszer jelenik meg)'});
- await expect(notice).toBeVisible();
- const secret=(await notice.innerText()).match(/[a-f0-9]{64}/)[0];
+ // A one-time secret stays in a dialog, selected in a read-only field with a Copy button (docs/dialogs.md).
+ const reveal=page.getByRole('alertdialog',{name:'API-kulcs (egyszer jelenik meg)'});
+ const field=reveal.getByRole('textbox',{name:'API-kulcs (egyszer jelenik meg)'});
+ await expect(field).toBeFocused();
+ await expect(field).toHaveValue(/^[a-f0-9]{64}$/);
+ const secret=await field.inputValue();
+ await reveal.getByRole('button',{name:'Másolás',exact:true}).click();
+ await expect(reveal.getByRole('button',{name:'Másolva.',exact:true})).toBeVisible();
+ await reveal.getByRole('button',{name:'Bezárás',exact:true}).click();
+ await expect(reveal).toHaveCount(0);
  const call=key=>page.evaluate(async key=>(await fetch('./?blade=1',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},body:JSON.stringify({resource:'demo_tasks',action:'get',id:'1',values:{}})})).status,key);
  // Authenticated API call: the owner has no API rule, so the object stays hidden (404, not 401/403).
  expect(await call(secret)).toBe(404);
@@ -142,6 +157,11 @@ test('users carry OAuth, e-mail confirmation and default language switches; an A
  await revoked.locator('xpath=..').locator('.dhx_checkbox__visual-input').click();
  await expect(revoked).toBeChecked();
  expect(await call(secret)).toBe(401);
+ // Delete removes the key after the danger confirmation.
+ await row.click();
+ await command(page,'Törlés');
+ await page.getByRole('alertdialog',{name:'Törlés'}).getByRole('button',{name:'Törlés',exact:true}).click();
+ await expect(row).toHaveCount(0);
  expect(errors).toEqual([]);
 });
 

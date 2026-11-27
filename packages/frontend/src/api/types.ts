@@ -229,6 +229,8 @@ export interface DialogOptions {
   cancelLabel?: string;
   /** Confirm mode only; a danger confirmation always starts on Cancel. */
   initialFocus?: "confirm" | "cancel";
+  /** Acknowledge mode only: a value to copy (a one-time secret), selected in a read-only field with a Copy button. */
+  copyValue?: string;
 }
 
 /** Options of `Ui.choice` (wraps `MessageDialog.requestChoice`). Cancel is always added and resolves `null`. */

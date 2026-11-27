@@ -285,6 +285,7 @@ final class Accounts
         return ['id' => $id, 'reveal' => [
             'label' => Translator::text('Ideiglenes jelszó (egyszer jelenik meg)'),
             'value' => $password,
+            'copy' => true,
             'note' => Translator::text('Érvényes {hours} óráig; első belépéskor kötelező lecserélni.', ['hours' => $this->temporaryHours]),
         ]];
     }

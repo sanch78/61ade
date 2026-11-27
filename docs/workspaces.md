@@ -1903,11 +1903,13 @@ column every card has the list's full width
 
 Action/JSON confirm requests the shared [dialog](dialogs.md#szerver-által-deklarált-megerősítés)
 before individual or bulk execution. Result reveals are reported through the
-non-blocking toast described below.
+non-blocking toast described below; a `reveal` with `copy: true` opens a
+dialog to copy the value instead ([dialogs](dialogs.md#szerver-által-deklarált-megerősítés)).
 Actions that declare no input fields execute directly from the command bar; they do
 not open an intermediate form containing a second Execute button. Successful
-toolbar actions, including one-time secret reveals, report through a non-blocking
-toast; only actions that declare confirmation metadata open a confirmation dialog.
+toolbar actions report through a non-blocking toast; a one-time secret
+(`reveal.copy`) stays in a dialog with a Copy button. Only actions that declare
+confirmation metadata open a confirmation dialog.
 
 <a id="view-guide"></a>
 

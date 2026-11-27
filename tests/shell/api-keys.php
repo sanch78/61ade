@@ -37,7 +37,7 @@ $secret=$created['reveal']['value'];
 $adminOwned=$run('create',null,['label'=>'Admin-owned','actor_id'=>'1','scopes'=>'notes.get','expires_at'=>$future]);
 check(preg_match('/^[a-f0-9]{64}$/D',$secret)===1,'Secret revealed once');
 $stored=$db->query('SELECT * FROM blade_tokens WHERE id='.(int)$created['id'])->fetch(PDO::FETCH_ASSOC);
-check($stored['token_hash']===hash('sha256',$secret) && $stored['scopes']==='notes.list,notes.get' && $stored['expires_at']===$future.'T23:59:59Z','Hash, scope list and end-of-day expiry stored');
+check($stored['token_hash']===hash('sha256',$secret) && $stored['scopes']==='notes.list,notes.get' && $stored['expires_at']===$future,'Hash, scope list and expiry date stored');
 check(!str_contains(json_encode($run('list')['items']),$secret) && !str_contains(json_encode($run('get',$created['id'])),'token_hash'),'Secret and hash never listed');
 check(!str_contains(json_encode($db->query('SELECT * FROM blade_audit')->fetchAll()),$secret),'Secret never audited');
 $tokens=new Tokens($db);
@@ -83,4 +83,24 @@ fails(fn()=>$workspace->executor->edit($admin,ApiKeys::RESOURCE,$created['id'],'
 
 // Old JSON scope storage keeps working.
 $legacy=$tokens->issue('2','legacy',['notes.get']);check($tokens->authenticate($legacy['secret'])['scopes']===['notes.get'],'JSON scope storage');
+// Expiry is a date: the key works through the end of that UTC day; earlier timestamps are migrated by Schema::install.
+$today=$tokens->issue('2','today',['notes.get']);
+$db->prepare('UPDATE blade_tokens SET expires_at=? WHERE id=?')->execute([gmdate('Y-m-d'),$today['id']]);
+check($tokens->authenticate($today['secret'])!==null,'Key valid through its expiry day');
+$db->prepare('UPDATE blade_tokens SET expires_at=? WHERE id=?')->execute([gmdate('Y-m-d',time()-86400),$today['id']]);
+check($tokens->authenticate($today['secret'])===null,'Key expired after its expiry day');
+$db->prepare('UPDATE blade_tokens SET expires_at=? WHERE id=?')->execute([$future.'T23:59:59Z',$today['id']]);
+\Blade\Access\Schema::install($db);
+check($db->query('SELECT expires_at FROM blade_tokens WHERE id='.(int)$today['id'])->fetchColumn()===$future,'Timestamp expiry migrated to its date');
+check($run('create',null,['label'=>'Max','actor_id'=>'2','scopes'=>'notes.get','expires_at'=>gmdate('Y-m-d',time()+365*86400)])['id']!=='','The last allowed day is accepted');
+
+// Delete removes the key outright (audited); own scope deletes only own keys.
+$doomed=$run('create',null,['label'=>'Doomed','actor_id'=>'2','scopes'=>'notes.get','expires_at'=>$future]);
+$run('delete',$doomed['id'],['revision'=>$run('get',$doomed['id'])['revision']]);
+check(!$db->query('SELECT COUNT(*) FROM blade_tokens WHERE id='.(int)$doomed['id'])->fetchColumn() && $tokens->authenticate($doomed['reveal']['value'])===null,'Delete removes the key');
+$db->prepare("INSERT INTO blade_rules(subject_type,subject_id,resource,action,channel,effect,scope,object_id,field_name) VALUES ('user','2',?,'delete','ui','allow','own','','')")->execute([ApiKeys::RESOURCE]);
+$workspace->acl->invalidate();
+fails(fn()=>$runUser('delete',$adminOwned['id'],['revision'=>$run('get',$adminOwned['id'])['revision']]),403,'Own scope cannot delete another owner\'s key');
+$runUser('delete',$ownCreated['id'],['revision'=>$runUser('get',$ownCreated['id'])['revision']]);
+check(!$db->query('SELECT COUNT(*) FROM blade_tokens WHERE id='.(int)$ownCreated['id'])->fetchColumn(),'Own scope deletes own key');
 echo "61ade API key administration (A3) tests passed.\n";

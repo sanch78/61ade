@@ -34,7 +34,12 @@ const ok = await requestConfirmation({ severity: "danger", title: "Törlés",
 
 `DialogOptions`: required plain-text `message`; optional `title`, `severity`
 (default neutral), `mode`, `okLabel`, `confirmLabel`, `cancelLabel`,
-`initialFocus` (`confirm`/`cancel`; danger always focuses Cancel).
+`initialFocus` (`confirm`/`cancel`; danger always focuses Cancel), and in
+acknowledgment mode `copyValue`: a value to copy, such as a one-time secret,
+shown selected in a read-only field with a Copy button between the message
+and OK. The field takes the initial focus (Ctrl+C works at once), joins the
+Tab cycle with Copy, and Copy reports `Másolva.` or the failure on its own
+label; an empty `message` hides the body ([FB-0277](feedback.md#fb-0277)).
 Labels/titles are localized hu/en/de: OK, Confirm, Cancel, Information, Warning,
 Error, Dangerous action. Styling uses `admin.css` `.blade-dialog*` with
 DHTMLX `--dhx-*` theme variables across Blade/Blade Night/light/dark; dark warning amber
@@ -125,9 +130,13 @@ Keys: required plain-text `message` (`{count}` is affected row count), optional
 throw. Metadata contains translated text. Confirmation is client UX only;
 server ACL/executor checks every call. API calls do not ask for confirmation.
 
-Toolbar success, one-time reveals (`reveal`: `label`, `value`, `note`) and
-bulk results are shown as non-blocking toasts. Partial bulk failures
-include the failed row messages in that toast.
+Toolbar success, reveals (`reveal`: `label`, `value`, `note`) and bulk
+results are shown as non-blocking toasts. Partial bulk failures include the
+failed row messages in that toast. A reveal with `copy: true` (a one-time
+secret such as an issued API key or temporary password) and a legacy
+`secret` result instead open an acknowledgment titled by `label`, with
+`note` as its message and the value in the `copyValue` field; it stays until
+the user closes it ([FB-0277](feedback.md#fb-0277)).
 
 <a id="billentyűzet-és-fókusz"></a>
 

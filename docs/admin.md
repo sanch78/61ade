@@ -162,20 +162,24 @@ HTTP never executes DDL.
 
 The root menu → API keys, resource blade_api_keys over blade_tokens. Fields:
 label, owner account, permitted actions (multiselect from api-channel catalog
-with resource.action keys), expiry YYYY-MM-DD through end of UTC day, future
-and ≤365 days away, revoked checkbox. An empty owner on issue defaults to the
+with resource.action keys), expiry date (`date` field with the calendar,
+stored as YYYY-MM-DD) through the end of that UTC day, future and ≤365 days
+away, revoked checkbox. An empty owner on issue defaults to the
 current actor; an administrator can select another account when their ACL scope
 allows it.
 
-- Issue generates 256-bit secret shown once; only SHA-256 hash is stored. Lists/audit contain no secret.
+- Issue generates 256-bit secret shown once in a dialog with a selected read-only field and Copy (`reveal.copy`); only SHA-256 hash is stored. Lists/audit contain no secret.
 - Use `Authorization: Bearer <key>` at POST ./?blade=1. Both key scope and owner's api ACL must permit the action.
 - Revocation via form/grid is immediate and irreversible (409 to restore); issue another key. Owner is immutable; scope/expiry editable. Disable/e-mail change revokes all account keys.
-- Grant `blade_api_keys` list/get/create/update on `ui` with `own` scope for self-service. The actor may then issue and manage only keys whose `actor_id` matches the session; the view is absent without a usable UI rule. Use `all` scope for an administrator managing other accounts.
+- Delete (bulk-capable, danger confirmation, audited) removes a key row outright; it needs the `delete` rule (the administrator role receives it on setup).
+- `Tokens::issue` stores the date of its last day as well. `Schema::install` converts timestamp expiries of earlier releases (`…T23:59:59Z`) to their date; run it when updating ([FB-0277](feedback.md#fb-0277)).
+- Grant `blade_api_keys` list/get/create/update (and delete) on `ui` with `own` scope for self-service. The actor may then issue and manage only keys whose `actor_id` matches the session; the view is absent without a usable UI rule. Use `all` scope for an administrator managing other accounts.
 - New scopes use comma-separated storage; older Tokens::issue JSON lists remain valid.
 
 `api-keys.php` checks default deny, initial admin, root-menu registration,
 catalog choices, once-only secret/hash/audit, self-scope menu/list/create/update,
-ACL+scope, validation, one-way revocation and old format.
+ACL+scope, validation, one-way revocation, old format, expiry-day boundary and
+migration, and own/all-scope delete.
 Browser coverage: demo.spec.cjs.
 
 <a id="tenants"></a>

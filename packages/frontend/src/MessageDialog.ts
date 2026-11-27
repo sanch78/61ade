@@ -1,5 +1,6 @@
 import { t } from "./I18n";
 import { holdInert } from "./ModalWindows";
+import { copyText } from "./Clipboard";
 
 /** Semantics of a message; independent of how the user answers it. */
 export type DialogSeverity = "neutral" | "warning" | "danger";
@@ -15,6 +16,11 @@ export type DialogOptions = {
   cancelLabel?: string;
   /** Confirm mode only. Default: `cancel` for danger, `confirm` otherwise. Never overridable to confirm for danger. */
   initialFocus?: "confirm" | "cancel";
+  /**
+   * Acknowledge mode: a value to copy, such as a one-time secret. It stands selected in a read-only field with a
+   * Copy button between the message and the button, and the dialog stays until the user closes it.
+   */
+  copyValue?: string;
 };
 /** One answer of a multiple-choice dialog; Cancel is always added and resolves `null`. */
 export type DialogChoice = { value: string; label: string };
@@ -87,6 +93,7 @@ function present(options: DialogOptions, choices?: DialogChoice[], applyAll?: { 
   body.className = "blade-dialog__body";
   body.id = `${id}-message`;
   body.textContent = options.message;
+  body.hidden = !options.message;
 
   const footer = document.createElement("div");
   footer.className = "blade-dialog__footer";
@@ -124,6 +131,30 @@ function present(options: DialogOptions, choices?: DialogChoice[], applyAll?: { 
     label.append(checkbox, text);
     extra.push(label);
   }
+  // Copyable value: a read-only field (selected on open, so Ctrl+C works at once) and its Copy button.
+  let copyField: HTMLInputElement | null = null, copyButton: HTMLButtonElement | null = null;
+  if (options.copyValue !== undefined && !confirmMode) {
+    const row = document.createElement("div");
+    row.className = "blade-dialog__copy";
+    copyField = document.createElement("input");
+    copyField.type = "text";
+    copyField.readOnly = true;
+    copyField.value = options.copyValue;
+    copyField.className = "dhx_input blade-dialog__copy-input";
+    copyField.setAttribute("aria-label", title);
+    copyField.spellcheck = false;
+    copyButton = button(t("Másolás"), "choice");
+    copyButton.dataset.bladeDialogAction = "copy";
+    const field = copyField, copy = copyButton, label = copy.textContent!;
+    field.addEventListener("focus", () => field.select());
+    copy.addEventListener("click", async () => {
+      copy.textContent = await copyText(field.value) ? t("Másolva.") : t("A másolás nem sikerült.");
+      field.focus();
+      setTimeout(() => { if (copy.isConnected) copy.textContent = label; }, 2500);
+    });
+    row.append(copyField, copyButton);
+    extra.push(row);
+  }
   box.append(header, body, ...extra, footer);
   overlay.append(box);
 
@@ -146,7 +177,7 @@ function present(options: DialogOptions, choices?: DialogChoice[], applyAll?: { 
       },
     };
     const focusables = () => {
-      const list = [...(checkbox ? [checkbox] : []), ...Array.from(footer.querySelectorAll<HTMLElement>("button"))];
+      const list = [...(checkbox ? [checkbox] : []), ...(copyField && copyButton ? [copyField, copyButton] : []), ...Array.from(footer.querySelectorAll<HTMLElement>("button"))];
       return body.scrollHeight > body.clientHeight ? [body, ...list] : list;
     };
     // The key press that opened the dialog (e.g. Enter committing an inline edit) must not
@@ -180,7 +211,7 @@ function present(options: DialogOptions, choices?: DialogChoice[], applyAll?: { 
     document.addEventListener("keydown", keydown, true);
     document.body.append(overlay);
     const focusCancel = confirmMode && (severity === "danger" || options.initialFocus === "cancel");
-    (focusCancel && cancel ? cancel : primary).focus({ preventScroll: true });
+    (copyField ?? (focusCancel && cancel ? cancel : primary)).focus({ preventScroll: true });
     // Long messages scroll inside the body; make that region reachable by keyboard.
     if (body.scrollHeight > body.clientHeight) { body.tabIndex = 0; body.setAttribute("role", "document"); }
   });

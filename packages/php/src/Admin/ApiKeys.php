@@ -10,7 +10,8 @@ use Blade\I18n\Translator;
 /**
  * Built-in API key administration over blade_tokens. Only a hash is stored; the secret
  * is shown once after creation. A key never grants more than its owner's API ACL:
- * the chosen operations only narrow it. Revocation is a one-way checkbox.
+ * the chosen operations only narrow it. Revocation is a one-way checkbox; Delete removes the key outright.
+ * The expiry is a calendar date: the key works through the end of that UTC day.
  */
 final class ApiKeys
 {
@@ -29,9 +30,7 @@ final class ApiKeys
             new Field('actor_id', 'Tulajdonos', 'select', max: 100, options: $this->accounts->ownerOptions(...)),
             ...($this->tenancy ? [new Field('tenant_id', 'Tenant', 'select', max: 100, options: fn(Context $ctx): array => ['' => 'Globális (csak globális erőforrások)'] + $this->tenancy->lookup()->options($ctx))] : []),
             new Field('scopes', 'Engedélyezett műveletek', 'multiselect', required: true, max: 4000, options: fn(Context $ctx): array => $this->operations()),
-            new Field('expires_at', 'Lejárat', required: true, max: 30, defaultValue: gmdate('Y-m-d', time() + min(90, $this->maxDays) * 86400), validation: [
-                'pattern' => ['expression' => '^[0-9]{4}-[0-9]{2}-[0-9]{2}(T[0-9]{2}:[0-9]{2}:[0-9]{2}Z)?$', 'message' => 'ÉÉÉÉ-HH-NN formátumú dátum szükséges.'],
-            ]),
+            new Field('expires_at', 'Lejárat', 'date', required: true, max: 10, defaultValue: gmdate('Y-m-d', time() + min(90, $this->maxDays) * 86400)),
             new Field('revoked', 'Visszavonva', 'checkbox', column: ['editable' => true, 'align' => 'center', 'width' => 120]),
         ],
             ownerColumn: 'actor_id',
@@ -41,6 +40,7 @@ final class ApiKeys
             afterSave: fn(Context $ctx, string $id, ?array $target, array $values): ?array => $target ? null : $this->issue($ctx, $id),
         );
         $resource->register($registry, 'API-kulcsok', group: $group, icon: 'bi bi-key');
+        $resource->registerDelete($registry);
     }
 
     /** "resource.action" => label for every catalogue operation exposed on the API channel. */
@@ -78,7 +78,7 @@ final class ApiKeys
         }
         if (!isset($values['expires_at']) || ($target && $values['expires_at'] === (string) $row['expires_at'])) return;
         $expires = self::expiry((string) $values['expires_at']);
-        if ($expires === null || $expires <= time() || $expires > time() + $this->maxDays * 86400) {
+        if ($expires === null || $expires <= time() || (string) $values['expires_at'] > gmdate('Y-m-d', time() + $this->maxDays * 86400)) {
             $message = Translator::text('A lejárat a jövőben, legfeljebb {days} napon belül legyen.', ['days' => $this->maxDays]);
             throw new Failure($message, 400, ['expires_at' => $message]);
         }
@@ -87,20 +87,17 @@ final class ApiKeys
     private function normalize(Context $ctx, ?array $target, array $values): array
     {
         if (!array_key_exists('actor_id', $values) || (string) $values['actor_id'] === '') $values['actor_id'] = (string) ($target['row']['actor_id'] ?? $ctx->actor->id);
-        if (isset($values['expires_at']) && ($expires = self::expiry((string) $values['expires_at'])) !== null) {
-            $values['expires_at'] = gmdate('Y-m-d\TH:i:s\Z', $expires);
-        }
         // Unknowable placeholder until the real secret is issued in the same transaction.
         if (!$target) $values['token_hash'] = hash('sha256', random_bytes(32));
         return $values;
     }
 
-    /** A bare date means the end of that UTC day. */
+    /** The end of the date's UTC day. */
     private static function expiry(string $value): ?int
     {
-        if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}):(\d{2})Z)?$/D', $value, $parts) || !checkdate((int) $parts[2], (int) $parts[3], (int) $parts[1])) return null;
-        return isset($parts[4]) ? gmmktime((int) $parts[4], (int) $parts[5], (int) $parts[6], (int) $parts[2], (int) $parts[3], (int) $parts[1])
-            : gmmktime(23, 59, 59, (int) $parts[2], (int) $parts[3], (int) $parts[1]);
+        if (!Field::date($value)) return null;
+        [$year, $month, $day] = array_map('intval', explode('-', $value));
+        return gmmktime(23, 59, 59, $month, $day, $year);
     }
 
     private function issue(Context $ctx, string $id): array
@@ -110,6 +107,7 @@ final class ApiKeys
         return ['id' => $id, 'reveal' => [
             'label' => Translator::text('API-kulcs (egyszer jelenik meg)'),
             'value' => $secret,
+            'copy' => true,
             'note' => Translator::text('Használat: Authorization: Bearer <kulcs>. Csak a kiválasztott műveletekre, a tulajdonos API-jogosultságain belül érvényes.'),
         ]];
     }
