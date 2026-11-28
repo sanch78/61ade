@@ -15,12 +15,15 @@ let instances=0;
  * owner of attached elements are the page's, so the tab or section only frames it (framework-internal).
  */
 export type HeldRegion={cell:LayoutCell;status:CellStatus;signal:AbortSignal};
+/** A logical tab group's current selection and unanswered history guard across responsive recreation. */
+export type TabHistoryState={active:string;pending?:{to:string;answer:Promise<boolean>}};
 /** What a `PageLayout` hands the `Tabs` and `Accordion` of its branches (framework-internal). */
 export type Framed={
   /** The preference key, the page's own (`id.tabs-1`, below 768 px `id:narrow.tabs-1`): not a public id. */
   key:string;
   /** With `narrow`: the regions the page keeps across its arrangements. */
   held?:(id:string)=>HeldRegion|undefined;
+  history?:TabHistoryState;
 };
 
 /** Checks the declared tabs (1–12, unique ids `[a-z][a-z0-9_-]*`, plain-text labels of 1–80 characters); throws `TypeError`. */
@@ -60,6 +63,11 @@ export class Tabs extends Component<TabsEvents> implements TabsApi{
   /** A guarded change that the guard has allowed: the next `beforeChange` for it passes. */
   private allowed?:string;
   private pending?:Promise<boolean>;
+  private historyGuard?:TabHistoryState["pending"];
+  /** Restoration uses the normal change event and preferences, without making another history entry. */
+  private restoring=false;
+  private historyAbort=new AbortController();
+  private writeHistory?: (value:string|null,options?:{replace?:boolean})=>void;
   private observer?:MutationObserver;
   /** Each tab's placeholder while it holds nothing. */
   private statuses=new Map<string,CellStatus>();
@@ -77,7 +85,8 @@ export class Tabs extends Component<TabsEvents> implements TabsApi{
     const key=framed?.key??options.id;
     if(key)this.preferences=new UiPreferences(context.user,key);
     const remembered=this.preferences?.tab();
-    const active=options.active??(remembered&&enabled.includes(remembered)?remembered:enabled[0]);
+    const previous=framed?.history;
+    const active=previous&&enabled.includes(previous.active)?previous.active:options.active??(remembered&&enabled.includes(remembered)?remembered:enabled[0]);
     const height=options.headerHeight===undefined?"var(--blade-header-row-size)":headerRowHeight(options.headerHeight);
     this.layout=new Layout(this.host,{type:"none",css:"blade-tabs",rows:[{id:this.prefix+"row",height,css:"blade-tabs__row"},
       {css:"blade-tabs__panels",rows:this.tabs.map(tab=>({id:this.cellId(tab.id),css:this.panelCss(tab.id===active)}))}]} as any);
@@ -91,8 +100,19 @@ export class Tabs extends Component<TabsEvents> implements TabsApi{
       const id=this.tabId(to),previous=this.tabId(from);
       this.show(id);
       this.preferences?.setTab(id);
+      if(!this.restoring)this.writeHistory?.(id);
       this.emit("change",{id,previous});
     });
+    if(options.history){
+      let initial=true;
+      this.writeHistory=options.history.host.selection(options.history.key,async(value,signal)=>{
+        const first=initial;initial=false;
+        const fallback=this.tabs.some(tab=>tab.id===active&&!tab.disabled)?active:this.tabs.find(tab=>!tab.disabled)!.id;
+        const target=value!==null&&this.tabs.some(tab=>tab.id===value&&!tab.disabled)?value:fallback;
+        await this.choose(target,true,signal,first&&!previous,first?previous?.pending:undefined);
+        return this.active();
+      },{signal:this.historyAbort.signal});
+    }
     this.bind(options.signal);
   }
   private panelCss(active:boolean):string{return active?"blade-tabs__panel":"blade-tabs__panel blade-tabs__panel--hidden";}
@@ -127,6 +147,7 @@ export class Tabs extends Component<TabsEvents> implements TabsApi{
   private beforeChange(to:string,from:string):boolean{
     if(this.destroyed)return false;
     if(this.allowed===to){this.allowed=undefined;return true;}
+    this.pending=undefined;this.historyGuard=undefined;
     const guard=this.options.guard;
     if(!guard||to===from)return true;
     let answer:boolean|Promise<boolean>;
@@ -135,13 +156,19 @@ export class Tabs extends Component<TabsEvents> implements TabsApi{
     if(answer instanceof Promise)void this.wait(answer,to);
     return false;
   }
-  private wait(answer:Promise<boolean>,to:string):Promise<boolean>{
+  private wait(answer:Promise<boolean>,to:string,restore=false,signal?:AbortSignal):Promise<boolean>{
+    if(restore)this.historyGuard={to,answer};
     const pending=this.pending=answer.then(ok=>{
-      if(!ok||this.destroyed||this.pending!==pending)return false;
-      this.allowed=to;this.tabbar.setActive(this.cellId(to));this.allowed=undefined;
+      if(!ok||this.destroyed||signal?.aborted||this.pending!==pending||this.known(to).disabled)return false;
+      this.historyGuard=undefined;
+      this.activate(to,restore);
       return this.active()===to;
     },error=>{console.error(error);return false;});
     return pending;
+  }
+  private activate(id:string,restore:boolean):void{
+    this.allowed=id;this.restoring=restore;
+    try{this.tabbar.setActive(this.cellId(id));}finally{this.allowed=undefined;this.restoring=false;}
   }
   private roles():void{
     const root=this.layout.getRootNode() as HTMLElement|null|undefined;
@@ -178,20 +205,26 @@ export class Tabs extends Component<TabsEvents> implements TabsApi{
    * Opens a tab as a click does: a disabled tab stays closed, the guard is asked first. Resolves whether the tab is
    * active afterwards; an undeclared id throws `Error`.
    */
-  select(id:string):Promise<boolean>{
+  select(id:string):Promise<boolean>{return this.choose(id);}
+  private choose(id:string,restore=false,signal?:AbortSignal,initial=false,resume?:TabHistoryState["pending"]):Promise<boolean>{
+    this.pending=undefined;this.historyGuard=undefined;
     const tab=this.known(id);
-    if(this.destroyed||tab.disabled)return Promise.resolve(false);
+    if(this.destroyed||tab.disabled||signal?.aborted)return Promise.resolve(false);
     if(this.active()===id)return Promise.resolve(true);
     const guard=this.options.guard;
-    if(guard){
+    if(guard&&!initial){
       let answer:boolean|Promise<boolean>;
-      try{answer=guard({from:this.active(),to:id});}catch(error){console.error(error);return Promise.resolve(false);}
-      if(answer instanceof Promise)return this.wait(answer,id);
+      try{answer=resume?.to===id?resume.answer:guard({from:this.active(),to:id});}catch(error){console.error(error);return Promise.resolve(false);}
+      if(answer instanceof Promise)return this.wait(answer,id,restore,signal);
       if(answer!==true)return Promise.resolve(false);
     }
-    this.allowed=id;this.tabbar.setActive(this.cellId(id));this.allowed=undefined;
+    this.activate(id,restore);
     return Promise.resolve(this.active()===id);
   }
+  /** Releases only the page binding before a PageLayout creates the other arrangement's group. */
+  releaseHistory():void{this.historyAbort.abort();this.writeHistory=undefined;this.pending=undefined;}
+  /** The state a responsive replacement needs to preserve an outstanding leave guard. */
+  historyState():TabHistoryState{return {active:this.active(),pending:this.historyGuard};}
   /** Changes a tab's label or disabled state; the active tab cannot be disabled (`Error`). */
   update(id:string,changes:{label?:string;disabled?:boolean}):void{
     const tab=this.known(id);
@@ -205,5 +238,5 @@ export class Tabs extends Component<TabsEvents> implements TabsApi{
     else if(changes.disabled===false)this.tabbar.enableTab(this.cellId(id));
     this.tabbar.paint();
   }
-  protected dispose():void{this.pending=undefined;this.observer?.disconnect();this.released.abort();for(const status of this.statuses.values())status.destroy();this.tabbar.destructor();this.layout.destructor();}
+  protected dispose():void{this.releaseHistory();this.observer?.disconnect();this.released.abort();for(const status of this.statuses.values())status.destroy();this.tabbar.destructor();this.layout.destructor();}
 }

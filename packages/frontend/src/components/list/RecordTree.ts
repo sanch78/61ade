@@ -190,7 +190,7 @@ export class NodeTree {
     return {rows:this.children(parent).map(id=>this.rows.get(id)!),cut:this.cut.has(parent)};
   }
   /** Keep the old frame usable during a cache miss; install the resolved path in one render. */
-  startAt(path:readonly string[],initial:Initial,remembered:Remembered,depth:number,snapshot?:TreeSnapshot,writeHistory=true):void{
+  startAt(path:readonly string[],initial:Initial,remembered:Remembered,depth:number,snapshot?:TreeSnapshot,writeHistory=true):Promise<void>{
     this.pathRead?.abort();this.warm?.abort();
     this.element.dataset.bladeEmpty=t("Betöltés…");
     const control=this.pathRead=this.linked(),signal=control.signal;
@@ -257,7 +257,7 @@ export class NodeTree {
         {expanded:keepExpansion?[...opened]:undefined,selected:target},false,writeHistory);
       this.save();
     };
-    this.settled=prepare().then(()=>{
+    return this.settled=prepare().then(()=>{
       if(snapshot&&!signal.aborted)this.check(preview&&this.interactions!==interactions?undefined:fresh);
     }).catch(async error=>{if(!signal.aborted){this.history(true);await this.failed(error);}}).finally(()=>{
       if(this.pathRead===control)this.pathRead=undefined;
@@ -428,13 +428,13 @@ export class NodeTree {
     return true;
   }
   /** Restores this page's history selection, keeping its current frame usable during missing-level reads. */
-  navigate(path:readonly string[]):void{
+  navigate(path:readonly string[]):void|Promise<void>{
     if(!this.cacheable)return;
     this.bulk?.abort();this.picks++;
     if(!path.length){
       this.cancelPath();
       this.choose(undefined,false);
-      if(!this.loaded.has(""))void this.start("none",{...(this.changed?{expanded:[...this.opened]}:{})},0);
+      if(!this.loaded.has(""))return this.start("none",{...(this.changed?{expanded:[...this.opened]}:{})},0);
       return;
     }
     if(path.every((id,index)=>this.exists(id)&&this.parentOf(id)===(index?path[index-1]:""))){
@@ -448,7 +448,7 @@ export class NodeTree {
     const remembered:Remembered={...(this.changed?{expanded:[...this.opened]}:{}),selected:this.current};
     const snapshot:TreeSnapshot={branches:[...this.loaded].map(parent=>[parent,this.branch(parent)]),
       closedBranches:[...this.closedBranches],opened:[...this.opened],scrollTop:this.scrollTop,preferences:""};
-    this.startAt(path,"none",remembered,0,snapshot,false);
+    return this.startAt(path,"none",remembered,0,snapshot,false);
   }
   /** Clears the selection (reported when there was one). */
   clear():void{this.choose(undefined);}
@@ -914,7 +914,10 @@ export class RecordTree extends Component<TreeEvents> implements TreeApi{
     }
     const noSelection=history?.initial!==undefined&&history.initial.length===0;
     const mountInitial=noSelection?"none":initial,mountRemembered=noSelection?{...remembered,selected:undefined}:remembered;
-    if(path)this.nodes.startAt([...path],mountInitial,mountRemembered,depth,snapshot);
+    if(path){
+      const load=this.nodes.startAt([...path],mountInitial,mountRemembered,depth,snapshot);
+      history?.loading(load);
+    }
     else if(snapshot)this.nodes.restore(snapshot,mountInitial,mountRemembered);
     else void this.nodes.start(mountInitial,mountRemembered,depth);
     this.bind(options.signal);

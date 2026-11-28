@@ -107,6 +107,7 @@ e-mail codes, SMTP/DB credentials, raw bodies or secret field values.
 | Event | Category | State |
 | --- | --- | --- |
 | [View submenus](shell.md#submenus-within-view-groups) | UI navigation | Opening a branch changes only menu state. Selecting a leaf uses the view’s ordinary authorized reads. |
+| Page-owned row, scene or tab selection | UI navigation | A selection changes the page address. Row lookup uses the authorized list query. [Mounted page selections](toolkit.md#page-selections). |
 | Project-handled list activation (`preventDefault`) | UI navigation | Browser-only `ListView.activate`; no server operation or audit by itself; project actions retain their executor checks. |
 | Registered action success/deny/error, UI/API | Audit | Implemented, Executor. |
 | List action command caption override | Presentation | `Action::$commandLabel` changes metadata only; cell/form saves keep the same action, `saved` event and executor audit ([command captions](workspaces.md#action-command-label)). |

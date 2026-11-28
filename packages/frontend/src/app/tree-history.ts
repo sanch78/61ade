@@ -1,7 +1,7 @@
 import type { ViewHost } from "../api/types";
 
 /** A page owns the history entries of its mounted trees. Windows have no address. */
-type Entry = { path: string[]; restore(path: readonly string[]): void };
+type Entry = { path: string[]; pending?: Promise<void>; restore(path: readonly string[]): void | Promise<void> };
 type Page = { entries: Map<string, Entry>; write(url: URL, replace: boolean): void; current(): boolean };
 const pages = new WeakMap<ViewHost, Page>();
 
@@ -17,19 +17,32 @@ function samePath(left: readonly string[], right: readonly string[]): boolean {
   return left.length === right.length && left.every((id, index) => id === right[index]);
 }
 
-export function registerTreePage(host: ViewHost, current: Page["current"], write: Page["write"]): () => void {
+export function registerTreePage(host: ViewHost, current: Page["current"], write: Page["write"]): (beforeChange?: () => void) => void {
   const entries = new Map<string, Entry>();
   pages.set(host, { entries, current, write });
   host.signal.addEventListener("abort", () => pages.delete(host), { once: true });
-  return () => {
+  return beforeChange => {
     const params = new URLSearchParams(location.hash.slice(1));
     for (const [key, entry] of entries) {
       const path = readPath(params, key) ?? [];
       if (samePath(path, entry.path)) continue;
+      beforeChange?.();
+      beforeChange = undefined;
       entry.path = path;
-      entry.restore(path);
+      trackLoad(entry, entry.restore(path));
     }
   };
+}
+
+/** A linked list can bind while a lazy Tree is still showing the previous scope. */
+function trackLoad(entry: Entry, load: void | Promise<void>): void {
+  entry.pending = load || undefined;
+  if (load) void load.then(() => { if (entry.pending === load) entry.pending = undefined; });
+}
+
+export function pendingTreePaths(host: ViewHost): Promise<unknown> | undefined {
+  const pending = [...(pages.get(host)?.entries.values() ?? [])].flatMap(entry => entry.pending ?? []);
+  if (pending.length) return Promise.all(pending);
 }
 
 export function treeHistory(host: ViewHost, id: string, restore: Entry["restore"], signal: AbortSignal) {
@@ -43,6 +56,7 @@ export function treeHistory(host: ViewHost, id: string, restore: Entry["restore"
   signal.addEventListener("abort", () => page.entries.delete(key), { once: true });
   return {
     initial,
+    loading: (load: Promise<void>) => trackLoad(entry, load),
     write(path: readonly string[], replace: boolean): void {
       if (signal.aborted || !page.current()) return;
       const url = new URL(location.href), params = new URLSearchParams(url.hash.slice(1));

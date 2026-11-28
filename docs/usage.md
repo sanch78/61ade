@@ -845,6 +845,13 @@ the Tree's `id`. In the demo key browser select two keys, use browser Back
 and Forward, then reload or open the copied address in a new tab. Selection
 and details follow the address. [Tree history](toolkit.md#tree).
 
+Within the same view and record, use `host.selection` for an addressable row
+or logical selection. Restore a row with `list.select(id, {signal})`. Tabs
+can bind their active tab directly, including responsive PageLayout groups.
+In the demo playlist editor, choose a library asset, open settings and
+choose another asset. Back and Forward restore each combination.
+[Consumer examples and limits](toolkit.md#page-selections).
+
 A breadcrumb that opens a node passes its root-to-node IDs to `initialPath`
 and uses the ordinary Tree's stable `id`. The selected row comes into view,
 including when the target was under a previously loaded, closed folder.

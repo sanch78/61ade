@@ -46,7 +46,7 @@ function editor(app: Application, host: ViewHost, view: ViewDefinition<EditorOpt
 
   // Released after the components in its cells (registered last, below), as the Layout recipe requires.
   // The right column is a `tabs` branch (Összesítés | Lista beállításai): leaving unsaved settings asks first.
-  const page = new app.components.PageLayout({ id: view.id, tree: view.options.layout,
+  const page = new app.components.PageLayout({ id: view.id, tree: view.options.layout, history: host.open === "page" ? host : undefined,
     guard: ({ from }) => from !== "settings" || !settingsForm?.dirty() || app.ui.dialog({ mode: "confirm", severity: "warning",
       title: t("Nem mentett módosítások"), message: t("A lista beállításainak nem mentett módosításai elvesznek."), confirmLabel: t("Elvetés") }) });
   host.attach(page);
@@ -62,6 +62,14 @@ function editor(app: Application, host: ViewHost, view: ViewDefinition<EditorOpt
     options: { ...library.options, rowNumbers: false, search: undefined, commands: undefined, activate: undefined, subview: undefined,
       columns: library.options.columns.filter(column => LIBRARY_COLUMNS.includes(column.id)).map(column => ({ ...column, editable: false })) } } }) : undefined;
   source?.mount(page.cell("library"));
+  if (source && host.open === "page") {
+    const writeAsset = host.selection("asset", async (id, signal) => {
+      await source.select(id, { signal });
+      const row = source.selected();
+      return row ? String(row.id) : null;
+    });
+    source.on("select", ({ row, user }) => { if (user) writeAsset(row ? String(row.id) : null); }, { signal });
+  }
 
   const list = new app.components.ListView({ showId: false, view: itemsView, scope: { field: itemsView.options.subview?.field ?? "playlist_id", id: playlist }, signal });
   list.mount(page.cell("items"));

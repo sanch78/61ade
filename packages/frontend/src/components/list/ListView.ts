@@ -55,6 +55,7 @@ export class ListView extends Component<ListViewEvents> implements ListViewApi{
   editing():boolean{return !this.destroyed&&!!this.workspace?.editing();}
   refresh():void{if(!this.destroyed)this.workspace?.refresh();}
   selected():Row|undefined{return this.destroyed?undefined:this.workspace?.selectedRow();}
+  select(id:string|number|null,options?:{signal?:AbortSignal}):Promise<boolean>{return this.destroyed?Promise.resolve(false):this.workspace?.select(id,options)??Promise.resolve(false);}
   target(){return this.destroyed?undefined:this.workspace?.target();}
   setFilters(filters:Record<string,string>):void{if(!this.destroyed)this.workspace?.setFilters(filters);}
   protected dispose():void{if(this.navigation)this.navigation.destroy();else this.workspace?.destroy();}

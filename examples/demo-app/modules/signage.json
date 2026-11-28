@@ -679,6 +679,7 @@
                                 },
                                 {
                                     "width": 340,
+                                    "historyKey": "panel",
                                     "tabs": [
                                         {
                                             "id": "details",

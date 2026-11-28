@@ -1091,7 +1091,9 @@ Back/Forward, the shell resolves it through the current permission-filtered
 view whose kind is not registered give an empty workspace. Filter presets apply
 once and leave the address (`history.replaceState`). An address without
 presets that names the open page (view and record) keeps it mounted.
-Navigation never writes data.
+Page-owned `select.<key>` values and addressable Tree paths stay in the
+fragment through history traversal and filter preset consumption.
+[Mounted page selections](toolkit.md#page-selections). Navigation never writes data.
 
 - **Only `#view=`:** any other fragment, such as the removed
   `#feature=<resource>`, names no view and gives the empty workspace; it is
@@ -1376,7 +1378,7 @@ below the menu row, across the full width, before the workspace
      action, such as switching to its first tab. A call without `back`
      removes that action. Calls from a window or a closed view leave the
      active page's action as it is.
-  2. Within a page, a history entry created by a [Tree selection](toolkit.md#tree)
+  2. Within a page, a history entry created by a [page selection](toolkit.md#page-selections), a [Tree selection](toolkit.md#tree)
      or a [record switch](toolkit.md#views) goes back to the preceding selection.
   3. PHP `View(locationBackTarget: 'demo_tasks')` (also
      `->with(locationBackTarget: …)`) or JSON `location_back_target` in

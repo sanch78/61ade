@@ -16,7 +16,8 @@ import type { AppWindow, LocationSegment, NavigationTarget, Row, ViewDefinition,
 import { createApplication, loadModules, type Kernel } from "./app/Application";
 import { CellStatus } from "./components/CellStatus";
 import { TreeCache } from "./components/list/TreeCache";
-import { registerTreePage } from "./app/tree-history";
+import { PageSelections } from "./app/page-selections";
+import { pendingTreePaths, registerTreePage } from "./app/tree-history";
 import { parseRoute, routeHash } from "./app/routes";
 import { loadSignInModules, signInApplication, signInThemeApplied } from "./SignIn";
 import { brandLogo } from "./BrandLogo";
@@ -31,7 +32,8 @@ type Mounted = { view: ViewDefinition; record?: ViewHost["record"]; open: ViewOp
   location?: Place[];
   /** `setLocation(…, {from: "root"})`: `location` is the whole bar, without the menu path and the parents; empty, no level. */
   whole?: boolean;
-  restoreTrees?: () => void;
+  restoreTrees?: (beforeChange?: () => void) => void;
+  selections?: PageSelections;
   /** A Back action for the current levels of this page. */
   back?: () => void;
   /** A record page: its resolved parent records (`ViewDefinition.parent`), the root first, each with its record view. */
@@ -186,19 +188,20 @@ export class AdminShell {
     this.track(within);
     if (view && !presets && this.page?.view === view && this.page.record?.id === record) {
       this.settle(++this.navigation);
-      this.page.restoreTrees?.();
+      this.page.restoreTrees?.(() => this.page?.selections?.cancel());
+      this.page.selections?.restore();
       this.locate();
       return;
     }
     if (view && presets) {
       const url = new URL(location.href), params = new URLSearchParams(routeHash({ view: view.id, record }));
       new URLSearchParams(url.hash.slice(1)).forEach((value, key) => {
-        if (key.startsWith("tree.")) params.append(key, value);
+        if (key.startsWith("tree.") || key.startsWith("select.")) params.append(key, value);
       });
       url.hash = params.toString();
       history.replaceState(history.state, "", url);
     }
-    if (view && this.openable(view, record)) void this.openView(view, { record, filters: route.filters });
+    if (view && this.openable(view, record)) void this.openView(view, { record, filters: route.filters, previousURL: event?.oldURL });
     else this.clear();
   };
   /** In-app history depth of the current entry; history Back is available above 0. */
@@ -901,7 +904,7 @@ export class AdminShell {
    * record resource's `get`, for a page under the workspace's loading indicator; its failure shows the error dialog and
    * keeps the current view.
    */
-  private async openView(view:ViewDefinition,options:{record?:string;filters?:Record<string,string>;open?:ViewOpenMode;push?:boolean}={}):Promise<void>{
+  private async openView(view:ViewDefinition,options:{record?:string;filters?:Record<string,string>;open?:ViewOpenMode;push?:boolean;previousURL?:string}={}):Promise<void>{
     const open=options.open??view.open??"page",kind=this.kernel!.kinds.get(view.kind)!;
     const navigation=open==="page"?++this.navigation:this.navigation;
     const page=this.page;
@@ -912,9 +915,11 @@ export class AdminShell {
       // A click can return to the visible record while a hash navigation is still resolving.
       const route=parseRoute(location.hash);
       if(options.push&&(route.view!==view.id||route.record!==options.record))this.pushRecord(view,options.record);
+      reuse.selections?.restore();
       return;
     }
     if(open==="page"){
+      page?.selections?.cancel();
       if(!reuse&&view.record&&options.record!==undefined){
         (this.opening??=new CellStatus(this.layout.getCell("workspace"))).busy(true);
         // The address may already be another history entry (Back): the bar's Back button follows it.
@@ -929,10 +934,13 @@ export class AdminShell {
           if(open==="page")this.settle(navigation);
           if(reuse&&!options.push){
             const url=new URL(location.href);
-            url.hash=routeHash({view:view.id,record:reuse.record?.id});
+            const previous=options.previousURL&&new URL(options.previousURL);
+            const from=previous&&parseRoute(previous.hash);
+            url.hash=previous&&from&&from.view===view.id&&from.record===reuse.record?.id?previous.hash:routeHash({view:view.id,record:reuse.record?.id});
             history.replaceState(history.state,"",url);
             this.locate();
           }
+          if(open==="page")page?.selections?.restore();
           await this.failed(error);
         }
         return;
@@ -950,6 +958,8 @@ export class AdminShell {
       try{
         reuse.instance.setRecord(record);
         if(this.page!==reuse||reuse.record!==record)return;
+        reuse.restoreTrees?.();
+        reuse.selections?.restore();
         this.locate();
         this.renderMenu();
         if(view.parent)void this.locateParents(reuse,record.row);
@@ -1004,6 +1014,10 @@ export class AdminShell {
         if(!mounted.wrapper){mounted.wrapper=new DesktopOnly(view.title);attachContent(mounted.wrapper.cell,content,signal);cell.attach(mounted.wrapper.layout);}
         else attachContent(mounted.wrapper.cell,content,signal);
       },
+      selection:(...args:Parameters<ViewHost["selection"]>)=>{
+        if(!mounted.selections)throw new TypeError("61ade: selection requires a page host.");
+        return mounted.selections.bind(...args);
+      },
       setTitle:(text:string)=>{if(!signal.aborted)mounted.window?.setTitle(String(text));},
       setLocation:(segments:LocationSegment[],options?:Parameters<ViewHost["setLocation"]>[1])=>{
         const places=this.places(segments),from=options?.from??"page",back=options?.back;
@@ -1023,11 +1037,13 @@ export class AdminShell {
         const route = parseRoute(location.hash);
         return this.page === mounted && route.view === view.id && (!view.record || route.record === mounted.record?.id);
       };
-      mounted.restoreTrees = registerTreePage(host, current, (url, replace) => {
+      const write = (url:URL, replace:boolean) => {
         if (replace) history.replaceState(history.state, "", url);
         else this.push(url,view.id);
         this.locate();
-      });
+      };
+      mounted.restoreTrees = registerTreePage(host, current, write);
+      mounted.selections = new PageSelections(current, write, () => pendingTreePaths(host), error => void this.failed(error), signal);
     }
     try{
       const instance=await kind.create(host,view);

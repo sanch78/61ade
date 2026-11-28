@@ -1112,6 +1112,7 @@ function editor(app, host, view) {
   const page2 = new app.components.PageLayout({
     id: view.id,
     tree: view.options.layout,
+    history: host.open === "page" ? host : void 0,
     guard: ({ from }) => from !== "settings" || !settingsForm?.dirty() || app.ui.dialog({
       mode: "confirm",
       severity: "warning",
@@ -1141,6 +1142,16 @@ function editor(app, host, view) {
     }
   } }) : void 0;
   source?.mount(page2.cell("library"));
+  if (source && host.open === "page") {
+    const writeAsset = host.selection("asset", async (id, signal2) => {
+      await source.select(id, { signal: signal2 });
+      const row = source.selected();
+      return row ? String(row.id) : null;
+    });
+    source.on("select", ({ row, user }) => {
+      if (user) writeAsset(row ? String(row.id) : null);
+    }, { signal });
+  }
   const list = new app.components.ListView({ showId: false, view: itemsView, scope: { field: itemsView.options.subview?.field ?? "playlist_id", id: playlist2 }, signal });
   list.mount(page2.cell("items"));
   const details = new app.components.RecordDetails({ view: listView, record: host.record.row, showId: false, signal });

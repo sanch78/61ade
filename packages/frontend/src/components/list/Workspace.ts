@@ -55,6 +55,8 @@ export class Workspace implements ActionHost {
   private commands:ResponsiveToolbar;
   private content?:Layout;
   rows:Row[]=[];
+  /** Query that produced the visible rows; filters/sort may already describe an in-flight replacement. */
+  private rowsQuery?:string;
   selected?:string;
   private previous:string|null=null;
   private next:string|null=null;
@@ -65,6 +67,8 @@ export class Workspace implements ActionHost {
   disposed=false;
   private epoch=0;
   private abort?:AbortController;
+  /** An explicit row lookup shares the load epoch, so a later query or cursor movement can replace it. */
+  private selecting?:AbortController;
   detail?:Form;
   private details:DetailsWindow;
   private actions:ListActions;
@@ -151,9 +155,10 @@ export class Workspace implements ActionHost {
       if(search)this.search=new ListSearch(this.content.getCell("search"),()=>void this.load());
       const dataHost=document.createElement("div");
       this.grid=new ResponsiveGrid(dataHost,view.columns,()=>this.rows,(id)=>{
+        this.cancelSelection(true);
         this.selected=id;this.delegated=undefined;this.capabilities();
         scope?.shared?.(this,this.selectedRow());
-        this.hooks.emit?.("select",{row:this.selectedRow()});
+        this.hooks.emit?.("select",{row:this.selectedRow(),user:true});
       },()=>{
         const row=this.selectedRow();
         if(row)this.activate(row);else if(this.selected)void this.showResults(this.selected);
@@ -302,6 +307,7 @@ export class Workspace implements ActionHost {
     const scope=this.scope?{field:this.scope.field,value:this.scope.id}:roots?{field:parent,value:""}:undefined;
     const search=this.search?.value??"";
     return {filters:{...(roots&&this.scope?{[parent]:""}:{}),...this.filters},...(scope?{scope}:{}),...(search?{search}:{})};}
+  private queryKey():string{return JSON.stringify({sort:this.sort,...this.query()});}
   private fitObserver?:ResizeObserver;
   /**
    * A compact preview reports the height its records need: its own frame (layout borders) plus the measured table,
@@ -502,6 +508,111 @@ export class Workspace implements ActionHost {
   }
   /** The cursor record. */
   selectedRow():Row|undefined{return this.rows.find(r=>String(r.id)===this.selected);}
+  private cancelSelection(resume=false):void{
+    if(!this.selecting)return;
+    this.selecting.abort();
+    this.selecting=undefined;
+    this.epoch++;
+    this.busy=false;
+    this.status?.busy(false);
+    if(resume){
+      if(!this.rows.length||this.rowsQuery!==this.queryKey())void this.load();
+      else this.watch();
+    }
+  }
+  /** Selects a stable ID through the ordinary authorized query; only the matching page replaces the visible rows. */
+  async select(id:string|number|null,options?:{signal?:AbortSignal}):Promise<boolean>{
+    const signal=options?.signal;
+    if(signal!==undefined&&!(signal instanceof AbortSignal))throw new TypeError("61ade: ListView.select signal must be an AbortSignal.");
+    if(id!==null&&(typeof id!=="string"&&typeof id!=="number"||typeof id==="number"&&!Number.isSafeInteger(id)))throw new TypeError("61ade: ListView.select needs a string or safe-integer record ID, or null.");
+    if(this.disposed||!this.grid||this.scope?.select===false||signal?.aborted)return false;
+    const unsupported=typeof id==="string"&&!/^[a-zA-Z0-9_.:-]{1,100}$/.test(id);
+    this.cancelSelection(id===null||unsupported);
+    if(unsupported)return false;
+    if(id===null){
+      const changed=this.selected!==undefined;
+      this.selected=undefined;
+      this.delegated=undefined;
+      this.grid.restore(this.grid.capture(),true);
+      this.capabilities();
+      this.scope?.shared?.(this,undefined);
+      if(changed)this.hooks.emit?.("select",{row:undefined,user:false});
+      return true;
+    }
+    const key=String(id),query=this.queryKey(),reuse=this.rowsQuery===query;
+    const epoch=++this.epoch,controller=new AbortController();
+    this.abort?.abort();
+    this.abort=this.selecting=controller;
+    this.busy=true;
+    this.status?.busy(true);
+    const cancel=()=>{
+      if(this.selecting===controller)this.cancelSelection(true);
+      else controller.abort();
+    };
+    signal?.addEventListener("abort",cancel,{once:true});
+    const current=()=>!this.disposed&&epoch===this.epoch&&!controller.signal.aborted;
+    let received=false;
+    try{
+      let rows=this.rows;
+      let data:Snapshot|undefined;
+      if(!reuse||!rows.some(row=>String(row.id)===key)){
+        let token:string|null=null;
+        const seen=new Set<string>();
+        do{
+          const page:Snapshot=await this.call("list",null,{mode:"dynamic",numbered:this.view.rowNumbers!==false,limit:100,sort:this.sort,...(token?{cursor:token}:{}),...this.query()},controller.signal);
+          data=page;
+          received=true;
+          if(!current())return false;
+          // A lookup requested before the initial read finishes still paints the ordinary first page. If the ID is
+          // unavailable (or the caller cancels a later page), the list remains usable at its default position.
+          if(token===null&&(!this.rows.length||!reuse)){
+            this.rowsQuery=query;
+            this.counts(page);
+            this.previous=page.previous;
+            this.next=page.next;
+            await this.render(page.items,false);
+            if(!current())return false;
+          }
+          rows=page.items;
+          if(rows.some(row=>String(row.id)===key))break;
+          token=page.next;
+          if(token&&seen.has(token))return false;
+          if(token)seen.add(token);
+        }while(token);
+        if(!rows.some(row=>String(row.id)===key))return false;
+      }
+      if(!current())return false;
+      if(data&&rows!==this.rows){
+        this.rowsQuery=query;
+        this.counts(data);
+        this.previous=data.previous;
+        this.next=data.next;
+        await this.render(rows,false);
+      }
+      else await awaitRedraw();
+      if(!current())return false;
+      const changed=this.selected!==key;
+      this.selected=key;
+      this.delegated=undefined;
+      this.grid.restore({id:key,offset:0,x:this.grid.capture().x,y:0},true,key);
+      this.capabilities();
+      this.scope?.shared?.(this,this.selectedRow());
+      if(changed)this.hooks.emit?.("select",{row:this.selectedRow(),user:false});
+      return true;
+    }catch(error){
+      if(current()&&!(error instanceof DOMException&&error.name==="AbortError"))await this.error(error);
+      return false;
+    }finally{
+      signal?.removeEventListener("abort",cancel);
+      if(this.selecting===controller)this.selecting=undefined;
+      if(epoch===this.epoch){
+        this.busy=false;
+        this.status?.busy(false);
+        if(!received&&!this.rows.length)void this.load();
+        else this.watch();
+      }
+    }
+  }
   private capabilities():void{
     const marked=this.grid?.markedIds??[];
     // Several marks make single-record commands ambiguous: only bulk-capable actions and create stay available.
@@ -586,15 +697,18 @@ export class Workspace implements ActionHost {
     return state?.view===this.view.id&&state.sort?.field===this.sort.field&&state.sort.direction===this.sort.direction?state:undefined;
   }
   async load():Promise<boolean>{
+    this.selecting=undefined;
     const epoch=++this.epoch;this.abort?.abort();this.abort=new AbortController();this.busy=true;this.status?.busy(true);
     const back=this.returned();
     try{
       if(this.view.singleton){const row=await this.call("get","self",{},this.abort.signal);if(this.disposed||epoch!==this.epoch)return false;this.rows=[row];this.selected=String(row.id);await this.mountDetail(row);this.reportRows();}
       else{
         // Back to a page left deep in its list: the window starts at its visible record, the rows above it follow.
+        const query=this.queryKey();
         const data:Snapshot=await this.call("list",null,{mode:"dynamic",numbered:this.view.rowNumbers!==false,limit:100,sort:this.sort,...(back?.anchor?{cursor:back.anchor}:{}),...this.query()},this.abort.signal);
-        if(this.disposed||epoch!==this.epoch)return false;this.counts(data);this.previous=data.previous;this.next=data.next;await this.render(data.items,false,back);
+        if(this.disposed||epoch!==this.epoch)return false;this.rowsQuery=query;this.counts(data);this.previous=data.previous;this.next=data.next;await this.render(data.items,false,back);
       }
+      if(this.disposed||epoch!==this.epoch)return false;
       this.watch();return true;
     }catch(e){
       if(!this.disposed&&epoch===this.epoch&&!(e instanceof DOMException&&e.name==="AbortError")){
@@ -627,7 +741,7 @@ export class Workspace implements ActionHost {
   /** $back: the kept position of a list left for a page; its record, when listed, is shown where it was, its cursor kept. */
   private async render(rows:Row[],preserve:boolean,back?:ReturnState):Promise<void>{
     if(!this.grid)return;
-    this.rendering=true;
+    const epoch=this.epoch;this.rendering=true;
     const kept=back&&rows.some(row=>String(row.id)===back.position.id)?back:undefined,restored=!!kept?.selected&&rows.some(row=>String(row.id)===kept.selected);
     if(restored)this.selected=kept!.selected;
     const position=kept?kept.position:this.grid.capture();
@@ -640,13 +754,13 @@ export class Workspace implements ActionHost {
     // A preview holding the parent's toolbar reports its refreshed (or vanished) cursor record.
     this.capabilities();this.scope?.shared?.(this,this.selectedRow(),true);await awaitRedraw();
     this.headerFilters();
-    if(this.disposed)return;
+    if(this.disposed||epoch!==this.epoch){this.rendering=false;return;}
     this.grid.restore(position,preserve||!!kept,this.selected);
     this.rendering=false;
     this.showStatus();
     this.fitPreview();
-    if(left)this.hooks.emit?.("select",{row:undefined});
-    if(restored){this.capabilities();this.hooks.emit?.("select",{row:this.selectedRow()});}
+    if(left)this.hooks.emit?.("select",{row:undefined,user:false});
+    if(restored){this.capabilities();this.hooks.emit?.("select",{row:this.selectedRow(),user:false});}
     this.reportRows();
   }
   /** The empty result's text: none with rows, another one while a filter or the search narrows the list. */
@@ -688,7 +802,14 @@ export class Workspace implements ActionHost {
     this.layout.getCell("detail").attach(form);this.capabilities();
   }
   private showResults(id:string):Promise<void>{return this.details.show(id);}
-  private revoke():void{this.actions.revoke();this.detailFiles?.destroy();this.cardEditor?.destructor();this.cardEditor=undefined;this.cellEditing=false;this.details.close();this.rows=[];this.grid?.setRows([]);this.status?.text(t("Az elemek nem érhetők el."),"error");this.detail?.clear();this.detail?.disable();this.capabilities();this.reportRows();}
+  private revoke():void{
+    this.epoch++;
+    this.abort?.abort();
+    this.selecting=undefined;
+    this.busy=false;
+    this.status?.busy(false);
+    this.actions.revoke();this.detailFiles?.destroy();this.cardEditor?.destructor();this.cardEditor=undefined;this.cellEditing=false;this.details.close();this.rows=[];this.grid?.setRows([]);this.status?.text(t("Az elemek nem érhetők el."),"error");this.detail?.clear();this.detail?.disable();this.capabilities();this.reportRows();
+  }
   /** Releases everything, including open sub-view windows and dialogs; idempotent. */
   destroy():void{
     if(this.disposed)return;

@@ -889,6 +889,15 @@ export interface ViewHost {
    * the previous action. When omitted, the button uses the view's configured Back target or the tab's in-app history.
    */
   setLocation(segments: LocationSegment[], options?: { from?: "page" | "root"; back?: () => void }): void;
+  /**
+   * Binds one page-owned `select.<key>` fragment parameter. Restore runs immediately, on traversal and
+   * after an in-place record switch. Null means no supplied value. Return the accepted value (including
+   * a default or a guarded fallback) to replace the current address. Observe the signal before applying
+   * async results. Call the returned writer after a deliberate change to push, or pass {replace:true}.
+   * A component signal releases the key for a replacement component. Page hosts only.
+   */
+  selection(key: string, restore: (value: string | null, signal: AbortSignal) => string | null | Promise<string | null>,
+    options?: { signal?: AbortSignal }): (value: string | null, options?: { replace?: boolean }) => void;
   /** Closes this view: a window closes; a page returns to the empty workspace. */
   close(): void;
 }
@@ -1674,8 +1683,8 @@ export interface ListTarget {
 
 /** Events of `ListView`. */
 export interface ListViewEvents {
-  /** The cursor record changed (`undefined`: none). */
-  select: { row: Row | undefined };
+  /** The cursor record changed (`undefined`: none); `user` is true for a deliberate pointer or keyboard selection. */
+  select: { row: Row | undefined; user: boolean };
   /**
    * The active record context changed: selection, marks, selected-record data, preview delegation or a sub-view
    * window opening/closing. Delivered after the current synchronous updates; `target()` returns the same state.
@@ -1708,6 +1717,12 @@ export interface ListView extends Component<ListViewEvents> {
   refresh(): void;
   /** The cursor record. */
   selected(): Row | undefined;
+  /**
+   * Selects and shows an ID (null clears); uses the current authorized sort, filters and scope, paging lazily when
+   * needed. False when unavailable, cancelled, superseded, non-selectable or destroyed; missing rows keep the prior
+   * selection. Emits select/target, never activate or marks. A later query, selection or destroy supersedes it.
+   */
+  select(id: string | number | null, options?: SignalOptions): Promise<boolean>;
   /** Active context, including sub-views; undefined after destroy or before a tree node creates its list. */
   target(): ListTarget | undefined;
   /** Replaces the filters (declared filters only; other fields are ignored) and reloads. */
@@ -2509,6 +2524,8 @@ export interface PageRegion {
   cols?: PageRegion[];
   /** Tabbed leaves (`app.components.Tabs`); the last active tab is kept per page and user. */
   tabs?: PageRegion[];
+  /** A `tabs` branch's logical selection key with `PageLayoutOptions.history`; use the same key across arrangements. */
+  historyKey?: string;
   /** Stacked collapsible leaves (`app.components.Accordion`); the open sections are kept per page and user. */
   accordion?: PageRegion[];
   /**
@@ -2541,6 +2558,8 @@ export interface PageLayoutOptions extends ComponentOptions {
   tree: PageRegion;
   /** The guard of every `tabs` branch (`TabsOptions.guard`, with the region ids as `from` and `to`). */
   guard?: TabsOptions["guard"];
+  /** Binds branches with a `historyKey` to this page's selection history, including after a viewport switch. */
+  history?: ViewHost;
   /**
    * The tree below 768 px (docs/toolkit.md#pagelayout-narrow): the same leaf regions (ids) as `tree` in another
    * arrangement, typically `tabs` or `rows` for side-by-side columns. Crossing the width rebuilds the panels in place and
@@ -2710,6 +2729,8 @@ export interface TabsOptions extends ComponentOptions {
    * keeps the current tab. A pending answer holds the change; a throw keeps the current tab and is logged.
    */
   guard?: (change: { from: string; to: string }) => boolean | Promise<boolean>;
+  /** Address the active tab through the owning page's selection key; URL state precedes the remembered tab. */
+  history?: { host: ViewHost; key: string };
 }
 
 /** Events of `Tabs`. */

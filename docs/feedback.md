@@ -3756,3 +3756,36 @@ Managed-demo checks at 1366 and 390 px switched between service record URLs,
 used Back and Forward and reloaded. They checked the shown record, location
 bar and identity of the layout elements. A delayed response for an older
 selection left the newer record on screen.
+
+<a id="fb-0280"></a>
+
+## FB-0280 — Addressable selections inside a mounted page
+
+A row, a logical subject such as a scene, and an active tab can each own
+a selection key on the same page. A deliberate change records the complete
+combination. Back and Forward apply it to the mounted layout. A copied
+address carries the combination into a new browser context. The page
+validates its subjects and decides which interactions enter history.
+
+The playlist editor binds its asset-library cursor and its settings tab.
+A list can restore an ID outside its loaded window using the same scoped
+list query. Tabs preserve their leave guard during traversal, and a
+responsive PageLayout can reuse the group's key when it recreates the tabs.
+[Public contract and examples](toolkit.md#page-selections).
+
+On the managed demo, the playlist editor restored asset A/details,
+A/settings and B/settings in both directions with the same layout and
+library panel. A repeated click kept the history length. Reload and a
+fresh signed-in context with empty browser storage restored B/settings.
+Cancelling Back from dirty settings kept the tab and its draft.
+
+At 1366 and 390 px, browser checks exercised logical selections, explicit
+URL values over preferences, superseded restores and responsive tabs.
+A pending tab guard survived a breakpoint change. Off-page list checks
+followed the readings list's actual server cursors under its sort and
+filter, retained the cursor for a missing ID, and used delayed fixture
+responses to verify that a newer choice wins.
+
+The key browser restored the Desktop Tree path and its scoped Wallpaper
+value from a copied link. Record navigation through `setRecord` also
+restored a logical selection and tab on the existing layout.

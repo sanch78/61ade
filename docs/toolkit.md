@@ -898,7 +898,7 @@ bar.on("click", ({ id }) => id === "play" && player.play());
 
 | Component | Wraps | Events / methods |
 | --- | --- | --- |
-| [`ListView`](#listview) | `Workspace` (split into `src/components/list/*`) | `select`, `target`, `activate`, `saved`, `changed`, `toggle`; `editing`, `refresh`, `selected`, `target`, `setFilters` |
+| [`ListView`](#listview) | `Workspace` (split into `src/components/list/*`) | `select`, `target`, `activate`, `saved`, `changed`, `toggle`; `editing`, `refresh`, `selected`, `select`, `target`, `setFilters` |
 | [`RecordForm`](#recordform) | workspace action forms, `FormValidation`, `FileFields` | `saved`, `cancelled`, `changed`; `submit`, `values`, `dirty` |
 | [`SettingsForm`](#settingsform) | the `RecordForm` field factory (`fields.ts`), `FormValidation`, native Suite Form items, `UiPreferences` (with `key`) | `change`, `submit`; `values`, `setValues`, `set`, `reset`, `update`, `validate` |
 | [`RecordDetails`](#recorddetails) | the `Adatok` details (`recordFields`) | `show(row \| id)` |
@@ -995,7 +995,9 @@ current.mount(layout.getCell("list"));
   [scope-only field](field-presentation.md#scope-only) (`scopeOnly`, JSON
   `scope_only`, [FB-0166](feedback.md#fb-0166)): a helper key the list is
   scoped on that no list surface offers (no column, details, filter or sort).
-- Events: `select` (cursor record, `undefined` when it leaves the window),
+- Events: `select` (cursor record, `undefined` when it leaves the window;
+  `user: true` for deliberate pointer/keyboard selection, `false` for restoration,
+  programmatic selection or a row leaving the window),
   `activate` (the resolved target of a double-click or Enter, reported before
   it runs; `details` also for a card or tile without a declared target; call
   `preventDefault()` synchronously to handle the activation in the project
@@ -1005,10 +1007,32 @@ current.mount(layout.getCell("list"));
   loaded window after a load, scroll window, live update or revocation, with
   the server's `total` and `matched`). These events stay local to the main
   list. `target` also follows nested previews and sub-view windows (below).
-- Methods: `editing()`, `refresh()`, `selected()`, `target()`, `setFilters(filters)`
+- Methods: `editing()`, `refresh()`, `selected()`, `select(id, options?)`, `target()`, `setFilters(filters)`
   (replaces all values; undeclared fields are ignored; `""` is a condition only
   for a select filter that declares an empty option, otherwise no filter,
   [header filters](workspaces.md#integrated-grid-header-filters)).
+- **Restore a cursor record:** `await list.select(id, {signal})` accepts a string
+  or safe-integer ID and selects and scrolls to that row; `select(null)` clears
+  the cursor. It returns `true` when applied, `false` for an unavailable ID
+  (missing, denied or outside the current filters/search/scope), cancellation,
+  a newer selection/query, a non-selectable list, a list whose navigation tree
+  has no active node, or a destroyed list. An unavailable ID preserves the
+  previous cursor and visible window of the same query. If filters or search
+  already changed, the first page of that new query replaces stale rows.
+  A lookup during the initial load still
+  paints the ordinary first page, so an unavailable ID leaves a usable list.
+  A successful change emits `select` with `user: false` and the ordinary
+  `target`; it never activates the row or marks it. A host recording deliberate
+  cursor movement while restoring its state checks `user` in `select`.
+  IDs outside the loaded window are found through sequential authorized
+  100-row list pages using the current server sort, filters, search and scope;
+  only one lookup page is retained at a time and only the matching page replaces
+  an existing window. Deep or missing IDs may require many requests; pass an
+  `AbortSignal` to limit a host's pending restoration. A later selection,
+  refresh/filter query or teardown supersedes the lookup, and a late response
+  cannot restore its old cursor. Unsupported ID strings resolve `false` (the
+  list protocol's IDs are 1–100 letters, digits, `_`, `.`, `:` or `-`);
+  wrong argument types or signals reject with `TypeError`.
 - **Loading and empty result** ([states](#loading-and-empty-states)): the list
   shows the loading indicator with `aria-busy` while it loads or reloads and
   says when it has no records (`emptyText` replaces that text) or no record
@@ -1862,7 +1886,7 @@ signal.addEventListener("abort", () => page.destroy(), { once: true });   // las
   preference key (usually the view id).
 - A `tabs` branch is a [`Tabs`](#tabs) in its place: 1–12 leaves, each a tab
   with its `id` and a `header` (the tab's label, 1–80 characters) and no
-  other option; the branch itself takes the sizes and `resizable` only (no
+  other option; the branch itself takes the sizes, `resizable` and optional `historyKey` (no
   header, no collapsing). `cell(id)` and `attach(id, …)` of a tab region work
   like any region's; `tabsOf(id)` returns the `Tabs` of the branch holding
   region `id` (to `select` a tab or follow `change`), otherwise `undefined`.
@@ -1880,6 +1904,27 @@ signal.addEventListener("abort", () => page.destroy(), { once: true });   // las
     guard: ({ from }) => from !== "settings" || !settings?.dirty() || app.ui.dialog({ mode: "confirm", severity: "warning",
       title: t("Nem mentett módosítások"), message: t("A lista beállításainak nem mentett módosításai elvesznek."), confirmLabel: t("Elvetés") }) });
   ```
+
+  **Browser history is opt-in.** Set `PageLayoutOptions.history: host` and
+  `historyKey` on each addressed `tabs` branch. The key is a unique page
+  selection key (`[a-z][a-z0-9_.-]*`, at most 80 characters), independent of
+  the branch's position or preference key. Other branches keep their existing preference behavior.
+  Use the same logical key in `tree` and `narrow` when they represent the
+  same selection:
+
+  ```ts
+  const page = new app.components.PageLayout({ id: view.id, history: host,
+    tree: { tabs: [{ id: "work", header: t("Munka") }, { id: "rules", header: t("Szabályok") }], historyKey: "workbench" },
+    narrow: { tabs: [{ id: "work", header: t("Munka") }, { id: "rules", header: t("Szabályok") }], historyKey: "workbench" } });
+  ```
+
+  The recreated group binds automatically on a viewport switch and keeps an
+  unanswered history guard when the same logical group remains. A key whose
+  group is absent from an arrangement stays in the URL for its return. If
+  the addressed tab is unavailable in a present group, that group uses its
+  initial tab and replaces the value; use separate keys when the groups
+  represent different choices. A duplicate key within one tree, or a
+  `historyKey` on anything other than a `tabs` branch, throws `TypeError`.
 - An `accordion` branch is an [`Accordion`](#accordion) in its place: 1–12
   leaves, each a section with its `id`, a `header` (the section's label, 1–80
   characters) and optionally `open: true` (open at first); the branch takes
@@ -2145,6 +2190,17 @@ tabs.on("change", ({ id }) => {
   else keeps the current tab, and a pending answer holds the change. A throw
   keeps the current tab and is logged. The guard does not run when the
   component (or its window) is destroyed.
+- **Browser history:** `history: {host, key}` binds the active tab to a
+  logical selection of the current page. The URL takes precedence over
+  `active` and preferences; without a valid enabled URL tab, the initial
+  tab applies. Initialization replaces the current entry. Each changed
+  tab adds one entry; selecting the open tab adds none. Back, Forward,
+  reload and copied links restore the tab while keeping the mounted
+  panels. History traversal asks the ordinary guard; a refused change
+  keeps the current tab and corrects that entry's URL. Restoration and
+  invalid values create no extra entry. The first addressed tab does not
+  ask the guard. The key follows `ViewHost.selection` and must be unique
+  among the page's current bindings. Windows have no page selection history.
 - `cell(id)` is a tab's Layout cell, the mount target of every component;
   `attach(id, content)` puts a Suite widget, a public component or a plain
   element there (released with the tabs). An undeclared id throws `Error`.
@@ -2994,8 +3050,10 @@ server-translated.
 
 ### Routing
 
-- Canonical address: `#view=<id>[&record=<id>][&filter.<field>=<value>]`.
-  Filter presets apply once and leave the address, as today.
+- The address starts with `#view=<id>` and can include `record=<id>`.
+  Filter presets (`filter.<field>`) apply once and leave the address.
+  Addressable [Tree paths](#tree) and [page selections](#page-selections)
+  remain in the fragment for Back, Forward, reload and copied links.
 - `#view=` is the only form: any other address, such as the former
   `#feature=<resource>` (removed 2026-10-30, [FB-0081](feedback.md#fb-0081)),
   names no view and gives the empty workspace.
@@ -3040,6 +3098,88 @@ address and history entry; `open: "window"` opens a framework document window
 when the actor is offered the record resource's `get`; a `get` failure (403,
 404) shows the shared error dialog and keeps the current view; a navigation
 without a record id opens nothing.
+
+<a id="page-selections"></a>
+
+### Selections within a mounted page
+
+Use `host.selection(key, restore, {signal}?)` when a page's subject changes
+within the same view and record. A playlist might have
+`#view=playlist&record=12&select.asset=8&select.panel=settings`.
+Each binding owns one parameter. The shell preserves other selection keys and
+the repeated `tree.<id>` path parameters when writing it. Windows have no
+address. A view kind offered both ways can check `host.open === "page"`.
+
+- **Restore.** The framework calls `restore(value, signal)` when the binding
+  is created, when that key changes on Back or Forward, and after an in-place
+  record switch. Apply the supplied value to the current authorized data.
+  Missing, empty, repeated, NUL-containing or oversized input arrives as
+  `null`. Use a preference or page default when a value is absent. Return the
+  accepted string, or `null` to omit the parameter. The shell updates the
+  current entry with the result, including a fallback after a rejected guard.
+- **Write.** Call the returned function after applying a deliberate user
+  choice. A distinct choice pushes one entry. An identical choice leaves the
+  history alone. Pass `{replace: true}` for an update to the current entry.
+  The writer records the choice already on screen. The restore callback
+  returns its result directly. Give a meaningful default such as Overview
+  its own value when it must override a stored preference in a copied link.
+- **Lifetime.** The callback may return a promise. Pass its signal into
+  cancellable reads and check it before applying async results. A newer choice
+  for that key, a navigation away, or disposal supersedes pending work.
+  A scoped list rebuilt for a selected Tree node should bind after mounting,
+  with its component's own signal, and release the previous binding when the
+  scope changes. Restoration waits for outstanding addressable Tree path reads.
+- **Limits.** Keys match `[a-z][a-z0-9_.-]{0,79}` and must be unique among
+  current bindings. Values are strings of 1–512 UTF-16 code units without NUL,
+  or `null`. Use stable, shareable identifiers. Domain validation, access
+  checks and the decision to accept or reject leaving unsaved work belong to
+  the page or component applying the choice.
+
+**List row.** Bind the mounted list, then write only its deliberate
+selections. The ordinary `select` event can also update a details panel
+after programmatic restoration.
+
+```ts
+const writeRow = host.selection("asset", async (id, signal) => {
+  await list.select(id, { signal });
+  const row = list.selected();
+  return row ? String(row.id) : null;
+});
+list.on("select", ({ row, user }) => {
+  showDetails(row);
+  if (user) writeRow(row ? String(row.id) : null);
+}, { signal: host.signal });
+```
+
+**Logical scene.** Here `availableScene` is the page's lookup within its
+authorized episode, `show` applies a choice and `"overview"` is the page's
+explicit default. The manual picker writes the address. Playback can call
+`show` as time advances without adding history entries.
+
+```ts
+const writeScene = host.selection("scene", async (value, signal) => {
+  const wanted = value ?? preferredScene() ?? "overview";
+  const id = wanted === "overview" ? wanted : await availableScene(wanted, signal);
+  if (!signal.aborted) show(id ?? "overview");
+  return id ?? "overview";
+});
+function chooseScene(id: string) { // from the authorized scene picker
+  show(id);
+  writeScene(id);
+}
+```
+
+**Tabs.** Standalone Tabs can own a key. For a PageLayout group, pass
+`history: host` to the layout and put the same `historyKey` on that logical
+group in each arrangement. Both use the normal tab change event and guard.
+[Tabs](#tabs), [responsive groups](#pagelayout-narrow).
+
+```ts
+const tabs = new app.components.Tabs({ tabs: tabDefinitions, history: { host, key: "panel" } });
+const group = { historyKey: "workbench", tabs: tabRegions };
+const layout = new app.components.PageLayout({ id: view.id, history: host,
+  tree: { cols: [contentRegion, group] }, narrow: { rows: [contentRegion, group] } });
+```
 
 <a id="activation-map"></a>
 
@@ -3377,7 +3517,7 @@ while mounted, never after `destroy()`):
 
 | Component | Event | Payload | Fires |
 | --- | --- | --- | --- |
-| `ListView` | `select` | `{row}` (`undefined`: none) | the cursor record changed, also when it left the loaded window |
+| `ListView` | `select` | `{row, user}` (`undefined` row: none) | the cursor record changed, also when it left the loaded window; `user` is true for deliberate pointer/keyboard selection |
 | | `target` | `{view, row, rows}` (`ListTarget`) | active selection, marks or record data changed, including previews and foremost sub-view windows; opening/closing a window restores the corresponding context |
 | | `activate` | `{row, target, preventDefault()}` | double-click or Enter resolved to `target` (after the activation map and its fallbacks), before it runs; synchronous `preventDefault()` skips it; `details` also for a card or tile without a target and for the `#` cell |
 | | `saved` | `{action, row}` | a form of the list (create, update, record action with fields, singleton Save) or an inline cell or card edit (`action` `update`) saved; `row` is the server's answer |
@@ -3621,7 +3761,7 @@ needs one builds it in its own module.
   offers no `Hang` and `FilePicker` lists no audio files
   ([files limits](files.md#limits)); an audio file reaches a `file` field by
   its upload.
-- Marks and row selection are transient by design and never persisted.
+- Lists keep marks and cursor selections out of preferences. A page can opt a cursor into [browser history](#page-selections).
 - `TextDiff` compares plain text read-only: no merge, revert or editing, and
   no built-in "previous revision" rule (the project's command supplies both
   texts, see [TextDiff](#textdiff)).

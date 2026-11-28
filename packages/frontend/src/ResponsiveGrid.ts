@@ -183,7 +183,7 @@ export class ResponsiveGrid {
     this.grid.events.on("afterSelect",(row:any)=>{if(row?.id!==undefined&&this.recordId(String(row.id))!==this.selected)selected(row.id);});
     this.grid.events.on("cellDblClick",(row:any,column:any)=>{if(!pick)return;selected(row.id);if(row[SUBROW]!==undefined){open();return;}if(column.id===SUBROW)return;if(column.id==="_number"){options.details?.(String(row.id));return;}if(column.id==="_mark"||columns.some(c=>alias(c.id)===column.id&&(c.type==="checkbox"||c.fieldType)&&c.editable&&row._editable?.includes(c.id)))return;if(column.editable&&row._editable?.includes(unalias(String(column.id))))return;open();});
     for(const list of [this.cards,this.tiles]){
-      list.selection.events.on("afterSelect",(id:string|number)=>selected(id));
+      list.selection.events.on("afterSelect",(id:string|number)=>{if(this.recordId(String(id))!==this.selected)selected(id);});
       // DataView arrows move its focus; the selection (cursor) follows it.
       list.events.on("focuschange",(_index?:number,id?:string|number)=>{if(pick&&id!==undefined&&id!==null&&!list.selection.contains(id))list.selection.add(id);});
       list.events.on("doubleclick",(id:string|number,event:Event)=>{if(!pick||(event?.target as HTMLElement)?.closest(".blade-card-edit,.blade-card-subview"))return;activate(String(id));});

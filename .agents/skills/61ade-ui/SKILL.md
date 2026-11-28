@@ -237,6 +237,10 @@ tree as decoration for a flat list.
   window may drop their marks. Marks and the cursor row are transient: never
   persist them in UI preferences. Optional ordinal numbers describe position in the
   complete authorized result, not database IDs.
+- A page with a shareable list cursor records deliberate selections and
+  restores through the scoped list's authorized query. Give a logical tab
+  group the same selection key across responsive arrangements.
+  [Page selections](../../../docs/toolkit.md#page-selections), [FB-0280](../../../docs/feedback.md#fb-0280).
 - A panel following an active record uses the framework's context event and
   query across main lists, expanded previews and child windows. Preserve each
   list's cursor separately from keyboard focus; do not reproduce toolbar

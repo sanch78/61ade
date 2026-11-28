@@ -7,12 +7,12 @@ import { collapseMotion } from "../../Motion";
 import { locale, t } from "../../I18n";
 import { Component } from "../list/component";
 import { Accordion } from "./Accordion";
-import { Tabs, type HeldRegion } from "./Tabs";
+import { Tabs, type HeldRegion, type TabHistoryState } from "./Tabs";
 import { narrow, onViewport } from "../../Viewport";
 
 const REGION=/^[a-z][a-z0-9_-]{0,63}$/;
-const KEYS=new Set(["id","header","count","rows","cols","tabs","accordion","multiple","open","inner","width","height","minWidth","minHeight","resizable","collapsable","collapsed"]);
-const TAB_BRANCH=new Set(["tabs","width","height","minWidth","minHeight","resizable"]);
+const KEYS=new Set(["id","header","count","rows","cols","tabs","historyKey","accordion","multiple","open","inner","width","height","minWidth","minHeight","resizable","collapsable","collapsed"]);
+const TAB_BRANCH=new Set(["tabs","historyKey","width","height","minWidth","minHeight","resizable"]);
 const ACCORDION_BRANCH=new Set(["accordion","multiple","width","height","minWidth","minHeight","resizable"]);
 const BRANCHES=["rows","cols","tabs","accordion"] as const;
 let instances=0;
@@ -21,7 +21,7 @@ let instances=0;
  * The declared panel tree of a page, checked like a list view's layout (`Blade\Feature\ViewLayout`): at most 6
  * levels and 30 nodes; a leaf has a unique region id (not `blade-…`, reserved for the framework), a branch `rows`,
  * `cols`, `tabs` or `accordion` and no id; sizes are integers from 40 to 3000, flags booleans, a header plain text of
- * at most 150 characters. A `tabs` branch takes the sizes and `resizable` only and holds 1–12 leaves with an id and a
+ * at most 150 characters. A `tabs` branch takes sizes, `resizable` and an optional `historyKey` and holds 1–12 leaves with an id and a
  * `header` (the tab's label) and nothing else. An `accordion` branch takes the sizes, `resizable` and `multiple` and
  * holds 1–12 leaves with an id, a `header` (the section's label) and optionally `open` (at most one without
  * `multiple`). A region with `inner` (FB-0222) holds a frameless layout of `rows` or `cols` instead of content and no
@@ -32,7 +32,7 @@ let instances=0;
  * throws `TypeError`.
  */
 function regions(tree:unknown):{ids:Set<string>;containers:Map<string,string[]>;collapsable:Set<string>;headed:Map<string,{label:string;count:number|null}>}{
-  const ids=new Set<string>(),containers=new Map<string,string[]>(),collapsable=new Set<string>(),headed=new Map<string,{label:string;count:number|null}>();let nodes=0;
+  const ids=new Set<string>(),containers=new Map<string,string[]>(),collapsable=new Set<string>(),headed=new Map<string,{label:string;count:number|null}>(),historyKeys=new Set<string>();let nodes=0;
   const fail=(reason:string):never=>{throw new TypeError(`61ade: PageLayout: ${reason}.`);};
   const named=(id:unknown):string=>{
     if(typeof id!=="string"||!REGION.test(id)||id.startsWith("blade-")||ids.has(id)||containers.has(id))fail(`region id "${String(id)}" is missing, invalid or repeated`);
@@ -50,6 +50,11 @@ function regions(tree:unknown):{ids:Set<string>;containers:Map<string,string[]>;
       if(key==="count"&&!(Number.isSafeInteger(value)&&(value as number)>=0))fail('"count" is a non-negative integer');
     }
     const branches=BRANCHES.filter(key=>region[key]!==undefined);
+    if(region.historyKey!==undefined){
+      if(region.tabs===undefined||typeof region.historyKey!=="string"||!/^[a-z][a-z0-9_.-]{0,79}$/.test(region.historyKey)||historyKeys.has(region.historyKey))
+        fail('historyKey is a unique selection key ([a-z][a-z0-9_.-]*, at most 80 characters) of a tabs branch');
+      historyKeys.add(region.historyKey as string);
+    }
     if(parent==="tabs"&&(branches.length||Object.keys(region).some(key=>key!=="id"&&key!=="header")||typeof region.header!=="string"||!region.header.trim()||region.header.length>80))
       fail("a tab is a leaf with an id and a header (its label, at most 80 characters) only");
     if(parent==="accordion"&&(branches.length||Object.keys(region).some(key=>key!=="id"&&key!=="header"&&key!=="open")||typeof region.header!=="string"||!region.header.trim()||region.header.length>80))
@@ -74,7 +79,7 @@ function regions(tree:unknown):{ids:Set<string>;containers:Map<string,string[]>;
       const children=region[branches[0]];
       if(region.id!==undefined||branches.length>1||!Array.isArray(children)||!children.length)fail("a branch has either rows, cols, tabs or accordion and no id");
       if(branches[0]==="tabs"){
-        if(Object.keys(region).some(key=>!TAB_BRANCH.has(key)))fail("a tabs branch takes sizes and resizable only");
+        if(Object.keys(region).some(key=>!TAB_BRANCH.has(key)))fail("a tabs branch takes sizes, resizable and historyKey only");
         if((children as unknown[]).length>12)fail("a tabs branch holds at most 12 tabs");
       }
       if(branches[0]==="accordion"){
@@ -107,6 +112,7 @@ type Arrangement={
   checked:Checked;
   /** One `Tabs` per `tabs` branch, in a framework cell `blade-tabs-<n>` of the Layout; region id → its tabs. */
   tabGroups:Tabs[];
+  historyGroups:Map<string,Tabs>;
   tabbed:Map<string,Tabs>;
   /** One `Accordion` per `accordion` branch, in a framework cell `blade-accordion-<n>`; region id → its accordion. */
   accordions:Accordion[];
@@ -209,15 +215,15 @@ export class PageLayout extends Component<PageLayoutEvents> implements PageLayou
    * inner headers and, with `narrow`, the slots of the regions' carriers. The tab or section of region $focus (the one
    * holding the focus at a switch) is shown.
    */
-  private build(small:boolean,container:HTMLElement=document.createElement("div"),focus?:string):Arrangement{
+  private build(small:boolean,container:HTMLElement=document.createElement("div"),focus?:string,history?:Map<string,TabHistoryState>):Arrangement{
     const options=this.options,checked=this.trees[small?1:0]!,headed=checked.headed,source=small?options.narrow!:options.tree;
     // Below 768 px `id:narrow`: a `:` is in no id, so the key never meets another page's or view's preferences.
     const key=small?`${options.id}:narrow`:options.id,preferences=new UiPreferences(this.context.user,key);
     // A `tabs` branch is one framework leaf of the Layout; its tabs are created into that cell below.
-    const groups:{cell:string;tabs:PageRegion[]}[]=[];
+    const groups:{cell:string;tabs:PageRegion[];historyKey?:string}[]=[];
     const stacks:{cell:string;sections:PageRegion[];multiple:boolean}[]=[];
     const leaves=(node:PageRegion):PageRegion=>{
-      if(node.tabs){const {tabs,...sizes}=node,cell=`blade-tabs-${groups.length+1}`;groups.push({cell,tabs});return {...sizes,id:cell};}
+      if(node.tabs){const {tabs,historyKey,...sizes}=node,cell=`blade-tabs-${groups.length+1}`;groups.push({cell,tabs,historyKey});return {...sizes,id:cell};}
       if(node.accordion){const {accordion,multiple,...sizes}=node,cell=`blade-accordion-${stacks.length+1}`;stacks.push({cell,sections:accordion,multiple:multiple===true});return {...sizes,id:cell};}
       // An inner layout becomes a line branch of the same Layout (its own `type`), so its regions are the Layout's cells.
       if(node.inner){const {inner,...panel}=node;return {...panel,type:"line",...frameless(inner)} as PageRegion;}
@@ -246,14 +252,16 @@ export class PageLayout extends Component<PageLayoutEvents> implements PageLayou
     // Every change of a collapsible leaf: a header click, its keys or the page's own call.
     for(const [event,collapsed] of [["afterCollapse",true],["afterExpand",false]] as const)
       layout.events.on(event,(id:string|number)=>{if(checked.collapsable.has(String(id)))this.emit("collapse",{id:String(id),collapsed});});
-    const arrangement:Arrangement={narrow:small,layout,checked,tabGroups:[],tabbed:new Map(),accordions:[],sectioned:new Map(),released:new AbortController(),places:[]};
+    const arrangement:Arrangement={narrow:small,layout,checked,tabGroups:[],historyGroups:new Map(),tabbed:new Map(),accordions:[],sectioned:new Map(),released:new AbortController(),places:[]};
     // With `narrow`, a tab or a section frames its region's carrier: its content, placeholder and busy mark are the page's.
     const held=this.carriers&&((id:string)=>this.held(id));
     for(const group of groups){
       const tabs=new Tabs(this.context,{tabs:group.tabs.map(tab=>({id:tab.id!,label:tab.header!})),guard:options.guard,
-        ...(group.tabs.some(tab=>tab.id===focus)?{active:focus}:{})},{key:`${key}.${group.cell.slice(6)}`,held});
+        ...(options.history&&group.historyKey?{history:{host:options.history,key:group.historyKey}}:{}),
+        ...(group.tabs.some(tab=>tab.id===focus)?{active:focus}:{})},{key:`${key}.${group.cell.slice(6)}`,held,history:group.historyKey?history?.get(group.historyKey):undefined});
       tabs.mount(layout.getCell(group.cell));
       arrangement.tabGroups.push(tabs);
+      if(options.history&&group.historyKey)arrangement.historyGroups.set(group.historyKey,tabs);
       for(const tab of group.tabs)arrangement.tabbed.set(tab.id!,tabs);
     }
     for(const stack of stacks){
@@ -296,7 +304,10 @@ export class PageLayout extends Component<PageLayoutEvents> implements PageLayou
     const focused=active instanceof HTMLElement&&root?.contains(active)?active:undefined,region=focused&&this.regionOf(focused);
     const scrolled:[Element,number,number][]=[];
     for(const {element} of this.carriers.values())for(const node of Array.from(element.querySelectorAll("*")))if(node.scrollTop||node.scrollLeft)scrolled.push([node,node.scrollTop,node.scrollLeft]);
-    const next=this.current=this.build(small,undefined,region);
+    // A logical group can use the same page selection key in both arrangements.
+    const history=new Map([...previous.historyGroups].map(([key,tabs])=>[key,tabs.historyState()]));
+    for(const tabs of previous.tabGroups)tabs.releaseHistory();
+    const next=this.current=this.build(small,undefined,region,history);
     to.attach(next.layout);to.config.hidden=false;
     // Drawn now (the tabs' and accordions' panels, the arrangement, the frame), so the new slots are in the page.
     const drawn=!!root,draw=(views:{layout:Layout}[])=>{if(drawn)for(const view of views)(view.layout.getRootView() as any)?.redraw(true);};
