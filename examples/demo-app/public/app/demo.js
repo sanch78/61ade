@@ -1953,16 +1953,26 @@ function servicePage(app, host, view) {
   if (!host.record) throw new Error(t("A szolg\xE1ltat\xE1slap egy szolg\xE1ltat\xE1shoz ny\xEDlik meg."));
   const list = app.viewDefinition(host.record.resource);
   if (!list) throw new Error(t("A szolg\xE1ltat\xE1sjelent\xE9s nem \xE9rhet\u0151 el."));
-  const label = `${String(host.record.row.name ?? "")} \xB7 ${String(host.record.row.region ?? "")}`;
-  host.setTitle(`${view.title}: ${label}`);
-  host.setLocation([{ label }]);
+  const title = () => {
+    const label = `${String(host.record.row.name ?? "")} \xB7 ${String(host.record.row.region ?? "")}`;
+    host.setTitle(`${view.title}: ${label}`);
+    host.setLocation([{ label }]);
+  };
+  title();
   const controller = new AbortController(), signal = controller.signal;
   host.signal.addEventListener("abort", () => controller.abort(), { once: true });
   const layout = new app.dhx.Layout(null, { type: "none", rows: [{ id: "details" }] });
   host.attach(layout);
-  new app.components.RecordDetails({ view: list, record: host.record.row, signal }).mount(layout.getCell("details"));
+  const details = new app.components.RecordDetails({ view: list, record: host.record.row, signal });
+  details.mount(layout.getCell("details"));
   signal.addEventListener("abort", () => layout.destructor(), { once: true });
-  return { destroy: () => controller.abort() };
+  return {
+    destroy: () => controller.abort(),
+    setRecord(record) {
+      title();
+      void details.show(record.row);
+    }
+  };
 }
 var serviceReport = (app) => {
   app.kinds.register(KIND9, { create: (host, view) => servicePage(app, host, view) });

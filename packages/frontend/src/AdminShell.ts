@@ -26,7 +26,7 @@ import { BREAKPOINT, narrow } from "./Viewport";
 import { navigationRowHeight } from "./HeaderRow";
 
 /** One open view: the workspace page or a document window, with the signal its host aborts on close. */
-type Mounted = { view: ViewDefinition; record?: string; open: ViewOpenMode; controller: AbortController; instance?: ViewInstance; wrapper?: DesktopOnly; window?: AppWindow;
+type Mounted = { view: ViewDefinition; record?: ViewHost["record"]; open: ViewOpenMode; controller: AbortController; instance?: ViewInstance; wrapper?: DesktopOnly; window?: AppWindow;
   /** A page: its levels after the menu path (`ViewHost.setLocation`, by default the record's title). */
   location?: Place[];
   /** `setLocation(…, {from: "root"})`: `location` is the whole bar, without the menu path and the parents; empty, no level. */
@@ -175,13 +175,16 @@ export class AdminShell {
    * The address of the open page without presets keeps it with its dialogs: the first route after the modules loaded
    * finds the view a menu click opened meanwhile (FB-0275).
    */
-  private route = () => {
-    this.track();
+  private route = (event?:HashChangeEvent) => {
     const route = parseRoute(location.hash);
     const view = route.view === undefined ? undefined : this.navigable(route.view);
     const record = view?.record ? route.record : undefined;
     const presets = Object.keys(route.filters).length > 0;
-    if (view && !presets && this.page?.view === view && this.page.record === record) {
+    const previous=event?.oldURL?parseRoute(new URL(event.oldURL).hash):undefined;
+    const within=view&&view===this.page?.view&&this.page.instance?.setRecord&&!presets&&record&&
+      previous?.view===view.id&&previous.record&&previous.record!==record ? view.id : undefined;
+    this.track(within);
+    if (view && !presets && this.page?.view === view && this.page.record?.id === record) {
       this.settle(++this.navigation);
       this.page.restoreTrees?.();
       this.locate();
@@ -205,14 +208,14 @@ export class AdminShell {
    * Reads the current entry's depth from `history.state`; an entry without one is new: the first of this document
    * (depth 0, also a landing from another site) or one more than the entry it was reached from (a link, `location.hash`).
    */
-  private track():void{
+  private track(within?:string):void{
     const state=history.state&&typeof history.state==="object"?history.state as Record<string,unknown>:{},known=state[DEPTH];
     this.depth=typeof known==="number"?known:this.tracked?this.depth+1:0;
     this.tracked=true;
-    if(known!==this.depth)history.replaceState({...state,[DEPTH]:this.depth},"");
+    if(known!==this.depth)history.replaceState({...state,[DEPTH]:this.depth,...(within?{bladeWithinView:within}:{})},"");
   }
   /** A new history entry at $url, one deeper than the current. */
-  private push(url:URL):void{history.pushState({[DEPTH]:++this.depth},"",url);}
+  private push(url:URL,within?:string):void{history.pushState({[DEPTH]:++this.depth,...(within?{bladeWithinView:within}:{})},"",url);}
   private menuItems: object[] = [];
   /** The navigation row's selectors have rendered (the first redraw after construction); the menu is fitted from then. */
   private measured = false;
@@ -275,7 +278,7 @@ export class AdminShell {
     if(this.menuFull===compact){this.menuFull=!compact;if(this.page&&this.alone(this.page))this.locate();}
     const route=parseRoute(location.hash),view=this.navigable(route.view??""),page=this.page;
     // A record page stands in the menu for its topmost parent record actually resolved (none yet: for itself).
-    const root=view&&(page?.view===view&&page.record===route.record&&page.parents?.[0]?.view||view),menuView=root&&this.menuSource(root);
+    const root=view&&(page?.view===view&&page.record?.id===route.record&&page.parents?.[0]?.view||view),menuView=root&&this.menuSource(root);
     const current=menuView?"view:"+menuView.id:root?.group?"group:"+root.group:"";
     const siblings=(items:any[],nested=false):any[]|undefined=>{
       for(const item of items){
@@ -834,6 +837,7 @@ export class AdminShell {
 
   private locationBack(page:Mounted):(() => void)|false{
     if(page.back)return page.back;
+    if(this.depth>0&&history.state?.bladeWithinView===page.view.id)return ()=>history.back();
     const id=page.view.locationBackTarget,target=id===undefined?undefined:this.navigable(id);
     if(target&&this.openable(target))return ()=>{this.navigate({view:target.id,open:"page"});};
     return this.depth>0?()=>history.back():false;
@@ -852,7 +856,7 @@ export class AdminShell {
    * the chain there, without a dialog.
    */
   private async locateParents(mounted:Mounted,row:Row):Promise<void>{
-    const parents:NonNullable<Mounted["parents"]>=[],seen=new Set([`${mounted.view.record}:${mounted.record}`]);
+    const record=mounted.record,parents:NonNullable<Mounted["parents"]>=[],seen=new Set([`${mounted.view.record}:${record?.id}`]);
     for(let view=mounted.view;view.parent&&parents.length<PARENTS;){
       const parent=this.navigable(view.parent.view),id=String(row[view.parent.field]??"").trim(),key=`${parent?.record}:${id}`;
       if(!parent?.record||!id||seen.has(key))break;
@@ -862,7 +866,7 @@ export class AdminShell {
       parents.unshift({view:parent,place:{label:title||parent.title,...(this.openable(parent,id)?{href:"#"+routeHash({view:parent.id,record:id})}:{})}});
       view=parent;
     }
-    if(!parents.length||mounted.controller.signal.aborted||this.page!==mounted)return;
+    if(!parents.length||mounted.controller.signal.aborted||this.page!==mounted||mounted.record!==record)return;
     mounted.parents=parents;this.locate();this.renderMenu();
   }
 
@@ -900,8 +904,18 @@ export class AdminShell {
   private async openView(view:ViewDefinition,options:{record?:string;filters?:Record<string,string>;open?:ViewOpenMode;push?:boolean}={}):Promise<void>{
     const open=options.open??view.open??"page",kind=this.kernel!.kinds.get(view.kind)!;
     const navigation=open==="page"?++this.navigation:this.navigation;
+    const page=this.page;
+    const reuse=open==="page"&&page?.view===view&&page.instance?.setRecord&&options.record!==undefined&&
+      !Object.keys(options.filters??{}).length ? page : undefined;
+    if(reuse&&reuse.record?.id===options.record){
+      this.settle(navigation);
+      // A click can return to the visible record while a hash navigation is still resolving.
+      const route=parseRoute(location.hash);
+      if(options.push&&(route.view!==view.id||route.record!==options.record))this.pushRecord(view,options.record);
+      return;
+    }
     if(open==="page"){
-      if(view.record&&options.record!==undefined){
+      if(!reuse&&view.record&&options.record!==undefined){
         (this.opening??=new CellStatus(this.layout.getCell("workspace"))).busy(true);
         // The address may already be another history entry (Back): the bar's Back button follows it.
         this.locate();
@@ -911,16 +925,39 @@ export class AdminShell {
     if(view.record&&options.record!==undefined){
       try{record={resource:view.record,id:options.record,row:await server.call<Row>(view.record,"get",{id:options.record})};}
       catch(error){
-        if(!this.listeners.signal.aborted&&navigation===this.navigation){if(open==="page")this.settle(navigation);await this.failed(error);}
+        if(!this.listeners.signal.aborted&&navigation===this.navigation){
+          if(open==="page")this.settle(navigation);
+          if(reuse&&!options.push){
+            const url=new URL(location.href);
+            url.hash=routeHash({view:view.id,record:reuse.record?.id});
+            history.replaceState(history.state,"",url);
+            this.locate();
+          }
+          await this.failed(error);
+        }
         return;
       }
       if(this.listeners.signal.aborted||navigation!==this.navigation)return;
     }
     if(open==="window"){void this.mount(view,kind,"window",record,options.filters??{});return;}
-    if(options.push){
-      const url=new URL(location.href);
-      url.hash=routeHash({view:view.id,record:record?.id});
-      if(url.href!==location.href)this.push(url);
+    if(options.push)this.pushRecord(view,record?.id,reuse?.view.id);
+    if(reuse&&record&&reuse.instance?.setRecord){
+      reuse.record=record;
+      reuse.parents=undefined;
+      reuse.whole=false;
+      reuse.back=undefined;
+      reuse.location=[{label:this.recordLabel(view,record)}];
+      try{
+        reuse.instance.setRecord(record);
+        if(this.page!==reuse||reuse.record!==record)return;
+        this.locate();
+        this.renderMenu();
+        if(view.parent)void this.locateParents(reuse,record.row);
+        return;
+      }catch(error){
+        // A failed switch may have updated only some record-bound controls. Recreate the target page.
+        console.error("61ade: record switch failed",error);
+      }
     }
     this.renderMenu();
     this.layout.getCell("workspace").detach();
@@ -930,6 +967,16 @@ export class AdminShell {
     await this.mount(view,kind,"page",record,options.filters??{},navigation);
   }
 
+  private pushRecord(view:ViewDefinition,record?:string,within?:string):void{
+    const url=new URL(location.href);
+    url.hash=routeHash({view:view.id,record});
+    if(url.href!==location.href)this.push(url,within);
+  }
+
+  private recordLabel(view:ViewDefinition,record:NonNullable<ViewHost["record"]>):string{
+    return (view.recordTitle&&String(record.row[view.recordTitle]??"").trim())||view.title;
+  }
+
   /**
    * Creates the view's `ViewHost` and instance; a throwing kind shows the error dialog and leaves nothing mounted.
    * A page of $navigation takes over from the loading indicator at its first `attach`, at the latest when created.
@@ -937,10 +984,9 @@ export class AdminShell {
   private async mount(view:ViewDefinition,kind:{create:(host:ViewHost,view:ViewDefinition)=>ViewInstance|Promise<ViewInstance>},open:ViewOpenMode,record:ViewHost["record"],filters:Record<string,string>,navigation?:number):Promise<void>{
     const settle=()=>{if(navigation!==undefined)this.settle(navigation);};
     const controller=new AbortController(),signal=controller.signal;
-    const mounted:Mounted={view,record:record?.id,open,controller};
+    const mounted:Mounted={view,record,open,controller};
     // A record page's own level: the record's declared title field, else the view's title.
-    const title=record&&view.recordTitle!==undefined?String(record.row[view.recordTitle]??"").trim():"";
-    if(open==="page"&&record)mounted.location=[{label:title||view.title}];
+    if(open==="page"&&record)mounted.location=[{label:this.recordLabel(view,record)}];
     if(open==="window"){
       // The record views' framework document window: like a sub-view window, full screen on a phone.
       mounted.window=openWindow({title:view.title,css:"blade-feature-window",width:1100,height:720,fit:false});
@@ -948,7 +994,7 @@ export class AdminShell {
       this.windows.add(mounted);
     }else{this.page=mounted;this.locate();if(record&&view.parent)void this.locateParents(mounted,record.row);}
     const host:ViewHost=Object.freeze({
-      app:this.kernel!.app,signal,open,...(record?{record}:{}),filters:Object.freeze({...filters}),
+      app:this.kernel!.app,signal,open,get record(){return mounted.record;},filters:Object.freeze({...filters}),
       attach:(content:Parameters<ViewHost["attach"]>[0])=>{
         if(signal.aborted)return;
         if(mounted.window){mounted.window.attach(content);return;}
@@ -975,11 +1021,11 @@ export class AdminShell {
     if (open === "page") {
       const current = () => {
         const route = parseRoute(location.hash);
-        return this.page === mounted && route.view === view.id && (!view.record || route.record === mounted.record);
+        return this.page === mounted && route.view === view.id && (!view.record || route.record === mounted.record?.id);
       };
       mounted.restoreTrees = registerTreePage(host, current, (url, replace) => {
         if (replace) history.replaceState(history.state, "", url);
-        else this.push(url);
+        else this.push(url,view.id);
         this.locate();
       });
     }
@@ -1052,7 +1098,7 @@ export class AdminShell {
     try{mounted.instance?.destroy();}catch(error){console.error(error);}
     mounted.wrapper?.destroy();
     mounted.window?.close();
-    if(mounted.instance)this.kernel?.events.dispatch("view:closed",{id:mounted.view.id,...(mounted.record!==undefined?{record:mounted.record}:{})});
+    if(mounted.instance)this.kernel?.events.dispatch("view:closed",{id:mounted.view.id,...(mounted.record!==undefined?{record:mounted.record.id}:{})});
   }
   /** A page navigation closes the page and every view window. */
   private unmountAll():void{for(const mounted of [...this.windows,...(this.page?[this.page]:[])])this.unmount(mounted);}

@@ -852,6 +852,11 @@ During a missing child read the cached tree stays visible and usable. A
 direct entry keeps the usual initial expansion. Try the managed demo's D8
 `key_path` filter. [Tree](toolkit.md#tree), [verification](feedback.md#fb-0247).
 
+When tree clicks navigate between `#view=<same view>&record=<new id>`
+addresses, implement `setRecord(record)` on the mounted view instance. Keep
+the layout and update each record-dependent panel from the authorized row.
+The demo service page uses this hook. [View kinds](toolkit.md#views).
+
 Record pages automatically retain the menu context of the first offered menu
 view for their `record` resource, including direct links and reloads. An explicit
 `group` limits that inheritance to the named group; see the

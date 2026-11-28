@@ -1218,7 +1218,9 @@ a duplicate throws unless `{replace: true}`.
   and leaves an empty workspace (or closes its window). While a record page's
   row is resolved before its host exists, the workspace shows the
   [loading indicator](toolkit.md#loading-and-empty-states). The live channel
-  asks the open instances' `editing()` before a protocol reload.
+  asks the open instances' `editing()` before a protocol reload. A page that
+  implements [`setRecord`](toolkit.md#views) keeps its host, layout and
+  lifetime when navigating to another record of the same view.
 - **Theme:** `app.theme` reports the applied base theme and skin and calls
   `onChange` listeners after each switch.
 
@@ -1374,13 +1376,15 @@ below the menu row, across the full width, before the workspace
      action, such as switching to its first tab. A call without `back`
      removes that action. Calls from a window or a closed view leave the
      active page's action as it is.
-  2. PHP `View(locationBackTarget: 'demo_tasks')` (also
+  2. Within a page, a history entry created by a [Tree selection](toolkit.md#tree)
+     or a [record switch](toolkit.md#views) goes back to the preceding selection.
+  3. PHP `View(locationBackTarget: 'demo_tasks')` (also
      `->with(locationBackTarget: …)`) or JSON `location_back_target` in
      `views.<id>` or `resources.<name>.view` opens the named view as a page
      through normal shell navigation. The target has its own address, is a
      different registered view and needs no record ID. The bootstrap field
      is `ViewDefinition.locationBackTarget`.
-  3. If neither action nor an offered target with a registered browser kind
+  4. If neither action nor an offered target with a registered browser kind
      is available, Back uses the in-app history. At depth 0 the history
      fallback is disabled. An address-tracked [Tree](toolkit.md#tree) adds its
      selections to this same browser history.

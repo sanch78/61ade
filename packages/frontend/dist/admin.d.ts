@@ -952,6 +952,9 @@ export type LocationSegment = {
 };
 /** A mounted view; the shell calls `destroy()` exactly once. */
 export interface ViewInstance {
+    /** A page can switch to another record of the same view in place. The shell authorizes the
+     * new row and updates host.record before calling. Update all record-bound controls and subscriptions. */
+    setRecord?(record: NonNullable<ViewHost["record"]>): void;
     /** Releases widgets, windows, listeners and subscriptions not already tied to `host.signal`. */
     destroy(): void;
     /**

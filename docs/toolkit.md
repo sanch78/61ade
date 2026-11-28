@@ -733,7 +733,7 @@ The feature demo's real registrations: the presentation `demo.reading-bar`
 command `demo.copy-text` ([example](#example-tasks)).
 
 - **View kind** `create(host, view)` returns a `ViewInstance` (`destroy`,
-  optional `editing`, `refresh`). `ViewHost` gives `app`, `signal` (aborted when
+  optional `editing`, `refresh`, `setRecord`). `ViewHost` gives `app`, `signal` (aborted when
   the view closes), `open` (`page`/`window`), `record` (`{resource, id, row}`
   for record views), `filters`, `attach`, `setTitle` (changes a window's
   header; does nothing for a page view), `setLocation(segments)` (a page
@@ -748,6 +748,17 @@ command `demo.copy-text` ([example](#example-tasks)).
   changes; nothing in a window or after close), `close`. A throw shows the
   error dialog and leaves an empty workspace. `attach` replaces the whole
   content; compose a page from one Layout ([recipe](#layout-recipe)).
+- A record page that can switch records in place returns `setRecord(record)`
+  on its instance. For example, a folder browser retains its tree and layout
+  and updates the selected node, scoped list, details and record subscriptions
+  in this callback. Use the ordinary `app.navigate({view, record})` on a
+  user selection. When applying a record from history, select it in the tree
+  only if it differs. The callback receives the authorized row and
+  `host.record` already points to it. The shell updates the default record
+  title and parents. The page can set its own location again. Back and
+  Forward use the same callback, and a direct link or reload calls `create`.
+  A window, a different page, explicit filter presets, and record pages without
+  the callback follow the usual mount lifecycle. [FB-0279](feedback.md#fb-0279).
 - **Presentation** (`column.presentation`): a synchronous HTML renderer per
   value and size: `cell` (table), `card` (card fields and the record details,
   also `RecordDetails`) and `tile` (the tile's secondary line; the tile title

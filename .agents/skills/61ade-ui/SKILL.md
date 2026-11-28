@@ -269,6 +269,11 @@ tree as decoration for a flat list.
 
 ## Tree rules
 
+- Match navigation to the address the application shares. A category inside
+  a page can use Tree history. A tree that switches the page's `record`
+  uses the record view's `setRecord` to update the selection and panels in
+  place. [FB-0279](../../../docs/feedback.md#fb-0279).
+
 - Model hierarchy with stable `id` and `parent_id` (or the framework's typed
   equivalent) and define which roots the actor may see. Load children through an
   authorized, bounded request; do not send an entire private tree to make

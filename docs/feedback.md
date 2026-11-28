@@ -3743,3 +3743,16 @@ On the managed demo at 1366 and 390 px, switching keys and stepping through
 history kept the same tree and layout elements and updated the values panel.
 Reload, a link in a new tab, a 13-level lazy path, and an explicitly empty
 selection restored the addressed selection.
+
+## FB-0279 — Switch the record of a mounted page
+
+Changing `record` on the same folder view remounted the workspace on every
+tree click. A view instance can now implement `setRecord(record)` to apply
+the authorized record to its existing layout on navigation and history
+traversal. The service-report demo updates its details and location this way.
+[View kinds](toolkit.md#views).
+
+Managed-demo checks at 1366 and 390 px switched between service record URLs,
+used Back and Forward and reloaded. They checked the shown record, location
+bar and identity of the layout elements. A delayed response for an older
+selection left the newer record on screen.
